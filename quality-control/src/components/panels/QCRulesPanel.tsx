@@ -1,4 +1,3 @@
-import React from 'react';
 import type { QCRulesPanelProps } from '../../types/qc.types';
 
 const QCRulesPanel: React.FC<QCRulesPanelProps> = ({ qcRules }) => {
