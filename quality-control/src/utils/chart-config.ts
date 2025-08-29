@@ -1,5 +1,7 @@
-import { ChartDataPoint } from '../types/qc.types';
+import type { ChartDataPoint } from '../types/qc.types';
 import { calculateZScore, getPointColor } from './qc-calculations';
+import type { TooltipItem } from 'chart.js';
+
 
 export const createChartConfig = (
   data: ChartDataPoint[], 
@@ -96,7 +98,7 @@ export const createChartConfig = (
         title: {
           display: true,
           text: 'Levey-Jennings Quality Control Chart',
-          font: { size: 20, weight: 'bold' },
+          font: { size: 20, weight: 'bold' as const },
           color: '#1f2937',
         },
         legend: {
@@ -108,7 +110,7 @@ export const createChartConfig = (
         },
         tooltip: {
           callbacks: {
-            afterLabel: function(context: any) {
+            afterLabel: function(context: TooltipItem<'line'>) {
               const point = data[context.dataIndex];
               const zScore = calculateZScore(point.value, mean, sd).toFixed(2);
               return [`Date: ${point.timestamp}`, `Z-Score: ${zScore}`];
@@ -121,7 +123,7 @@ export const createChartConfig = (
           title: {
             display: true,
             text: 'Sample Number',
-            font: { size: 14, weight: 'bold' }
+            font: { size: 14, weight: 'bold' as const }
           },
           grid: {
             color: '#e5e7eb'
@@ -131,7 +133,7 @@ export const createChartConfig = (
           title: {
             display: true,
             text: 'OD Value',
-            font: { size: 14, weight: 'bold' }
+            font: { size: 14, weight: 'bold' as const }
           },
           suggestedMin: mean - 3.5 * sd,
           suggestedMax: mean + 3.5 * sd,

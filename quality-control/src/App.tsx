@@ -1,6 +1,6 @@
 import React from 'react';
 import QCDashboard from './components/dashboard/QCDashboard';
-import './index.css'; // Make sure Tailwind CSS is imported
+import './index.css'; 
 
 const App: React.FC = () => {
   return (

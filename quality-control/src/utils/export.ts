@@ -1,4 +1,4 @@
-import { ChartDataPoint, QCStatistics, QCParameters } from '../types/qc.types';
+import type { ChartDataPoint, QCStatistics, QCParameters } from '../types/qc.types';
 import { calculateZScore } from './qc-calculations';
 
 export const exportToCSV = (

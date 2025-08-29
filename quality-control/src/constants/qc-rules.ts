@@ -1,4 +1,4 @@
-import { QCRule } from '../types/qc.types';
+import type { QCRule } from '../types/qc.types';
 
 export const DEFAULT_QC_RULES: Omit<QCRule, 'violated'>[] = [
   { 

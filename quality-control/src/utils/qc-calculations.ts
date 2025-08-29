@@ -1,4 +1,4 @@
-import { ChartDataPoint, QCStatistics, QCParameters, QCRule } from '../types/qc.types';
+import type { ChartDataPoint, QCStatistics, QCParameters, QCRule } from '../types/qc.types';
 import { DEFAULT_QC_RULES } from '../constants/qc-rules';
 
 export const calculateStatistics = (data: ChartDataPoint[]): QCStatistics => {
