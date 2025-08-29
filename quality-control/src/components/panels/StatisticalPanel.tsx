@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
-import { StatisticsPanelProps } from '../../types/qc.types';
+import type { StatisticsPanelProps } from '../../types/qc.types';
 
 const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ statistics, hasViolations }) => {
   return (

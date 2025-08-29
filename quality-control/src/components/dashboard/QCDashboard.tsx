@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChartDataPoint, QCParameters } from '../../types/qc.types';
+import type { ChartDataPoint, QCParameters } from '../../types/qc.types';
 import { useQCLogic } from '../../hooks/useQCLogic';
 import { exportToCSV, validateODValue } from '../../utils/export';
 import { DEFAULT_PARAMETERS, SAMPLE_DATA } from '../../constants/qc-rules';

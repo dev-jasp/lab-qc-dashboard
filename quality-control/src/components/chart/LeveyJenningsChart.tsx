@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as Chart from 'chart.js';
-import { LeveyJenningsChartProps } from '../../types/qc.types';
+import type { LeveyJenningsChartProps } from '../../types/qc.types';
 import { createChartConfig } from '../../utils/chart-config';
 
 const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({ 

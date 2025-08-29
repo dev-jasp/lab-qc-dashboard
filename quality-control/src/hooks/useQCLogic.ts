@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChartDataPoint, QCParameters, QCStatistics, QCRule } from '../types/qc.types';
+import type { ChartDataPoint, QCParameters, QCStatistics, QCRule } from '../types/qc.types';
 import { calculateStatistics, evaluateQCRules } from '../utils/qc-calculations';
 
 export const useQCLogic = (data: ChartDataPoint[], parameters: QCParameters) => {
