@@ -1,4 +1,3 @@
-import React from 'react';
 import { Plus, Download } from 'lucide-react';
 import type { InputPanelProps } from '../../types/qc.types';
 import Button from '../ui/Button';

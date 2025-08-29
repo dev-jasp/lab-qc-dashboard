@@ -4,7 +4,7 @@ import { useQCLogic } from '../../hooks/useQCLogic';
 import { exportToCSV, validateODValue } from '../../utils/export';
 import { DEFAULT_PARAMETERS, SAMPLE_DATA } from '../../constants/qc-rules';
 
-// Component imports
+
 import DashboardHeader from '../layout/DashboardHeader';
 import InputPanel from '../panels/InputPanel';
 import StatisticsPanel from '../panels/StatisticsPanel';

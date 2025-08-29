@@ -1,4 +1,4 @@
-// Core data types
+// data types
 export interface ChartDataPoint {
   sample: string;
   value: number;
