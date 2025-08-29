@@ -1,5 +1,7 @@
-import { ChartDataPoint } from '../types/qc.types';
+import type { ChartDataPoint } from '../types/qc.types';
 import { calculateZScore, getPointColor } from './qc-calculations';
+import type { TooltipItem } from 'chart.js';
+
 
 export const createChartConfig = (
   data: ChartDataPoint[], 
@@ -108,7 +110,7 @@ export const createChartConfig = (
         },
         tooltip: {
           callbacks: {
-            afterLabel: function(context: any) {
+            afterLabel: function(context: TooltipItem<'line'>) {
               const point = data[context.dataIndex];
               const zScore = calculateZScore(point.value, mean, sd).toFixed(2);
               return [`Date: ${point.timestamp}`, `Z-Score: ${zScore}`];
