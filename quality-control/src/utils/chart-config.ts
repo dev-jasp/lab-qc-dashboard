@@ -98,7 +98,7 @@ export const createChartConfig = (
         title: {
           display: true,
           text: 'Levey-Jennings Quality Control Chart',
-          font: { size: 20, weight: 'bold' },
+          font: { size: 20, weight: 'bold' as const },
           color: '#1f2937',
         },
         legend: {
@@ -123,7 +123,7 @@ export const createChartConfig = (
           title: {
             display: true,
             text: 'Sample Number',
-            font: { size: 14, weight: 'bold' }
+            font: { size: 14, weight: 'bold' as const }
           },
           grid: {
             color: '#e5e7eb'
@@ -133,7 +133,7 @@ export const createChartConfig = (
           title: {
             display: true,
             text: 'OD Value',
-            font: { size: 14, weight: 'bold' }
+            font: { size: 14, weight: 'bold' as const }
           },
           suggestedMin: mean - 3.5 * sd,
           suggestedMax: mean + 3.5 * sd,
