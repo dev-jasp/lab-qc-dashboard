@@ -13,7 +13,6 @@ import {
 import type { LeveyJenningsChartProps } from '../../types/qc.types';
 import { createChartConfig } from '../../utils/chart-config';
 
-// Register Chart.js components
 ChartJS.register(
   LineController,
   LineElement,
