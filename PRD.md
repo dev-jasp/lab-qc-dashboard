@@ -1,5 +1,5 @@
 # Product Requirements Document
-# Precision Archive — Quality Control Monitor
+# QC Pulse - Quality Control Monitor
 
 **Version:** 1.0  
 **Status:** Draft  
@@ -27,7 +27,7 @@
 
 ## 1. Summary
 
-**Precision Archive** is a web-based Quality Control (QC) monitoring application for clinical and diagnostic laboratories. It enables laboratory technicians to record, visualize, and evaluate control sample results in real time using industry-standard statistical methods — specifically Levey-Jennings charting and Westgard multi-rule analysis.
+**QC Pulse** is a web-based Quality Control (QC) monitoring application for clinical and diagnostic laboratories. It enables laboratory technicians to record, visualize, and evaluate control sample results in real time using industry-standard statistical methods — specifically Levey-Jennings charting and Westgard multi-rule analysis.
 
 The goal of V1 is to deliver a reliable, regulation-aware QC monitoring tool that replaces manual spreadsheet-based tracking, reduces human error in violation detection, and provides a defensible audit trail for accreditation purposes.
 
@@ -43,7 +43,7 @@ Clinical laboratories are required to perform Quality Control testing to ensure 
 
 This approach is error-prone, time-consuming, and difficult to audit. Westgard rule violations can be missed or misidentified, and there is no standardized way to document corrective actions taken.
 
-**Precision Archive** addresses this by providing a purpose-built digital tool that automates violation detection, structures the recording workflow, and maintains a complete, timestamped audit trail.
+**QC Pulse** addresses this by providing a purpose-built digital tool that automates violation detection, structures the recording workflow, and maintains a complete, timestamped audit trail.
 
 ---
 

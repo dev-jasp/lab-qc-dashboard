@@ -116,11 +116,12 @@ export const createChartConfig = (
         legend: {
           position: 'top' as const,
           labels: {
-            boxWidth: 12,
-            boxHeight: 12,
+            boxWidth: 28,
+            boxHeight: 2,
+            borderRadius: 0,
             padding: 15,
             font: { size: 12, family: "'Manrope', sans-serif" },
-            usePointStyle: true,
+            usePointStyle: false,
             color: '#64748B',
             filter: (legendItem: LegendItem) => !['+1SD', '-1SD'].includes(legendItem.text)
           }
