@@ -28,7 +28,7 @@ export function DashboardHeader({ activeTab = 'monitor' }: DashboardHeaderProps)
               <Activity className="text-white" size={24} />
             </div>
             <span className="text-sm font-bold uppercase tracking-wider" style={{ color: '#1A1C1C' }}>
-              PRECISION ARCHIVE
+              QC PULSE
             </span>
           </Link>
 

@@ -1,4 +1,4 @@
-# AGENTS.md - Precision Archive
+# AGENTS.md - QC Pulse
 
 This file is the source of truth for agentic coding sessions on this project.
 Read it fully before touching any code.
@@ -7,7 +7,7 @@ Read it fully before touching any code.
 
 ## Project Overview
 
-**Precision Archive** is a web-based clinical laboratory QC monitor.
+**QC Pulse** is a web-based clinical laboratory QC monitor.
 It performs Levey-Jennings analysis on Optical Density (OD) runs, surfaces Westgard-style QC status, and is being organized into disease-specific monitor flows for surveillance work.
 
 The current product direction is:

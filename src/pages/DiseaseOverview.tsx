@@ -12,11 +12,6 @@ const toneLabel = {
   critical: 'Out of bounds',
 } as const;
 
-const toneColor = {
-  normal: '#0000FF',
-  warning: '#B45309',
-  critical: '#991B1B',
-} as const;
 
 export function DiseaseOverview() {
   const { disease } = useParams();
@@ -43,6 +38,12 @@ export function DiseaseOverview() {
   }
 
   const controls = getDiseaseControls(diseaseConfig.slug);
+  const warningCount = controls.filter((control) => control.tone === 'warning').length;
+  const criticalCount = controls.filter((control) => control.tone === 'critical').length;
+  const latestTimestamp = controls
+    .flatMap((control) => control.data.map((point) => point.timestamp))
+    .sort()
+    .at(-1);
 
   return (
     <div className="min-h-screen bg-[#F9F9F9]">
@@ -74,6 +75,42 @@ export function DiseaseOverview() {
               {diseaseConfig.assayTag}
             </div>
           </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <div
+              className="rounded-xl border px-4 py-3"
+              style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: '#64748B' }}>
+                Controls
+              </p>
+              <p className="mt-1 text-lg font-bold" style={{ color: '#111827' }}>
+                {controls.length} active
+              </p>
+            </div>
+            <div
+              className="rounded-xl border px-4 py-3"
+              style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: '#64748B' }}>
+                QC Status
+              </p>
+              <p className="mt-1 text-lg font-bold" style={{ color: criticalCount > 0 ? '#991B1B' : warningCount > 0 ? '#B45309' : '#0F766E' }}>
+                {criticalCount > 0 ? `${criticalCount} action required` : warningCount > 0 ? `${warningCount} watchlist` : 'All stable'}
+              </p>
+            </div>
+            <div
+              className="rounded-xl border px-4 py-3"
+              style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: '#64748B' }}>
+                Last Updated
+              </p>
+              <p className="mt-1 text-lg font-bold" style={{ color: '#111827' }}>
+                {latestTimestamp ?? 'No runs'}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -82,32 +119,13 @@ export function DiseaseOverview() {
 
             return (
               <div key={control.slug} className="space-y-4">
-                <div className="rounded-xl border border-[#F3F3F3] bg-white p-5 shadow">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h2 className="text-xl font-bold" style={{ color: '#1A1C1C' }}>
-                        {control.label}
-                      </h2>
-                      <p className="text-sm mt-2" style={{ color: '#64748B' }}>
-                        {control.note}
-                      </p>
-                    </div>
-                    <span
-                      className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]"
-                      style={{ backgroundColor: `${toneColor[control.tone]}14`, color: toneColor[control.tone] }}
-                    >
-                      {toneLabel[control.tone]}
-                    </span>
-                  </div>
-                </div>
-
                 <LeveyJenningsChart
                   data={control.data}
                   statistics={statistics}
                   parameters={control.parameters}
                   title={control.label}
                   height={280}
-                  badgeLabel={control.shortLabel}
+                  badgeLabel={toneLabel[control.tone]}
                 />
 
                 <Link
