@@ -1,13 +1,13 @@
-import type { ChartDataPoint } from '../types/qc.types';
+import type { ChartConfiguration, LegendItem, TooltipItem } from 'chart.js';
+import type { ChartDataPoint as QCChartDataPoint } from '../types/qc.types';
 import { calculateZScore, getPointColor } from './qc-calculations';
-import type { TooltipItem } from 'chart.js';
 
 
 export const createChartConfig = (
-  data: ChartDataPoint[], 
-  mean: number, 
+  data: QCChartDataPoint[],
+  mean: number,
   sd: number
-) => {
+): ChartConfiguration<'line'> => {
   const pointColors = data.map(d => {
     const zScore = calculateZScore(d.value, mean, sd);
     return getPointColor(zScore);
@@ -19,20 +19,9 @@ export const createChartConfig = (
       labels: data.map((d) => d.sample),
       datasets: [
         {
-          label: 'QC Data',
-          data: data.map((d) => d.value),
-          borderColor: '#1f77b4',
-          backgroundColor: pointColors,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: pointColors,
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          fill: false,
-        },
-        {
-          label: 'Target Mean',
+          label: 'OD MEAN',
           data: Array(data.length).fill(mean),
-          borderColor: '#059669',
+          borderColor: '#A89F91',
           borderWidth: 2,
           pointRadius: 0,
           fill: false,
@@ -40,7 +29,7 @@ export const createChartConfig = (
         {
           label: '+1SD',
           data: Array(data.length).fill(mean + sd),
-          borderColor: '#65a30d',
+          borderColor: '#A89F91',
           borderWidth: 1,
           pointRadius: 0,
           fill: false,
@@ -49,44 +38,62 @@ export const createChartConfig = (
         {
           label: '-1SD',
           data: Array(data.length).fill(mean - sd),
-          borderColor: '#65a30d',
+          borderColor: '#A89F91',
           borderWidth: 1,
           pointRadius: 0,
           fill: false,
           borderDash: [5, 5],
         },
         {
-          label: '+2SD',
+          label: '+2 SD',
           data: Array(data.length).fill(mean + 2 * sd),
-          borderColor: '#f59e0b',
+          borderColor: '#FFA500',
           borderWidth: 1,
           pointRadius: 0,
           fill: false,
           borderDash: [3, 3],
         },
         {
-          label: '-2SD',
+          label: '-2 SD',
           data: Array(data.length).fill(mean - 2 * sd),
-          borderColor: '#f59e0b',
+          borderColor: '#FFA500',
           borderWidth: 1,
           pointRadius: 0,
           fill: false,
           borderDash: [3, 3],
         },
         {
-          label: '+3SD',
+          label: '+3 SD',
           data: Array(data.length).fill(mean + 3 * sd),
-          borderColor: '#dc2626',
+          borderColor: '#B22222',
           borderWidth: 2,
           pointRadius: 0,
           fill: false,
         },
         {
-          label: '-3SD',
+          label: '-3 SD',
           data: Array(data.length).fill(mean - 3 * sd),
-          borderColor: '#dc2626',
+          borderColor: '#B22222',
           borderWidth: 2,
           pointRadius: 0,
+          fill: false,
+        },
+        {
+          label: 'OD',
+          data: data.map((d) => d.value),
+          borderColor: '#0000FF',
+          borderWidth: 2,
+          borderJoinStyle: 'round' as const,
+          borderCapStyle: 'round' as const,
+          backgroundColor: pointColors,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          pointBorderWidth: 1,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointHitRadius: 8,
+          tension: 0.32,
+          cubicInterpolationMode: 'monotone' as const,
           fill: false,
         },
       ],
@@ -94,21 +101,39 @@ export const createChartConfig = (
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index' as const,
+      },
       plugins: {
         title: {
           display: true,
           text: 'Levey-Jennings Quality Control Chart',
-          font: { size: 20, weight: 'bold' as const },
-          color: '#1f2937',
+          font: { size: 22, weight: 'bold' as const, family: "'Manrope', sans-serif" },
+          color: '#1A1C1C',
+          padding: { top: 10, bottom: 20 }
         },
         legend: {
           position: 'top' as const,
           labels: {
-            boxWidth: 20,
-            font: { size: 12 }
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 15,
+            font: { size: 12, family: "'Manrope', sans-serif" },
+            usePointStyle: true,
+            color: '#64748B',
+            filter: (legendItem: LegendItem) => !['+1SD', '-1SD'].includes(legendItem.text)
           }
         },
         tooltip: {
+          backgroundColor: 'rgba(26, 28, 28, 0.95)',
+          padding: 12,
+          titleFont: { size: 14, weight: 'bold' as const, family: "'Manrope', sans-serif" },
+          bodyFont: { size: 13, family: "'Manrope', sans-serif" },
+          borderColor: 'rgba(0, 0, 255, 0.5)',
+          borderWidth: 1,
+          cornerRadius: 8,
+          displayColors: true,
           callbacks: {
             afterLabel: function(context: TooltipItem<'line'>) {
               const point = data[context.dataIndex];
@@ -122,23 +147,37 @@ export const createChartConfig = (
         x: {
           title: {
             display: true,
-            text: 'Sample Number',
-            font: { size: 14, weight: 'bold' as const }
+            text: 'Protocol No.',
+            font: { size: 14, weight: 600, family: "'Manrope', sans-serif" },
+            color: '#64748B',
+            padding: { top: 10 }
           },
           grid: {
-            color: '#e5e7eb'
+            color: '#E2E8F0',
+            lineWidth: 1
+          },
+          ticks: {
+            font: { size: 11, family: "'Manrope', sans-serif" },
+            color: '#64748B'
           }
         },
         y: {
           title: {
             display: true,
             text: 'OD Value',
-            font: { size: 14, weight: 'bold' as const }
+            font: { size: 14, weight: 600, family: "'Manrope', sans-serif" },
+            color: '#64748B',
+            padding: { bottom: 10 }
           },
           suggestedMin: mean - 3.5 * sd,
           suggestedMax: mean + 3.5 * sd,
           grid: {
-            color: '#e5e7eb'
+            color: '#E2E8F0',
+            lineWidth: 1
+          },
+          ticks: {
+            font: { size: 11, family: "'Manrope', sans-serif" },
+            color: '#64748B'
           }
         },
       },

@@ -1,36 +1,93 @@
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { Activity, BarChart3, Calculator, Gauge, Microscope, Sigma } from 'lucide-react';
 import type { StatisticsPanelProps } from '../../types/qc.types';
 
-const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ statistics, hasViolations }) => {
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800">Statistics</h3>
-      
-      <div className="space-y-3">
-        <div className="bg-blue-50 rounded-lg p-3 transition-colors hover:bg-blue-100">
-          <div className="text-sm text-blue-600 font-medium">Current Mean</div>
-          <div className="text-2xl font-bold text-blue-800">{statistics.mean.toFixed(3)}</div>
-        </div>
-        
-        <div className="bg-purple-50 rounded-lg p-3 transition-colors hover:bg-purple-100">
-          <div className="text-sm text-purple-600 font-medium">Current SD</div>
-          <div className="text-2xl font-bold text-purple-800">{statistics.sd.toFixed(3)}</div>
-        </div>
-        
-        <div className="bg-gray-50 rounded-lg p-3 transition-colors hover:bg-gray-100">
-          <div className="text-sm text-gray-600 font-medium">Total Samples</div>
-          <div className="text-2xl font-bold text-gray-800">{statistics.sampleCount}</div>
-        </div>
+const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ runStatistics }) => {
+  const statCards = [
+    {
+      label: 'Mean',
+      value: runStatistics.mean.toFixed(3),
+      icon: BarChart3,
+      accent: '#0000FF'
+    },
+    {
+      label: 'SD',
+      value: runStatistics.sd.toFixed(3),
+      icon: Activity,
+      accent: '#4F46E5'
+    },
+    {
+      label: 'Sum',
+      value: runStatistics.sum.toFixed(3),
+      icon: Sigma,
+      accent: '#0F766E'
+    },
+    {
+      label: 'CV',
+      value: `${runStatistics.cv.toFixed(1)}%`,
+      icon: Calculator,
+      accent: '#B45309'
+    },
+    {
+      label: 'Last OD',
+      value: runStatistics.lastOD === null ? '-' : runStatistics.lastOD.toFixed(3),
+      icon: Microscope,
+      accent: '#7C3AED'
+    },
+    {
+      label: 'Total Runs',
+      value: runStatistics.totalRuns.toString(),
+      icon: Gauge,
+      accent: '#334155'
+    },
+    {
+      label: 'Confidence',
+      value: `${runStatistics.confidence.toFixed(1)}%`,
+      icon: Activity,
+      accent: '#047857'
+    }
+  ];
 
-        <div className={`${hasViolations ? 'bg-red-50 hover:bg-red-100' : 'bg-green-50 hover:bg-green-100'} rounded-lg p-3 transition-colors`}>
-          <div className={`text-sm font-medium flex items-center gap-2 ${hasViolations ? 'text-red-600' : 'text-green-600'}`}>
-            {hasViolations ? <AlertTriangle size={16} /> : <CheckCircle size={16} />}
-            QC Status
+  return (
+    <div style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }} className="rounded-xl shadow border p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div style={{ background: '#0000FF' }} className="p-1.5 rounded-lg">
+            <BarChart3 className="text-white" size={16} />
           </div>
-          <div className={`text-lg font-bold ${hasViolations ? 'text-red-800' : 'text-green-800'}`}>
-            {hasViolations ? 'Out of Control' : 'In Control'}
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: '#1A1C1C' }}>Run Statistics</h3>
+            <p className="text-xs uppercase tracking-wide" style={{ color: '#64748B' }}>
+              Analytical summary of the active QC run set
+            </p>
           </div>
         </div>
+        <div style={{ backgroundColor: '#F9F9F9', color: '#64748B' }} className="rounded-full px-3 py-1 text-[11px]">
+          {runStatistics.totalRuns} runs
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 auto-rows-fr">
+        {statCards.map((card) => {
+          const Icon = card.icon;
+
+          return (
+            <div
+              key={card.label}
+              style={{ backgroundColor: '#F9F9F9', borderColor: '#E5EAF2' }}
+              className="rounded-lg border p-3 min-h-[92px] h-full flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#2563EB' }}>
+                  {card.label}
+                </span>
+                <Icon size={14} style={{ color: card.accent }} />
+              </div>
+              <div className="text-lg font-bold leading-none" style={{ color: '#1A1C1C' }}>
+                {card.value}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

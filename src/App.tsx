@@ -1,13 +1,11 @@
 import React from 'react';
-import QCDashboard from './components/dashboard/QCDashboard';
+import { RouterProvider } from 'react-router-dom';
+
+import { router } from '@/router';
 import './index.css'; 
 
 const App: React.FC = () => {
-  return (
-    <div className="App">
-      <QCDashboard />
-    </div>
-  );
+  return <RouterProvider router={router} />;
 };
 
 export default App;

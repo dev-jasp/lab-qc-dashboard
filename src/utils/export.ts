@@ -10,7 +10,7 @@ export const exportToCSV = (
   const sd = statistics.sd || parameters.targetSD;
 
   const csv = [
-    ['Sample', 'OD Value', 'Date', 'Z-Score'],
+    ['Protocol No.', 'OD Value', 'Date', 'Z-Score'],
     ...data.map(d => {
       const zScore = calculateZScore(d.value, mean, sd).toFixed(3);
       return [d.sample, d.value, d.timestamp, zScore];

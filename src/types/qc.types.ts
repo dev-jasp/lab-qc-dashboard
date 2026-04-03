@@ -22,16 +22,31 @@ export interface QCParameters {
   targetSD: number;
 }
 
+export type RunStatisticsSummary = {
+  mean: number;
+  sd: number;
+  sum: number;
+  cv: number;
+  lastOD: number | null;
+  totalRuns: number;
+  confidence: number;
+};
+
 // Component prop types
 export interface LeveyJenningsChartProps {
   data: ChartDataPoint[];
   statistics: QCStatistics;
   parameters: QCParameters;
+  title?: string;
+  height?: number;
+  badgeLabel?: string;
 }
 
 export interface InputPanelProps {
   newOD: string;
   setNewOD: (value: string) => void;
+  protocolNo: string;
+  setProtocolNo: (value: string) => void;
   onAddOD: () => void;
   parameters: QCParameters;
   onParametersChange: (params: QCParameters) => void;
@@ -40,8 +55,7 @@ export interface InputPanelProps {
 }
 
 export interface StatisticsPanelProps {
-  statistics: QCStatistics;
-  hasViolations: boolean;
+  runStatistics: RunStatisticsSummary;
 }
 
 export interface QCRulesPanelProps {

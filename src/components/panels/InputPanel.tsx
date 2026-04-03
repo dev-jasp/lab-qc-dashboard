@@ -1,76 +1,82 @@
-import { Plus, Download } from 'lucide-react';
 import type { InputPanelProps } from '../../types/qc.types';
-import Button from '../ui/Button';
-import Input from '../ui/Input';
 
 const InputPanel: React.FC<InputPanelProps> = ({
   newOD,
   setNewOD,
-  onAddOD,
-  parameters,
-  onParametersChange,
-  onExport,
-  onClear
+  protocolNo,
+  setProtocolNo,
+  onAddOD
 }) => {
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800">Add New OD Reading</h3>
-      
-      <div className="space-y-4">
-        <Input
-          label="OD Value"
-          type="number"
-          step="0.001"
-          value={newOD}
-          onChange={setNewOD}
-          placeholder="Enter OD value"
-          onKeyPress={(e) => e.key === 'Enter' && onAddOD()}
-        />
-        
-        <Button onClick={onAddOD} className="w-full">
-          <Plus size={16} />
-          Add Reading
-        </Button>
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onAddOD();
+  };
 
-        <div className="pt-4 border-t">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Target Parameters</h4>
-          <div className="space-y-2">
-            <Input
-              label="Mean"
-              type="number"
-              step="0.001"
-              value={parameters.targetMean.toString()}
-              onChange={(value) => onParametersChange({
-                ...parameters,
-                targetMean: parseFloat(value) || 0
-              })}
-              size="sm"
-            />
-            <Input
-              label="SD"
-              type="number"
-              step="0.001"
-              value={parameters.targetSD.toString()}
-              onChange={(value) => onParametersChange({
-                ...parameters,
-                targetSD: parseFloat(value) || 0
-              })}
-              size="sm"
-            />
-          </div>
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-5 text-white h-full flex flex-col"
+      style={{ 
+        background: 'linear-gradient(135deg, #0000FF 0%, #0000CC 100%)',
+        color: 'white'
+      }}
+    >
+      <style>{`
+        input[type="text"] {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+        }
+      `}</style>
+      
+      <div className="space-y-3 mb-5">
+        <div>
+          <label className="block text-xs font-semibold text-blue-50 mb-1.5">OD VALUE (ABS)</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={newOD}
+            onChange={(e) => setNewOD(e.target.value)}
+            placeholder="0.000"
+            autoComplete="off"
+            style={{
+              backgroundColor: 'white',
+              color: '#0000FF',
+              border: '2px solid white'
+            }}
+            className="w-full rounded-lg px-3.5 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={onExport} variant="success" size="sm" className="flex-1">
-            <Download size={14} />
-            Export
-          </Button>
-          <Button onClick={onClear} variant="danger" size="sm" className="flex-1">
-            Clear
-          </Button>
+        <div>
+          <label className="block text-xs font-semibold text-blue-50 mb-1.5">PROTOCOL NO.</label>
+          <input
+            type="text"
+            value={protocolNo}
+            onChange={(e) => setProtocolNo(e.target.value)}
+            placeholder="Enter protocol number"
+            autoComplete="off"
+            style={{
+              backgroundColor: 'white',
+              color: '#0000FF',
+              border: '2px solid white'
+            }}
+            className="w-full rounded-lg px-3.5 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
         </div>
       </div>
-    </div>
+
+      <button
+        type="submit"
+        style={{
+          backgroundColor: 'white',
+          color: '#0000FF'
+        }}
+        className="w-full text-sm font-bold py-2 rounded-lg hover:bg-blue-50 transition-colors mt-auto"
+      >
+        Submit Recording →
+      </button>
+    </form>
   );
 };
 
