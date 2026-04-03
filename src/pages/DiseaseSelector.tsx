@@ -87,19 +87,18 @@ export function DiseaseSelector() {
               </h1>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {DISEASE_DEFINITIONS.map((disease) => {
                 const backgroundImage = diseaseCardBackgrounds[disease.slug];
                 const backgroundStyle = diseaseBackgroundStyles[disease.slug];
+                const cardSpanClass = disease.slug === 'dengue' ? 'md:col-span-2' : '';
 
                 return (
                   <Link
                     key={disease.slug}
                     to={`/monitor/${disease.slug}`}
                     style={{ borderColor: '#F3F3F3', backgroundColor: '#FAFAFA' }}
-                    className={`group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-                      disease.featured ? 'md:col-span-2 xl:col-span-2' : ''
-                    }`}
+                    className={`group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${cardSpanClass}`}
                   >
                     {backgroundImage && (
                       <img
@@ -133,7 +132,11 @@ export function DiseaseSelector() {
                     <div className="relative z-10 min-h-[260px] flex flex-col">
                       <div
                         className={`flex h-full flex-col rounded-2xl border p-4 shadow-[0_14px_30px_rgba(15,23,42,0.08)] backdrop-blur-[1px] ${
-                          disease.featured ? 'max-w-[62%]' : 'max-w-[80%]'
+                          disease.slug === 'dengue'
+                            ? 'max-w-[48%] md:max-w-[42%]'
+                            : disease.featured
+                              ? 'max-w-[62%]'
+                              : 'max-w-[80%]'
                         }`}
                         style={{
                           backgroundColor: 'rgba(248, 250, 255, 0.80)',
