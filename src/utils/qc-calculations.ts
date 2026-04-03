@@ -82,8 +82,8 @@ export const calculateZScore = (value: number, mean: number, sd: number): number
 
 export const getPointColor = (zScore: number): string => {
   const absZScore = Math.abs(zScore);
-  if (absZScore > 3) return '#dc2626'; // Red for >3SD
-  if (absZScore > 2) return '#f59e0b'; // Orange for >2SD
-  if (absZScore > 1) return '#eab308'; // Yellow for >1SD
-  return '#16a34a'; // Green for within 1SD
+  if (absZScore > 3) return '#B22222'; // Firebrick Red for >3SD (critical)
+  if (absZScore > 2) return '#FFA500'; // Orange for >2SD (warning)
+  if (absZScore > 1) return '#A89F91'; // Taupe for >1SD (note)
+  return '#0000FF'; // Clinical Blue for within 1SD (normal)
 };

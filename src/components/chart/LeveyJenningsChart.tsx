@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { TrendingUp } from 'lucide-react';
 import type { LeveyJenningsChartProps } from '../../types/qc.types';
 import { createChartConfig } from '../../utils/chart-config';
 
@@ -27,7 +28,10 @@ ChartJS.register(
 const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({ 
   data, 
   statistics, 
-  parameters 
+  parameters,
+  title = 'Quality Control Chart',
+  height = 550,
+  badgeLabel
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<ChartJS | null>(null);
@@ -94,8 +98,19 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
   });
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div style={{ height: '500px', position: 'relative' }}>
+    <div style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }} className="rounded-xl shadow border p-6 hover:shadow-xl transition-shadow duration-300">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div style={{ background: '#0000FF' }} className="p-2 rounded-lg">
+            <TrendingUp className="text-white" size={20} />
+          </div>
+          <h3 className="text-lg font-semibold" style={{ color: '#1A1C1C' }}>{title}</h3>
+        </div>
+        <div style={{ backgroundColor: '#F9F9F9', color: '#64748B' }} className="rounded-full px-4 py-1.5 text-xs">
+          {badgeLabel ?? `${data.length} data points`}
+        </div>
+      </div>
+      <div style={{ height: `${height}px`, position: 'relative' }}>
         <canvas 
           ref={canvasRef}
           style={{ 
