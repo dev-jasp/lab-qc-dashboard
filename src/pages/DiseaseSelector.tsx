@@ -2,46 +2,8 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
+import { diseaseCardBackgrounds } from '@/constants/landing-images';
 import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
-
-const diseaseCardBackgrounds: Partial<Record<(typeof DISEASE_DEFINITIONS)[number]['slug'], string>> = {
-  measles: '/images/measles.png',
-  rubella: '/images/rubella.png',
-  rotavirus: '/images/rotavirus.png',
-  'japanese-encephalitis': '/images/japanese-encephalitis.png',
-  dengue: '/images/dengue.png',
-};
-
-const preloadedDiseaseImages: HTMLImageElement[] = [];
-let hasPreloadedDiseaseImages = false;
-
-const preloadDiseaseCardImages = () => {
-  if (hasPreloadedDiseaseImages || typeof window === 'undefined') {
-    return;
-  }
-
-  hasPreloadedDiseaseImages = true;
-
-  Object.values(diseaseCardBackgrounds).forEach((src) => {
-    if (!src) {
-      return;
-    }
-
-    const image = new Image();
-    image.src = src;
-    image.decoding = 'async';
-
-    if (typeof image.decode === 'function') {
-      void image.decode().catch(() => {
-        // Ignore decode failures and allow the browser cache to handle fallback painting.
-      });
-    }
-
-    preloadedDiseaseImages.push(image);
-  });
-};
-
-preloadDiseaseCardImages();
 
 const diseaseCardDescriptions: Record<(typeof DISEASE_DEFINITIONS)[number]['slug'], string> = {
   measles:
