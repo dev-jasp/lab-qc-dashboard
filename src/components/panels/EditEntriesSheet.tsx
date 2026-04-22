@@ -145,7 +145,7 @@ export function EditEntriesSheet({
                   <div
                     key={entry.id}
                     className="group rounded-xl border border-[#E5EAF2] bg-white p-4 shadow-sm"
-                    title={isSigned ? 'Signed — cannot edit' : undefined}
+                    title={isSigned ? 'Signed - cannot edit' : undefined}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -167,7 +167,7 @@ export function EditEntriesSheet({
                       </div>
 
                       {isSigned ? (
-                        <div className="flex items-center text-[#64748B]" title="Signed — cannot edit">
+                        <div className="flex items-center text-[#64748B]" title="Signed - cannot edit">
                           <Lock size={16} />
                         </div>
                       ) : (
@@ -213,7 +213,7 @@ export function EditEntriesSheet({
                               value={editReason}
                               maxLength={200}
                               onChange={(event) => setEditReason(event.target.value)}
-                              placeholder="e.g. Transcription error — wrong value recorded"
+                              placeholder="e.g. Transcription error - wrong value recorded"
                               className="w-full rounded-lg border border-[#DCE4F2] px-3 py-2 text-sm outline-none transition focus:border-[#0000FF]"
                             />
                           </div>

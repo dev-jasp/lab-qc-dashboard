@@ -103,7 +103,6 @@ export type EntryFormValues = {
   date: string;
   odValue: string;
   protocolNumber: string;
-  remarks: string;
 };
 
 export type LotMetadata = {

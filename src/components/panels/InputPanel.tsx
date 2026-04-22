@@ -82,18 +82,6 @@ export default function InputPanel({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-blue-50">REMARKS</label>
-          <textarea
-            value={formValues.remarks}
-            onChange={(event) => onFieldChange('remarks', event.target.value)}
-            placeholder="Optional remarks"
-            disabled={isReadOnly}
-            maxLength={200}
-            rows={3}
-            className={`${fieldClassName} min-h-[92px] resize-none`}
-          />
-        </div>
       </div>
 
       <button

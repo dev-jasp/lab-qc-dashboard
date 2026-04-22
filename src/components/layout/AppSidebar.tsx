@@ -18,6 +18,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
 import { clearSession, getAllViolations, getSession } from '@/lib/qcStorage';
 import type { ControlTypeSlug, DiseaseSlug, QCSession } from '@/types/qc.types';
+import { cn } from '@/utils/cn';
 
 import {
   Sidebar,
@@ -138,6 +139,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { open, isMobile, setOpenMobile } = useSidebar();
+  const [mounted, setMounted] = React.useState(false);
   const [session, setSession] = React.useState<QCSession | null>(null);
   const [openViolationCount, setOpenViolationCount] = React.useState(0);
   const [openDiseases, setOpenDiseases] = React.useState<Record<string, boolean>>({});
@@ -145,15 +147,12 @@ export function AppSidebar() {
   const activeControl = getActiveControl(location.pathname);
 
   React.useEffect(() => {
-    if (activeDisease === null) {
-      return;
-    }
+    const timer = window.setTimeout(() => setMounted(true), 50);
 
-    setOpenDiseases((currentValue) => ({
-      ...currentValue,
-      [activeDisease]: true,
-    }));
-  }, [activeDisease]);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   React.useEffect(() => {
     let isCancelled = false;
@@ -185,10 +184,10 @@ export function AppSidebar() {
     };
   }, [location.pathname]);
 
-  const handleDiseaseToggle = (disease: DiseaseSlug) => {
+  const handleDiseaseToggle = (disease: DiseaseSlug, nextOpen: boolean) => {
     setOpenDiseases((currentValue) => ({
       ...currentValue,
-      [disease]: !currentValue[disease],
+      [disease]: nextOpen,
     }));
   };
 
@@ -212,25 +211,26 @@ export function AppSidebar() {
 
   return (
     <TooltipProvider>
-      <Sidebar variant="sidebar" collapsible="icon" className="relative">
-        <SidebarHeader>
+      <Sidebar variant="sidebar" collapsible="icon" className={cn('relative', !mounted && 'no-transition')}>
+        <SidebarHeader className="pr-16">
           <SidebarTooltip label="QC Pulse">
             <button
               type="button"
               onClick={() => handleSidebarNavigate('/monitor')}
-              className={`flex w-full items-center rounded-xl transition ${open || isMobile ? 'justify-start gap-3 px-2 py-2' : 'justify-center py-2'}`}
+              className={`flex w-full items-center rounded-xl px-2 py-2 transition ${open || isMobile ? 'justify-start' : 'justify-center'}`}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-blue)] text-white shadow-sm">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-blue)] text-white shadow-sm">
                 <Gauge size={17} />
               </div>
-              {(open || isMobile) && (
-                <div className="min-w-0 text-left">
-                  <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">QC PULSE</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9ca3af]">
-                    Laboratory System
-                  </p>
-                </div>
-              )}
+              <div
+                data-sidebar-label=""
+                className="ml-3 flex min-w-0 flex-col overflow-hidden whitespace-nowrap text-left [--sidebar-label-width:11rem]"
+              >
+                <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">QC PULSE</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9ca3af]">
+                  Laboratory System
+                </p>
+              </div>
             </button>
           </SidebarTooltip>
         </SidebarHeader>
@@ -243,36 +243,43 @@ export function AppSidebar() {
                 {DISEASE_ROUTE_CONFIG.map((disease) => {
                   const Icon = disease.icon;
                   const isCurrentDisease = activeDisease === disease.slug;
-                  const isOpen = openDiseases[disease.slug] ?? isCurrentDisease;
+                  const isOpen = openDiseases[disease.slug] ?? false;
                   const diseaseDisplayName =
                     DISEASE_DEFINITIONS.find((item) => item.slug === disease.slug)?.name ?? disease.name;
 
                   return (
                     <SidebarMenuItem key={disease.slug}>
-                      <CollapsiblePrimitive.Root open={isOpen} onOpenChange={() => handleDiseaseToggle(disease.slug)}>
-                        <CollapsiblePrimitive.Trigger asChild>
-                          <SidebarTooltip label={diseaseDisplayName}>
+                      <CollapsiblePrimitive.Root
+                        open={isOpen}
+                        onOpenChange={(nextOpen) => handleDiseaseToggle(disease.slug, nextOpen)}
+                      >
+                        <SidebarTooltip label={diseaseDisplayName}>
+                          <CollapsiblePrimitive.Trigger asChild>
                             <SidebarMenuButton
                               type="button"
                               isActive={isCurrentDisease}
                               title={diseaseDisplayName}
                               className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl' : undefined}
                             >
-                              <Icon size={17} />
-                              {(open || isMobile) && (
-                                <>
-                                  <span className="flex-1 truncate">{diseaseDisplayName}</span>
-                                  <ChevronDown
-                                    size={16}
-                                    className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                                  />
-                                </>
-                              )}
+                              <Icon size={17} className="shrink-0" />
+                              <div
+                                data-sidebar-label=""
+                                className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
+                              >
+                                <span className="truncate">{diseaseDisplayName}</span>
+                                <ChevronDown
+                                  size={16}
+                                  className={cn(
+                                    'ml-2 shrink-0 transition-transform duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
+                                    isOpen ? 'rotate-180' : 'rotate-0',
+                                  )}
+                                />
+                              </div>
                             </SidebarMenuButton>
-                          </SidebarTooltip>
-                        </CollapsiblePrimitive.Trigger>
+                          </CollapsiblePrimitive.Trigger>
+                        </SidebarTooltip>
 
-                        <CollapsiblePrimitive.Content>
+                        <CollapsiblePrimitive.Content forceMount data-radix-collapsible-content="" className="overflow-hidden">
                           <SidebarMenuSub>
                             {CONTROL_LINKS.map((control) => {
                               const href = `/monitor/${disease.slug}/${control.slug}`;
@@ -322,17 +329,20 @@ export function AppSidebar() {
                           title={route.label}
                           className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl' : undefined}
                         >
-                          <Icon size={17} />
-                          {(open || isMobile) && (
-                            <>
-                              <span className="flex-1">{route.label}</span>
-                              {route.label === 'Violations' && openViolationCount > 0 && (
-                                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[#dc2626] px-1.5 py-0.5 text-[11px] font-semibold text-white">
-                                  {openViolationCount}
-                                </span>
-                              )}
-                            </>
-                          )}
+                          <Icon size={17} className="shrink-0" />
+                          <div
+                            data-sidebar-label=""
+                            className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:8.5rem]"
+                          >
+                            <span className="truncate">{route.label}</span>
+                            {route.label === 'Violations' && openViolationCount > 0 ? (
+                              <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#dc2626] px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                                {openViolationCount}
+                              </span>
+                            ) : (
+                              <span className="w-0" aria-hidden="true" />
+                            )}
+                          </div>
                         </SidebarMenuButton>
                       </SidebarTooltip>
                     </SidebarMenuItem>
@@ -346,7 +356,7 @@ export function AppSidebar() {
         <SidebarFooter>
           {!open && !isMobile ? (
             <div className="flex justify-center">
-              <SidebarTooltip label={`${currentUserName} — ${currentRole} | Logout`}>
+              <SidebarTooltip label={`${currentUserName} - ${currentRole} | Logout`}>
                 <button
                   type="button"
                   onClick={handleLogout}

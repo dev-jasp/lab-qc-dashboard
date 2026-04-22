@@ -130,17 +130,6 @@ const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
   defaultChartView: 'daily',
 };
 
-const FLAG_OPTIONS: { label: string; value: QCEntryFlag }[] = [
-  { label: 'Reagent reconstituted', value: 'reagent_reconstituted' },
-  { label: 'New operator', value: 'new_operator' },
-  { label: 'Equipment maintenance', value: 'equipment_maintenance' },
-  { label: 'Repeat test', value: 'repeat_test' },
-  { label: 'Reagent thawed', value: 'reagent_thawed' },
-  { label: 'Instrument calibrated', value: 'instrument_calibrated' },
-  { label: 'Anomalous result', value: 'anomalous_result' },
-  { label: 'Other', value: 'other' },
-];
-
 function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -150,7 +139,6 @@ function createDefaultEntryForm(): EntryFormValues {
     date: getTodayIsoDate(),
     odValue: '',
     protocolNumber: '',
-    remarks: '',
   };
 }
 
@@ -344,7 +332,7 @@ function buildRecentFlags(entries: QCEntry[], violations: ViolationEntry[]): Rec
     id: violation.id,
     icon: 'warning',
     label: `Rule ${violation.ruleName.replace('_', '-')}${violation.severity === 'warning' ? ' Warning' : ' Rejection'}`,
-    secondary: `${format(parseISO(violation.timestamp), 'MMM dd')} • ${violation.triggeringProtocols[0] ?? 'QC Run'}`,
+    secondary: `${format(parseISO(violation.timestamp), 'MMM dd')} - ${violation.triggeringProtocols[0] ?? 'QC Run'}`,
     severity: violation.severity,
     sortValue: violation.timestamp,
   }));
@@ -355,7 +343,7 @@ function buildRecentFlags(entries: QCEntry[], violations: ViolationEntry[]): Rec
       id: `${entry.id}-flag`,
       icon: 'flag',
       label: getFlagLabel(entry.flag as QCEntryFlag),
-      secondary: `${formatDateLabel(entry.date)} • ${entry.protocolNumber}`,
+      secondary: `${formatDateLabel(entry.date)} - ${entry.protocolNumber}`,
       severity: 'neutral',
       sortValue: getEntryTimestamp(entry),
     }));
@@ -400,7 +388,6 @@ export default function QCDashboard({
   const [lots, setLots] = useState<LotMetadata[]>([]);
   const [selectedLotNumber, setSelectedLotNumber] = useState('');
   const [formValues, setFormValues] = useState<EntryFormValues>(createDefaultEntryForm);
-  const [selectedFlag, setSelectedFlag] = useState<QCEntryFlag | 'none'>('none');
   const [newLotValues, setNewLotValues] = useState<NewLotFormValues>(createDefaultLotForm);
   const [settings, setSettings] = useState<QCSettings>(DEFAULT_SETTINGS_FALLBACK);
   const [isStartLotDialogOpen, setIsStartLotDialogOpen] = useState(false);
@@ -429,7 +416,7 @@ export default function QCDashboard({
   const canEditEntries = canUsePrivilegedActions(currentSession);
   const activeDatasetLotNumber = isInHouseControl ? DEFAULT_IN_HOUSE_LOT_NUMBER : selectedLotNumber;
   const currentCV = cvTrend.currentCV ?? 0;
-  const chartSubtitle = `${controlName.toUpperCase()} • ${diseaseName.toUpperCase()}${assayTag ? ` • ${assayTag}` : ''}`;
+  const chartSubtitle = `${controlName.toUpperCase()} - ${diseaseName.toUpperCase()}${assayTag ? ` - ${assayTag}` : ''}`;
   const minRunsForWestgard = settings.minDataPointsForWestgard;
   const monitorStatus = getMonitorStatus(
     qcRules,
@@ -577,8 +564,8 @@ export default function QCDashboard({
       controlCode: getControlCode(controlType),
       runNumber: String(entries.length + 1).padStart(2, '0'),
       vialNumber: `V${String(entries.length + 1).padStart(2, '0')}`,
-      flag: selectedFlag === 'none' ? null : selectedFlag,
-      notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
+      flag: null,
+      notes: null,
       editedAt: null,
       editReason: null,
       signedBy: null,
@@ -618,7 +605,6 @@ export default function QCDashboard({
       setEntries(updatedEntries);
       setViolations(updatedViolations);
       setFormValues(createDefaultEntryForm());
-      setSelectedFlag('none');
       setHasSubmitted(true);
       success('Entry recorded successfully');
       refreshViolationsEvent();
@@ -776,7 +762,7 @@ export default function QCDashboard({
                   <SelectContent>
                     {lots.map((lot) => (
                       <SelectItem key={lot.lotNumber} value={lot.lotNumber}>
-                        {`${lot.lotNumber} • ${lot.status === 'active' ? 'Active' : 'Archived'} • ${formatDateLabel(lot.startDate)}`}
+                        {`${lot.lotNumber} - ${lot.status === 'active' ? 'Active' : 'Archived'} - ${formatDateLabel(lot.startDate)}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -866,42 +852,12 @@ export default function QCDashboard({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Flag</label>
-              <Select value={selectedFlag} onValueChange={(value) => setSelectedFlag(value as QCEntryFlag | 'none')} disabled={isArchivedLot}>
-                <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white">
-                  <SelectValue placeholder="Select optional flag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">(none)</SelectItem>
-                  {FLAG_OPTIONS.map((flag) => (
-                    <SelectItem key={flag.value} value={flag.value}>
-                      {flag.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Remarks</label>
-              <Textarea
-                rows={2}
-                maxLength={200}
-                placeholder="Optional remarks"
-                value={formValues.remarks}
-                disabled={isArchivedLot}
-                onChange={(event) => handleFieldChange('remarks', event.target.value)}
-                className="min-h-[92px] resize-none border-[#e5e7eb] bg-white px-3 py-2 text-[#111827]"
-              />
-            </div>
-
             <Button
               type="submit"
               disabled={isArchivedLot || isSubmitting}
               className="h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
             >
-              {isSubmitting ? 'Submitting...' : 'SUBMIT RECORDING →'}
+              {isSubmitting ? 'Submitting...' : 'Submit Recording'}
             </Button>
 
             {hasSubmitted && (
@@ -913,11 +869,11 @@ export default function QCDashboard({
                     className="h-11 w-full border-[#dbe4ff] text-[#1a1aff]"
                     onClick={() => navigate(`/monitor/${nextDisease.slug}/${controlType}`)}
                   >
-                    {`Next disease → ${nextDisease.name}`}
+                    {`Next disease -> ${nextDisease.name}`}
                   </Button>
                 ) : (
                   <div className="flex h-11 items-center justify-center rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] text-sm font-semibold text-[#16a34a]">
-                    All diseases recorded ✓
+                    All diseases recorded
                   </div>
                 )}
               </div>
