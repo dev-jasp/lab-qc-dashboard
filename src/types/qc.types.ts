@@ -186,6 +186,7 @@ export interface LeveyJenningsChartProps {
   height?: number;
   badgeLabel?: string;
   headerActions?: React.ReactNode;
+  showChartTitle?: boolean;
 }
 
 export interface InputPanelProps {

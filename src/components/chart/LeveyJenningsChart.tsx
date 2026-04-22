@@ -33,6 +33,7 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
   height = 550,
   badgeLabel,
   headerActions,
+  showChartTitle = true,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<ChartJS | null>(null);
@@ -63,9 +64,9 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
       return;
     }
 
-    const config = createChartConfig(data, mean, sd);
+    const config = createChartConfig(data, mean, sd, showChartTitle);
     chartRef.current = new ChartJS(canvasRef.current, config);
-  }, [data, hasData, statistics, parameters]);
+  }, [data, hasData, statistics, parameters, showChartTitle]);
 
   // Cleanup on unmount
   useEffect(() => {

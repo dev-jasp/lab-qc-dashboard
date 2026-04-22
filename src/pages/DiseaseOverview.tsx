@@ -23,18 +23,6 @@ type OverviewControlSummary = ReturnType<typeof getDiseaseControls>[number] & {
   data: ChartDataPoint[];
 };
 
-function formatDisplayDate(value: string | null): string {
-  if (!value) {
-    return 'Not set';
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  }).format(new Date(`${value}T00:00:00`));
-}
-
 async function buildControlSummary(
   disease: DiseaseSlug,
   control: ReturnType<typeof getDiseaseControls>[number],
@@ -191,24 +179,8 @@ export function DiseaseOverview() {
                   title={control.label}
                   height={280}
                   badgeLabel={toneLabel[control.tone]}
+                  showChartTitle={false}
                 />
-
-                <div className="rounded-xl border border-[#F3F3F3] bg-white p-4 shadow-sm">
-                  <div className="grid gap-3 text-sm sm:grid-cols-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Current Lot</p>
-                      <p className="mt-1 font-bold text-[#111827]">{control.activeLotNumber ?? 'No active lot'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Lot Start</p>
-                      <p className="mt-1 font-bold text-[#111827]">{formatDisplayDate(control.lotStartDate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Runs</p>
-                      <p className="mt-1 font-bold text-[#111827]">{control.activeRuns}</p>
-                    </div>
-                  </div>
-                </div>
 
                 <Link
                   to={`/monitor/${diseaseConfig.slug}/${control.slug}`}
