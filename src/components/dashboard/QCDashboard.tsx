@@ -35,7 +35,7 @@ const QCDashboard: React.FC<QCDashboardProps> = ({
   const [parameters, setParameters] = useState<QCParameters>(initialParameters);
   const { toasts, removeToast, success, error, warning } = useToast();
 
-  const { statistics, qcRules, hasViolations } = useQCLogic(data, parameters);
+  const { statistics, qcRules, cvTrend, hasViolations } = useQCLogic(data, parameters);
   const lastOD = data.length > 0 ? data[data.length - 1] : null;
 
   const addODValue = (): void => {
@@ -228,7 +228,7 @@ const QCDashboard: React.FC<QCDashboardProps> = ({
                   CV
                 </p>
                 <p className="text-lg font-bold mt-1" style={{ color: '#1A1C1C' }}>
-                  {cv.toFixed(1)}%
+                  {cv.toFixed(2)}%
                 </p>
               </div>
             </div>
@@ -236,7 +236,7 @@ const QCDashboard: React.FC<QCDashboardProps> = ({
         </div>
 
         <div className="mb-6">
-          <StatisticsPanel runStatistics={runStatistics} />
+          <StatisticsPanel runStatistics={runStatistics} cvTrend={cvTrend} />
         </div>
 
         <div className="mb-8">
