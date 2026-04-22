@@ -39,6 +39,8 @@ type DiseaseDefinition = {
 type MonitorSeed = {
   parameters: QCParameters;
   data: ChartDataPoint[];
+  lotNumber?: string;
+  lotStartDate?: string;
 };
 
 export const CONTROL_DEFINITIONS: ControlDefinition[] = [
@@ -127,10 +129,14 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     'positive-control': {
       parameters: { targetMean: 2.35, targetSD: 0.06 },
       data: buildSeries('MEA-PC', [2.31, 2.34, 2.38, 2.42, 2.36, 2.33, 2.39, 2.41, 2.37, 2.35], 1),
+      lotNumber: 'E240423AS',
+      lotStartDate: '2026-03-01',
     },
     'negative-control': {
       parameters: { targetMean: 1.05, targetSD: 0.04 },
       data: buildSeries('MEA-NC', [1.01, 1.03, 1.06, 1.04, 1.02, 1.05, 1.07, 1.04, 1.03, 1.02], 1),
+      lotNumber: 'E240423AS',
+      lotStartDate: '2026-03-01',
     },
   },
   rubella: {
@@ -141,10 +147,14 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     'positive-control': {
       parameters: { targetMean: 2.26, targetSD: 0.05 },
       data: buildSeries('RUB-PC', [2.23, 2.28, 2.31, 2.36, 2.38, 2.35, 2.3, 2.32, 2.29, 2.27], 2),
+      lotNumber: 'R240315BX',
+      lotStartDate: '2026-03-02',
     },
     'negative-control': {
       parameters: { targetMean: 0.94, targetSD: 0.03 },
       data: buildSeries('RUB-NC', [0.92, 0.94, 0.95, 0.93, 0.94, 0.96, 0.95, 0.93, 0.94, 0.92], 2),
+      lotNumber: 'R240315BX',
+      lotStartDate: '2026-03-02',
     },
   },
   rotavirus: {
@@ -155,10 +165,14 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     'positive-control': {
       parameters: { targetMean: 2.52, targetSD: 0.05 },
       data: buildSeries('ROT-PC', [2.49, 2.51, 2.55, 2.54, 2.52, 2.56, 2.58, 2.55, 2.53, 2.52], 3),
+      lotNumber: 'RV240401CT',
+      lotStartDate: '2026-03-03',
     },
     'negative-control': {
       parameters: { targetMean: 0.82, targetSD: 0.03 },
       data: buildSeries('ROT-NC', [0.8, 0.81, 0.84, 0.82, 0.83, 0.81, 0.82, 0.84, 0.83, 0.82], 3),
+      lotNumber: 'RV240401CT',
+      lotStartDate: '2026-03-03',
     },
   },
   'japanese-encephalitis': {
@@ -169,10 +183,14 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     'positive-control': {
       parameters: { targetMean: 2.62, targetSD: 0.05 },
       data: buildSeries('JE-PC', [2.59, 2.61, 2.65, 2.63, 2.62, 2.66, 2.64, 2.63, 2.62, 2.61], 4),
+      lotNumber: 'JE240408DL',
+      lotStartDate: '2026-03-04',
     },
     'negative-control': {
       parameters: { targetMean: 1.02, targetSD: 0.03 },
       data: buildSeries('JE-NC', [1.0, 1.02, 1.03, 1.01, 1.02, 1.04, 1.03, 1.02, 1.01, 1.0], 4),
+      lotNumber: 'JE240408DL',
+      lotStartDate: '2026-03-04',
     },
   },
   dengue: {
@@ -183,10 +201,14 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     'positive-control': {
       parameters: { targetMean: 2.18, targetSD: 0.05 },
       data: buildSeries('DEN-PC', [2.15, 2.19, 2.21, 2.2, 2.18, 2.22, 2.24, 2.2, 2.19, 2.18], 5),
+      lotNumber: 'DG240512EM',
+      lotStartDate: '2026-03-05',
     },
     'negative-control': {
       parameters: { targetMean: 0.88, targetSD: 0.03 },
       data: buildSeries('DEN-NC', [0.86, 0.89, 0.87, 0.9, 0.88, 0.89, 0.91, 0.88, 0.87, 0.86], 5),
+      lotNumber: 'DG240512EM',
+      lotStartDate: '2026-03-05',
     },
   },
 };

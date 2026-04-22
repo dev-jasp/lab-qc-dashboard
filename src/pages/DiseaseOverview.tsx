@@ -1,9 +1,13 @@
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 
 import LeveyJenningsChart from '@/components/chart/LeveyJenningsChart';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { getDiseaseControls, getDiseaseDefinition } from '@/constants/monitor-config';
+import { ensureControlDatasetInitialized, entriesToChartData, getControlParameters } from '@/lib/qcMonitor';
+import { getEntries, getLots } from '@/lib/qcStorage';
+import type { ChartDataPoint, ControlTypeSlug, DiseaseSlug } from '@/types/qc.types';
 import { calculateStatistics } from '@/utils/qc-calculations';
 
 const toneLabel = {
@@ -12,22 +16,116 @@ const toneLabel = {
   critical: 'Out of bounds',
 } as const;
 
+type OverviewControlSummary = ReturnType<typeof getDiseaseControls>[number] & {
+  activeLotNumber: string | null;
+  lotStartDate: string | null;
+  activeRuns: number;
+  data: ChartDataPoint[];
+};
+
+function formatDisplayDate(value: string | null): string {
+  if (!value) {
+    return 'Not set';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+async function buildControlSummary(
+  disease: DiseaseSlug,
+  control: ReturnType<typeof getDiseaseControls>[number],
+): Promise<OverviewControlSummary> {
+  await ensureControlDatasetInitialized(disease, control.slug);
+
+  if (control.slug === 'in-house-control') {
+    const entries = await getEntries(disease, control.slug);
+
+    return {
+      ...control,
+      parameters: getControlParameters(disease, control.slug),
+      data: entriesToChartData(entries),
+      activeLotNumber: 'Continuous dataset',
+      lotStartDate: entries[0]?.date ?? null,
+      activeRuns: entries.length,
+    };
+  }
+
+  const lots = await getLots(disease, control.slug);
+  const activeLot = lots.find((lot) => lot.status === 'active') ?? lots[0] ?? null;
+  const entries = activeLot ? await getEntries(disease, control.slug, activeLot.lotNumber) : [];
+
+  return {
+    ...control,
+    parameters: getControlParameters(disease, control.slug as ControlTypeSlug),
+    data: entriesToChartData(entries),
+    activeLotNumber: activeLot?.lotNumber ?? null,
+    lotStartDate: activeLot?.startDate ?? null,
+    activeRuns: entries.length,
+  };
+}
 
 export function DiseaseOverview() {
   const { disease } = useParams();
   const diseaseConfig = getDiseaseDefinition(disease);
+  const [controls, setControls] = useState<OverviewControlSummary[]>([]);
+
+  useEffect(() => {
+    if (!diseaseConfig) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadOverview = async () => {
+      const seededControls = getDiseaseControls(diseaseConfig.slug);
+      const nextControls = await Promise.all(
+        seededControls.map((control) => buildControlSummary(diseaseConfig.slug, control)),
+      );
+
+      if (!isCancelled) {
+        setControls(nextControls);
+      }
+    };
+
+    void loadOverview();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [diseaseConfig]);
+
+  const warningCount = useMemo(
+    () => controls.filter((control) => control.tone === 'warning').length,
+    [controls],
+  );
+  const criticalCount = useMemo(
+    () => controls.filter((control) => control.tone === 'critical').length,
+    [controls],
+  );
+  const latestTimestamp = useMemo(
+    () =>
+      controls
+        .flatMap((control) => control.data.map((point) => point.timestamp))
+        .sort()
+        .at(-1),
+    [controls],
+  );
 
   if (!diseaseConfig) {
     return (
       <div className="min-h-screen bg-[#F9F9F9]">
         <DashboardHeader activeTab="monitor" />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="rounded-2xl border border-[#F3F3F3] bg-white p-8 shadow">
-            <h1 className="text-2xl font-bold" style={{ color: '#1A1C1C' }}>Disease Not Found</h1>
-            <p className="mt-3 text-sm" style={{ color: '#64748B' }}>
+            <h1 className="text-2xl font-bold text-[#1A1C1C]">Disease Not Found</h1>
+            <p className="mt-3 text-sm text-[#64748B]">
               The requested surveillance area does not exist in the current QC configuration.
             </p>
-            <Link to="/monitor" className="inline-flex items-center gap-2 mt-6 font-semibold" style={{ color: '#0000FF' }}>
+            <Link to="/monitor" className="mt-6 inline-flex items-center gap-2 font-semibold text-[#0000FF]">
               <ArrowLeft size={16} />
               Back to monitor
             </Link>
@@ -37,83 +135,50 @@ export function DiseaseOverview() {
     );
   }
 
-  const controls = getDiseaseControls(diseaseConfig.slug);
-  const warningCount = controls.filter((control) => control.tone === 'warning').length;
-  const criticalCount = controls.filter((control) => control.tone === 'critical').length;
-  const latestTimestamp = controls
-    .flatMap((control) => control.data.map((point) => point.timestamp))
-    .sort()
-    .at(-1);
-
   return (
     <div className="min-h-screen bg-[#F9F9F9]">
       <DashboardHeader activeTab="monitor" />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <Link to="/monitor" className="inline-flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: '#64748B' }}>
+          <Link to="/monitor" className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#64748B]">
             <ArrowLeft size={16} />
             Back to disease selector
           </Link>
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.28em]" style={{ color: '#0000FF' }}>
-                Disease Overview
-              </p>
-              <h1 className="text-4xl font-extrabold mt-3" style={{ color: '#111827' }}>
-                {diseaseConfig.name}
-              </h1>
-              <p className="text-sm mt-3 max-w-3xl" style={{ color: '#64748B' }}>
-                {diseaseConfig.summary}
-              </p>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#0000FF]">Disease Overview</p>
+              <h1 className="mt-3 text-4xl font-extrabold text-[#111827]">{diseaseConfig.name}</h1>
+              <p className="mt-3 max-w-3xl text-sm text-[#64748B]">{diseaseConfig.summary}</p>
             </div>
 
-            <div
-              className="inline-flex items-center rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.18em]"
-              style={{ backgroundColor: 'rgba(0,0,255,0.08)', color: '#0000FF' }}
-            >
+            <div className="inline-flex items-center rounded-full bg-[rgba(0,0,255,0.08)] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#0000FF]">
               {diseaseConfig.assayTag}
             </div>
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <div
-              className="rounded-xl border px-4 py-3"
-              style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }}
-            >
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: '#64748B' }}>
-                Controls
-              </p>
-              <p className="mt-1 text-lg font-bold" style={{ color: '#111827' }}>
-                {controls.length} active
-              </p>
+            <div className="rounded-xl border border-[#F3F3F3] bg-white px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Controls</p>
+              <p className="mt-1 text-lg font-bold text-[#111827]">{controls.length || 3} active</p>
             </div>
-            <div
-              className="rounded-xl border px-4 py-3"
-              style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }}
-            >
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: '#64748B' }}>
-                QC Status
-              </p>
-              <p className="mt-1 text-lg font-bold" style={{ color: criticalCount > 0 ? '#991B1B' : warningCount > 0 ? '#B45309' : '#0F766E' }}>
+            <div className="rounded-xl border border-[#F3F3F3] bg-white px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">QC Status</p>
+              <p
+                className="mt-1 text-lg font-bold"
+                style={{ color: criticalCount > 0 ? '#991B1B' : warningCount > 0 ? '#B45309' : '#0F766E' }}
+              >
                 {criticalCount > 0 ? `${criticalCount} action required` : warningCount > 0 ? `${warningCount} watchlist` : 'All stable'}
               </p>
             </div>
-            <div
-              className="rounded-xl border px-4 py-3"
-              style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }}
-            >
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: '#64748B' }}>
-                Last Updated
-              </p>
-              <p className="mt-1 text-lg font-bold" style={{ color: '#111827' }}>
-                {latestTimestamp ?? 'No runs'}
-              </p>
+            <div className="rounded-xl border border-[#F3F3F3] bg-white px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Last Updated</p>
+              <p className="mt-1 text-lg font-bold text-[#111827]">{latestTimestamp ?? 'No runs'}</p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           {controls.map((control) => {
             const statistics = calculateStatistics(control.data);
 
@@ -128,10 +193,26 @@ export function DiseaseOverview() {
                   badgeLabel={toneLabel[control.tone]}
                 />
 
+                <div className="rounded-xl border border-[#F3F3F3] bg-white p-4 shadow-sm">
+                  <div className="grid gap-3 text-sm sm:grid-cols-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Current Lot</p>
+                      <p className="mt-1 font-bold text-[#111827]">{control.activeLotNumber ?? 'No active lot'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Lot Start</p>
+                      <p className="mt-1 font-bold text-[#111827]">{formatDisplayDate(control.lotStartDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Runs</p>
+                      <p className="mt-1 font-bold text-[#111827]">{control.activeRuns}</p>
+                    </div>
+                  </div>
+                </div>
+
                 <Link
                   to={`/monitor/${diseaseConfig.slug}/${control.slug}`}
-                  className="inline-flex items-center gap-2 text-sm font-bold"
-                  style={{ color: '#0000FF' }}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-[#0000FF]"
                 >
                   Open control monitor
                   <ArrowRight size={16} />
