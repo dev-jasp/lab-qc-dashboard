@@ -6,7 +6,8 @@ import { calculateZScore, getPointColor } from './qc-calculations';
 export const createChartConfig = (
   data: QCChartDataPoint[],
   mean: number,
-  sd: number
+  sd: number,
+  showChartTitle: boolean = true,
 ): ChartConfiguration<'line'> => {
   const pointColors = data.map(d => {
     if (d.isViolation) {
@@ -132,12 +133,12 @@ export const createChartConfig = (
       responsive: true,
       maintainAspectRatio: false,
       interaction: {
-        intersect: false,
-        mode: 'index' as const,
+        intersect: true,
+        mode: 'nearest' as const,
       },
       plugins: {
         title: {
-          display: true,
+          display: showChartTitle,
           text: 'Levey-Jennings Quality Control Chart',
           font: { size: 22, weight: 'bold' as const, family: "'Manrope', sans-serif" },
           color: '#1A1C1C',
@@ -164,14 +165,17 @@ export const createChartConfig = (
           borderColor: 'rgba(0, 0, 255, 0.5)',
           borderWidth: 1,
           cornerRadius: 8,
-          displayColors: true,
+          displayColors: false,
+          intersect: true,
+          mode: 'nearest' as const,
+          filter: (context: TooltipItem<'line'>) => context.dataset.label === 'OD',
           callbacks: {
-            afterLabel: function(context: TooltipItem<'line'>) {
+            title: () => '',
+            label: function(context: TooltipItem<'line'>) {
               const point = data[context.dataIndex];
-              const zScore = calculateZScore(point.value, mean, sd).toFixed(2);
-              return [`Date: ${point.timestamp}`, `Z-Score: ${zScore}`];
-            }
-          }
+              return [`OD: ${point.value.toFixed(4)}`, `Date: ${point.timestamp}`];
+            },
+          },
         }
       },
       scales: {
