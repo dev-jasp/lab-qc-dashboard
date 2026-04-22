@@ -1,4 +1,4 @@
-import type { ChartDataPoint, QCParameters, QCRule, QCStatistics } from '../types/qc.types';
+import type { ChartDataPoint, QCParameters, QCRule, QCStatistics, WestgardRule } from '../types/qc.types';
 import { DEFAULT_QC_RULES } from '../constants/qc-rules';
 
 const DEFAULT_CV_WINDOW_SIZE = 10;
@@ -70,11 +70,19 @@ const getResolvedMean = (statistics: QCStatistics, parameters: QCParameters, sam
 const getResolvedSD = (statistics: QCStatistics, parameters: QCParameters, sampleCount: number): number =>
   sampleCount > 1 && statistics.sd > 0 ? statistics.sd : parameters.targetSD;
 
-const setRuleViolation = (rules: QCRule[], ruleName: string, violated: boolean): void => {
+const setRuleResult = (
+  rules: QCRule[],
+  ruleName: WestgardRule,
+  violated: boolean,
+  triggeringIndices: number[] = [],
+  status: QCRule['status'] = violated ? 'violated' : 'passed',
+): void => {
   const targetRule = rules.find((rule) => rule.name === ruleName);
 
   if (targetRule) {
     targetRule.violated = violated;
+    targetRule.status = status;
+    targetRule.triggeringIndices = triggeringIndices;
   }
 };
 
@@ -101,7 +109,9 @@ export const evaluateQCRules = (
 ): QCRule[] => {
   const rules: QCRule[] = DEFAULT_QC_RULES.map((rule) => ({
     ...rule,
-    violated: false
+    violated: false,
+    status: 'insufficient_data',
+    triggeringIndices: [],
   }));
 
   if (data.length === 0) {
@@ -111,66 +121,82 @@ export const evaluateQCRules = (
   const values = data.map((point) => point.value);
   const mean = getResolvedMean(statistics, parameters, data.length);
   const sd = getResolvedSD(statistics, parameters, data.length);
+  const minRunsForFullWestgard = 10;
 
-  if (sd > 0) {
-    setRuleViolation(
-      rules,
-      '1-3s',
-      values.some((value) => Math.abs(value - mean) > 3 * sd)
-    );
-
-    let has22sViolation = false;
-    for (let index = 1; index < values.length; index += 1) {
-      const currentZScore = (values[index] - mean) / sd;
-      const previousZScore = (values[index - 1] - mean) / sd;
-
-      if (
-        (currentZScore > 2 && previousZScore > 2) ||
-        (currentZScore < -2 && previousZScore < -2)
-      ) {
-        has22sViolation = true;
-        break;
-      }
-    }
-    setRuleViolation(rules, '2-2s', has22sViolation);
-
-    let hasR4sViolation = false;
-    for (let index = 1; index < values.length; index += 1) {
-      if (Math.abs(values[index] - values[index - 1]) > 4 * sd) {
-        hasR4sViolation = true;
-        break;
-      }
-    }
-    setRuleViolation(rules, 'R-4s', hasR4sViolation);
-
-    let has41sViolation = false;
-    for (let index = 3; index < values.length; index += 1) {
-      const lastFourValues = values.slice(index - 3, index + 1);
-      const allAbovePositiveOneSD = lastFourValues.every((value) => (value - mean) / sd > 1);
-      const allBelowNegativeOneSD = lastFourValues.every((value) => (value - mean) / sd < -1);
-
-      if (allAbovePositiveOneSD || allBelowNegativeOneSD) {
-        has41sViolation = true;
-        break;
-      }
-    }
-    setRuleViolation(rules, '4-1s', has41sViolation);
+  if (sd <= 0) {
+    return rules.map((rule) => ({
+      ...rule,
+      status: data.length >= 2 ? 'passed' : 'insufficient_data',
+    }));
   }
 
-  let has10xViolation = false;
+  if (data.length < minRunsForFullWestgard) {
+    return rules;
+  }
+
+  const single12sIndices = values
+    .map((value, index) => ({ value, index }))
+    .filter(({ value }) => Math.abs(value - mean) > 2 * sd)
+    .map(({ index }) => index);
+  setRuleResult(rules, '1_2s', single12sIndices.length > 0, single12sIndices);
+
+  const single13sIndices = values
+    .map((value, index) => ({ value, index }))
+    .filter(({ value }) => Math.abs(value - mean) > 3 * sd)
+    .map(({ index }) => index);
+  setRuleResult(rules, '1_3s', single13sIndices.length > 0, single13sIndices);
+
+  let indices22s: number[] = [];
+  for (let index = 1; index < values.length; index += 1) {
+    const currentZScore = (values[index] - mean) / sd;
+    const previousZScore = (values[index - 1] - mean) / sd;
+
+    if (
+      (currentZScore > 2 && previousZScore > 2) ||
+      (currentZScore < -2 && previousZScore < -2)
+    ) {
+      indices22s = [index - 1, index];
+      break;
+    }
+  }
+  setRuleResult(rules, '2_2s', indices22s.length > 0, indices22s);
+
+  let indicesR4s: number[] = [];
+  for (let index = 1; index < values.length; index += 1) {
+    if (Math.abs(values[index] - values[index - 1]) > 4 * sd) {
+      indicesR4s = [index - 1, index];
+      break;
+    }
+  }
+  setRuleResult(rules, 'R_4s', indicesR4s.length > 0, indicesR4s);
+
+  let indices41s: number[] = [];
+  for (let index = 3; index < values.length; index += 1) {
+    const lastFourValues = values.slice(index - 3, index + 1);
+    const allAbovePositiveOneSD = lastFourValues.every((value) => (value - mean) / sd > 1);
+    const allBelowNegativeOneSD = lastFourValues.every((value) => (value - mean) / sd < -1);
+
+    if (allAbovePositiveOneSD || allBelowNegativeOneSD) {
+      indices41s = [index - 3, index - 2, index - 1, index];
+      break;
+    }
+  }
+  setRuleResult(rules, '4_1s', indices41s.length > 0, indices41s);
+
+  let indices10x: number[] = [];
   for (let index = 9; index < values.length; index += 1) {
     const lastTenValues = values.slice(index - 9, index + 1);
     const allAboveMean = lastTenValues.every((value) => value > mean);
     const allBelowMean = lastTenValues.every((value) => value < mean);
 
     if (allAboveMean || allBelowMean) {
-      has10xViolation = true;
+      indices10x = Array.from({ length: 10 }, (_, offset) => index - 9 + offset);
       break;
     }
   }
-  setRuleViolation(rules, '10x', has10xViolation);
+  setRuleResult(rules, '10x', indices10x.length > 0, indices10x);
 
-  let has7TViolation = false;
+  let indices7T: number[] = [];
   for (let index = 6; index < values.length; index += 1) {
     const lastSevenValues = values.slice(index - 6, index + 1);
     let strictlyIncreasing = true;
@@ -187,11 +213,11 @@ export const evaluateQCRules = (
     }
 
     if (strictlyIncreasing || strictlyDecreasing) {
-      has7TViolation = true;
+      indices7T = Array.from({ length: 7 }, (_, offset) => index - 6 + offset);
       break;
     }
   }
-  setRuleViolation(rules, '7T', has7TViolation);
+  setRuleResult(rules, '7T', indices7T.length > 0, indices7T);
 
   return rules;
 };

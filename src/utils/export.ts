@@ -1,8 +1,10 @@
-import type { ChartDataPoint, QCStatistics, QCParameters } from '../types/qc.types';
+import type { QCEntry, QCStatistics, QCParameters } from '../types/qc.types';
 import { calculateZScore } from './qc-calculations';
 
+const escapeCSVCell = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+
 export const exportToCSV = (
-  data: ChartDataPoint[], 
+  entries: QCEntry[],
   statistics: QCStatistics, 
   parameters: QCParameters
 ): void => {
@@ -10,12 +12,21 @@ export const exportToCSV = (
   const sd = statistics.sd || parameters.targetSD;
 
   const csv = [
-    ['Protocol No.', 'OD Value', 'Date', 'Z-Score'],
-    ...data.map(d => {
-      const zScore = calculateZScore(d.value, mean, sd).toFixed(3);
-      return [d.sample, d.value, d.timestamp, zScore];
+    ['Date', 'Protocol No.', 'OD Value', 'Lot Number', 'Run Number', 'Vial Number', 'Remarks', 'Z-Score'],
+    ...entries.map((entry) => {
+      const zScore = calculateZScore(entry.odValue, mean, sd).toFixed(3);
+      return [
+        entry.date,
+        entry.protocolNumber,
+        entry.odValue.toFixed(4),
+        entry.lotNumber,
+        entry.runNumber,
+        entry.vialNumber,
+        entry.notes ?? '',
+        zScore,
+      ];
     })
-  ].map(row => row.join(',')).join('\n');
+  ].map((row) => row.map((cell) => escapeCSVCell(String(cell))).join(',')).join('\n');
 
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);

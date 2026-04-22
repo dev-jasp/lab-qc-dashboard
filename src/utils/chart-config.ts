@@ -9,8 +9,37 @@ export const createChartConfig = (
   sd: number
 ): ChartConfiguration<'line'> => {
   const pointColors = data.map(d => {
+    if (d.isViolation) {
+      return '#EF4444';
+    }
+
+    if (d.isEdited) {
+      return '#FF7F50';
+    }
+
+    if (d.isFlagged) {
+      return '#0000FF';
+    }
+
     const zScore = calculateZScore(d.value, mean, sd);
     return getPointColor(zScore);
+  });
+  const pointBackgroundColors = data.map((point, index) => (point.isFlagged ? '#FFFFFF' : pointColors[index]));
+  const pointStyles = data.map((point) => (point.isFlagged ? 'rectRot' : 'circle'));
+  const pointRadii = data.map((point) => {
+    if (point.isViolation) {
+      return 6;
+    }
+
+    if (point.isFlagged) {
+      return 5;
+    }
+
+    if (point.isEdited) {
+      return 4;
+    }
+
+    return 4;
   });
 
   return {
@@ -86,12 +115,13 @@ export const createChartConfig = (
           borderJoinStyle: 'round' as const,
           borderCapStyle: 'round' as const,
           backgroundColor: pointColors,
-          pointBackgroundColor: pointColors,
+          pointBackgroundColor: pointBackgroundColors,
           pointBorderColor: pointColors,
           pointBorderWidth: 1,
-          pointRadius: 3,
-          pointHoverRadius: 5,
+          pointRadius: pointRadii,
+          pointHoverRadius: pointRadii.map((radius) => radius + 1),
           pointHitRadius: 8,
+          pointStyle: pointStyles,
           tension: 0.32,
           cubicInterpolationMode: 'monotone' as const,
           fill: false,

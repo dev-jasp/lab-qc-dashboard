@@ -2,29 +2,54 @@ import type { QCRule } from '../types/qc.types';
 
 export const DEFAULT_QC_RULES: Omit<QCRule, 'violated'>[] = [
   {
-    name: '1-3s',
-    description: 'One control exceeds +/-3SD'
+    name: '1_2s',
+    description: 'One control exceeds +/-2SD',
+    severity: 'warning',
+    status: 'insufficient_data',
+    triggeringIndices: [],
   },
   {
-    name: '2-2s',
-    description: 'Two consecutive controls exceed +/-2SD on the same side'
+    name: '1_3s',
+    description: 'One control exceeds +/-3SD',
+    severity: 'rejection',
+    status: 'insufficient_data',
+    triggeringIndices: [],
   },
   {
-    name: 'R-4s',
-    description: 'Range between consecutive controls > 4SD'
+    name: '2_2s',
+    description: 'Two consecutive controls exceed +/-2SD on the same side',
+    severity: 'rejection',
+    status: 'insufficient_data',
+    triggeringIndices: [],
   },
   {
-    name: '4-1s',
-    description: 'Four consecutive controls exceed +/-1SD on the same side'
+    name: 'R_4s',
+    description: 'Range between consecutive controls > 4SD',
+    severity: 'rejection',
+    status: 'insufficient_data',
+    triggeringIndices: [],
+  },
+  {
+    name: '4_1s',
+    description: 'Four consecutive controls exceed +/-1SD on the same side',
+    severity: 'rejection',
+    status: 'insufficient_data',
+    triggeringIndices: [],
   },
   {
     name: '10x',
-    description: 'Ten consecutive controls fall on the same side of the mean'
+    description: 'Ten consecutive controls fall on the same side of the mean',
+    severity: 'warning',
+    status: 'insufficient_data',
+    triggeringIndices: [],
   },
   {
     name: '7T',
-    description: 'Seven consecutive controls trend strictly upward or downward'
-  }
+    description: 'Seven consecutive controls trend strictly upward or downward',
+    severity: 'warning',
+    status: 'insufficient_data',
+    triggeringIndices: [],
+  },
 ];
 
 export const DEFAULT_PARAMETERS = {

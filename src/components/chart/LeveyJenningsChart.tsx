@@ -31,52 +31,41 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
   parameters,
   title = 'Quality Control Chart',
   height = 550,
-  badgeLabel
+  badgeLabel,
+  headerActions,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<ChartJS | null>(null);
+  const hasData = data.length > 0;
 
   useEffect(() => {
     if (!canvasRef.current) {
-      console.error('Canvas ref is null');
       return;
     }
 
-    if (!data || data.length === 0) {
-      console.error('No data provided for chart');
+    if (!hasData) {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
+      }
       return;
     }
 
-    if (!statistics && !parameters) {
-      console.error('No statistics or parameters provided');
-      return;
-    }
-
-    // Destroy existing chart
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
 
-    try {
-      const mean = statistics?.mean ?? parameters?.targetMean;
-      const sd = statistics?.sd ?? parameters?.targetSD;
+    const mean = statistics?.mean ?? parameters?.targetMean;
+    const sd = statistics?.sd ?? parameters?.targetSD;
 
-      if (mean === undefined || sd === undefined) {
-        console.error('Mean or SD is undefined', { mean, sd, statistics, parameters });
-        return;
-      }
-
-      console.log('Creating chart with:', { dataLength: data.length, mean, sd });
-
-      const config = createChartConfig(data, mean, sd);
-      chartRef.current = new ChartJS(canvasRef.current, config);
-      
-      console.log('Chart created successfully');
-    } catch (error) {
-      console.error('Error creating chart:', error);
+    if (mean === undefined || sd === undefined) {
+      return;
     }
-  }, [data, statistics, parameters]);
+
+    const config = createChartConfig(data, mean, sd);
+    chartRef.current = new ChartJS(canvasRef.current, config);
+  }, [data, hasData, statistics, parameters]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -88,15 +77,6 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
     };
   }, []);
 
-  // Add some debug information
-  console.log('Component render:', {
-    hasData: !!data,
-    dataLength: data?.length,
-    hasStatistics: !!statistics,
-    hasParameters: !!parameters,
-    canvasRefCurrent: !!canvasRef.current
-  });
-
   return (
     <div style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }} className="rounded-xl shadow border p-6 hover:shadow-xl transition-shadow duration-300">
       <div className="mb-4 flex items-center justify-between">
@@ -106,18 +86,32 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
           </div>
           <h3 className="text-lg font-semibold" style={{ color: '#1A1C1C' }}>{title}</h3>
         </div>
-        <div style={{ backgroundColor: '#F9F9F9', color: '#64748B' }} className="rounded-full px-4 py-1.5 text-xs">
-          {badgeLabel ?? `${data.length} data points`}
+        <div className="flex items-center gap-2">
+          {headerActions}
+          <div style={{ backgroundColor: '#F9F9F9', color: '#64748B' }} className="rounded-full px-4 py-1.5 text-xs">
+            {badgeLabel ?? `${data.length} data points`}
+          </div>
         </div>
       </div>
       <div style={{ height: `${height}px`, position: 'relative' }}>
-        <canvas 
-          ref={canvasRef}
-          style={{ 
-            maxHeight: '100%', 
-            maxWidth: '100%' 
-          }}
-        />
+        {hasData ? (
+          <canvas 
+            ref={canvasRef}
+            style={{ 
+              maxHeight: '100%', 
+              maxWidth: '100%' 
+            }}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#D9E2F1] bg-[#F9FBFF] px-6 text-center">
+            <div>
+              <p className="text-sm font-semibold text-[#1A1C1C]">No runs recorded for this dataset yet</p>
+              <p className="mt-2 text-sm text-[#64748B]">
+                Start recording QC entries to generate the Levey-Jennings chart for this control stream.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
