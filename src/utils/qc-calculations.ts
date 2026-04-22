@@ -1,21 +1,92 @@
-import type { ChartDataPoint, QCStatistics, QCParameters, QCRule } from '../types/qc.types';
+import type { ChartDataPoint, QCParameters, QCRule, QCStatistics } from '../types/qc.types';
 import { DEFAULT_QC_RULES } from '../constants/qc-rules';
+
+const DEFAULT_CV_WINDOW_SIZE = 10;
+const DEFAULT_CV_THRESHOLD = 15;
+const DEFAULT_RISING_DELTA = 1;
+const DEFAULT_RISING_STEPS = 3;
+
+export type RollingCVPoint = {
+  endSample: string;
+  endTimestamp: string;
+  value: number;
+  windowStartIndex: number;
+  windowEndIndex: number;
+};
+
+export type SparklinePoint = {
+  x: number;
+  y: number;
+  value: number;
+  label: string;
+};
+
+export type CVTrendStatus = 'stable' | 'rising' | 'high' | 'insufficient_data';
+
+export type CVTrendSummary = {
+  currentCV: number | null;
+  threshold: number;
+  windowSize: number;
+  status: CVTrendStatus;
+  message: string;
+  rollingCV: RollingCVPoint[];
+  sparklinePoints: SparklinePoint[];
+  isRising: boolean;
+  isHigh: boolean;
+};
+
+const calculateMean = (values: number[]): number =>
+  values.reduce((total, value) => total + value, 0) / values.length;
+
+const calculateSampleStandardDeviation = (values: number[], mean: number): number => {
+  if (values.length < 2) {
+    return 0;
+  }
+
+  const variance =
+    values.reduce((total, value) => total + Math.pow(value - mean, 2), 0) / (values.length - 1);
+
+  return Math.sqrt(variance);
+};
+
+const calculateWindowCV = (values: number[]): number => {
+  if (values.length < 2) {
+    return 0;
+  }
+
+  const mean = calculateMean(values);
+
+  if (mean === 0) {
+    return 0;
+  }
+
+  const sd = calculateSampleStandardDeviation(values, mean);
+  return (sd / mean) * 100;
+};
+
+const getResolvedMean = (statistics: QCStatistics, parameters: QCParameters, sampleCount: number): number =>
+  sampleCount > 0 ? statistics.mean : parameters.targetMean;
+
+const getResolvedSD = (statistics: QCStatistics, parameters: QCParameters, sampleCount: number): number =>
+  sampleCount > 1 && statistics.sd > 0 ? statistics.sd : parameters.targetSD;
+
+const setRuleViolation = (rules: QCRule[], ruleName: string, violated: boolean): void => {
+  const targetRule = rules.find((rule) => rule.name === ruleName);
+
+  if (targetRule) {
+    targetRule.violated = violated;
+  }
+};
 
 export const calculateStatistics = (data: ChartDataPoint[]): QCStatistics => {
   if (data.length === 0) {
     return { mean: 0, sd: 0, sampleCount: 0 };
   }
 
-  const values = data.map(d => d.value);
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  
-  if (values.length === 1) {
-    return { mean, sd: 0, sampleCount: 1 };
-  }
+  const values = data.map((point) => point.value);
+  const mean = calculateMean(values);
+  const sd = calculateSampleStandardDeviation(values, mean);
 
-  const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (values.length - 1);
-  const sd = Math.sqrt(variance);
-  
   return {
     mean,
     sd,
@@ -24,66 +95,258 @@ export const calculateStatistics = (data: ChartDataPoint[]): QCStatistics => {
 };
 
 export const evaluateQCRules = (
-  data: ChartDataPoint[], 
-  statistics: QCStatistics, 
+  data: ChartDataPoint[],
+  statistics: QCStatistics,
   parameters: QCParameters
 ): QCRule[] => {
-  const rules: QCRule[] = DEFAULT_QC_RULES.map(rule => ({
+  const rules: QCRule[] = DEFAULT_QC_RULES.map((rule) => ({
     ...rule,
     violated: false
   }));
 
-  if (data.length < 2) return rules;
-
-  const values = data.map(d => d.value);
-  const mean = statistics.mean || parameters.targetMean;
-  const sd = statistics.sd || parameters.targetSD;
-
-  // 1-3s rule: One control exceeds ±3SD
-  rules[0].violated = values.some(val => Math.abs(val - mean) > 3 * sd);
-
-  // 2-2s rule: Two consecutive controls exceed ±2SD on same side
-  for (let i = 1; i < values.length; i++) {
-    const curr = (values[i] - mean) / sd;
-    const prev = (values[i-1] - mean) / sd;
-    if ((curr > 2 && prev > 2) || (curr < -2 && prev < -2)) {
-      rules[1].violated = true;
-      break;
-    }
+  if (data.length === 0) {
+    return rules;
   }
 
-  // R-4s rule: Range between consecutive controls > 4SD
-  for (let i = 1; i < values.length; i++) {
-    if (Math.abs(values[i] - values[i-1]) > 4 * sd) {
-      rules[2].violated = true;
-      break;
-    }
-  }
+  const values = data.map((point) => point.value);
+  const mean = getResolvedMean(statistics, parameters, data.length);
+  const sd = getResolvedSD(statistics, parameters, data.length);
 
-  // 4-1s rule: Four consecutive controls exceed ±1SD on same side
-  if (values.length >= 4) {
-    for (let i = 3; i < values.length; i++) {
-      const last4 = values.slice(i-3, i+1);
-      const allPositive = last4.every(val => (val - mean) / sd > 1);
-      const allNegative = last4.every(val => (val - mean) / sd < -1);
-      if (allPositive || allNegative) {
-        rules[3].violated = true;
+  if (sd > 0) {
+    setRuleViolation(
+      rules,
+      '1-3s',
+      values.some((value) => Math.abs(value - mean) > 3 * sd)
+    );
+
+    let has22sViolation = false;
+    for (let index = 1; index < values.length; index += 1) {
+      const currentZScore = (values[index] - mean) / sd;
+      const previousZScore = (values[index - 1] - mean) / sd;
+
+      if (
+        (currentZScore > 2 && previousZScore > 2) ||
+        (currentZScore < -2 && previousZScore < -2)
+      ) {
+        has22sViolation = true;
         break;
       }
     }
+    setRuleViolation(rules, '2-2s', has22sViolation);
+
+    let hasR4sViolation = false;
+    for (let index = 1; index < values.length; index += 1) {
+      if (Math.abs(values[index] - values[index - 1]) > 4 * sd) {
+        hasR4sViolation = true;
+        break;
+      }
+    }
+    setRuleViolation(rules, 'R-4s', hasR4sViolation);
+
+    let has41sViolation = false;
+    for (let index = 3; index < values.length; index += 1) {
+      const lastFourValues = values.slice(index - 3, index + 1);
+      const allAbovePositiveOneSD = lastFourValues.every((value) => (value - mean) / sd > 1);
+      const allBelowNegativeOneSD = lastFourValues.every((value) => (value - mean) / sd < -1);
+
+      if (allAbovePositiveOneSD || allBelowNegativeOneSD) {
+        has41sViolation = true;
+        break;
+      }
+    }
+    setRuleViolation(rules, '4-1s', has41sViolation);
   }
+
+  let has10xViolation = false;
+  for (let index = 9; index < values.length; index += 1) {
+    const lastTenValues = values.slice(index - 9, index + 1);
+    const allAboveMean = lastTenValues.every((value) => value > mean);
+    const allBelowMean = lastTenValues.every((value) => value < mean);
+
+    if (allAboveMean || allBelowMean) {
+      has10xViolation = true;
+      break;
+    }
+  }
+  setRuleViolation(rules, '10x', has10xViolation);
+
+  let has7TViolation = false;
+  for (let index = 6; index < values.length; index += 1) {
+    const lastSevenValues = values.slice(index - 6, index + 1);
+    let strictlyIncreasing = true;
+    let strictlyDecreasing = true;
+
+    for (let compareIndex = 1; compareIndex < lastSevenValues.length; compareIndex += 1) {
+      if (lastSevenValues[compareIndex] <= lastSevenValues[compareIndex - 1]) {
+        strictlyIncreasing = false;
+      }
+
+      if (lastSevenValues[compareIndex] >= lastSevenValues[compareIndex - 1]) {
+        strictlyDecreasing = false;
+      }
+    }
+
+    if (strictlyIncreasing || strictlyDecreasing) {
+      has7TViolation = true;
+      break;
+    }
+  }
+  setRuleViolation(rules, '7T', has7TViolation);
 
   return rules;
 };
 
+export const calculateRollingCV = (
+  data: ChartDataPoint[],
+  windowSize: number = DEFAULT_CV_WINDOW_SIZE
+): RollingCVPoint[] => {
+  if (data.length < windowSize) {
+    return [];
+  }
+
+  const rollingCV: RollingCVPoint[] = [];
+
+  for (let endIndex = windowSize - 1; endIndex < data.length; endIndex += 1) {
+    const startIndex = endIndex - (windowSize - 1);
+    const window = data.slice(startIndex, endIndex + 1);
+    const windowValues = window.map((point) => point.value);
+
+    rollingCV.push({
+      endSample: data[endIndex].sample,
+      endTimestamp: data[endIndex].timestamp,
+      value: calculateWindowCV(windowValues),
+      windowStartIndex: startIndex,
+      windowEndIndex: endIndex
+    });
+  }
+
+  return rollingCV;
+};
+
+export const buildSparklinePoints = (
+  values: RollingCVPoint[],
+  width: number = 160,
+  height: number = 48,
+  padding: number = 4
+): SparklinePoint[] => {
+  if (values.length === 0) {
+    return [];
+  }
+
+  const minValue = Math.min(...values.map((point) => point.value));
+  const maxValue = Math.max(...values.map((point) => point.value));
+  const range = maxValue - minValue || 1;
+  const usableWidth = Math.max(width - padding * 2, 0);
+  const usableHeight = Math.max(height - padding * 2, 0);
+
+  return values.map((point, index) => {
+    const ratio = values.length === 1 ? 0.5 : index / (values.length - 1);
+    const normalizedValue = (point.value - minValue) / range;
+
+    return {
+      x: padding + ratio * usableWidth,
+      y: height - padding - normalizedValue * usableHeight,
+      value: point.value,
+      label: point.endSample
+    };
+  });
+};
+
+export const evaluateCVTrend = (
+  data: ChartDataPoint[],
+  {
+    windowSize = DEFAULT_CV_WINDOW_SIZE,
+    threshold = DEFAULT_CV_THRESHOLD,
+    riseDelta = DEFAULT_RISING_DELTA,
+    risingSteps = DEFAULT_RISING_STEPS
+  }: {
+    windowSize?: number;
+    threshold?: number;
+    riseDelta?: number;
+    risingSteps?: number;
+  } = {}
+): CVTrendSummary => {
+  const rollingCV = calculateRollingCV(data, windowSize);
+  const currentCV = rollingCV.length > 0 ? rollingCV[rollingCV.length - 1].value : null;
+  const sparklinePoints = buildSparklinePoints(rollingCV);
+
+  if (rollingCV.length === 0) {
+    return {
+      currentCV: null,
+      threshold,
+      windowSize,
+      status: 'insufficient_data',
+      message: `Rolling CV needs at least ${windowSize} runs before trend monitoring begins.`,
+      rollingCV,
+      sparklinePoints,
+      isRising: false,
+      isHigh: false
+    };
+  }
+
+  const recentWindow = rollingCV.slice(-(risingSteps + 1));
+  const isRising =
+    recentWindow.length === risingSteps + 1 &&
+    recentWindow
+      .slice(1)
+      .every((point, index) => point.value - recentWindow[index].value > riseDelta);
+
+  const isHigh = currentCV !== null && currentCV > threshold;
+
+  if (isHigh) {
+    return {
+      currentCV,
+      threshold,
+      windowSize,
+      status: 'high',
+      message: `Current rolling CV is above the ${threshold.toFixed(1)}% threshold.`,
+      rollingCV,
+      sparklinePoints,
+      isRising,
+      isHigh
+    };
+  }
+
+  if (isRising) {
+    return {
+      currentCV,
+      threshold,
+      windowSize,
+      status: 'rising',
+      message: `Rolling CV has increased by more than ${riseDelta.toFixed(1)}% across ${risingSteps} consecutive windows.`,
+      rollingCV,
+      sparklinePoints,
+      isRising,
+      isHigh
+    };
+  }
+
+  return {
+    currentCV,
+    threshold,
+    windowSize,
+    status: 'stable',
+    message: 'Rolling CV is stable across the latest monitoring windows.',
+    rollingCV,
+    sparklinePoints,
+    isRising,
+    isHigh
+  };
+};
+
 export const calculateZScore = (value: number, mean: number, sd: number): number => {
+  if (sd === 0) {
+    return 0;
+  }
+
   return (value - mean) / sd;
 };
 
 export const getPointColor = (zScore: number): string => {
   const absZScore = Math.abs(zScore);
-  if (absZScore > 3) return '#B22222'; // Firebrick Red for >3SD (critical)
-  if (absZScore > 2) return '#FFA500'; // Orange for >2SD (warning)
-  if (absZScore > 1) return '#A89F91'; // Taupe for >1SD (note)
-  return '#0000FF'; // Clinical Blue for within 1SD (normal)
+
+  if (absZScore > 3) return '#B22222';
+  if (absZScore > 2) return '#FFA500';
+  if (absZScore > 1) return '#A89F91';
+  return '#0000FF';
 };

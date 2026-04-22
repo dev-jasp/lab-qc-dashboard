@@ -1,20 +1,30 @@
-import { useState, useCallback } from 'react';
-import type { Toast, ToastType } from '../components/ui/Toast';
+import { useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
+
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+type Toast = {
+  id: string;
+  message: string;
+  type: ToastType;
+};
+
+const EMPTY_TOASTS: Toast[] = [];
 
 export const useToast = () => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Math.random().toString(36).substring(7);
-    const newToast: Toast = { id, message, type };
-    
-    setToasts((prev) => [...prev, newToast]);
-    
-    return id;
+    const toastMethods = {
+      success: sonnerToast.success,
+      error: sonnerToast.error,
+      info: sonnerToast.info,
+      warning: sonnerToast.warning,
+    };
+
+    return String(toastMethods[type](message));
   }, []);
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    sonnerToast.dismiss(id);
   }, []);
 
   const success = useCallback((message: string) => showToast(message, 'success'), [showToast]);
@@ -23,7 +33,7 @@ export const useToast = () => {
   const warning = useCallback((message: string) => showToast(message, 'warning'), [showToast]);
 
   return {
-    toasts,
+    toasts: EMPTY_TOASTS,
     showToast,
     removeToast,
     success,

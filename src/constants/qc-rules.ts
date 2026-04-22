@@ -1,21 +1,29 @@
 import type { QCRule } from '../types/qc.types';
 
 export const DEFAULT_QC_RULES: Omit<QCRule, 'violated'>[] = [
-  { 
-    name: "1-3s", 
-    description: "One control exceeds ±3SD" 
+  {
+    name: '1-3s',
+    description: 'One control exceeds +/-3SD'
   },
-  { 
-    name: "2-2s", 
-    description: "Two consecutive controls exceed ±2SD on same side" 
+  {
+    name: '2-2s',
+    description: 'Two consecutive controls exceed +/-2SD on the same side'
   },
-  { 
-    name: "R-4s", 
-    description: "Range between consecutive controls > 4SD" 
+  {
+    name: 'R-4s',
+    description: 'Range between consecutive controls > 4SD'
   },
-  { 
-    name: "4-1s", 
-    description: "Four consecutive controls exceed ±1SD on same side" 
+  {
+    name: '4-1s',
+    description: 'Four consecutive controls exceed +/-1SD on the same side'
+  },
+  {
+    name: '10x',
+    description: 'Ten consecutive controls fall on the same side of the mean'
+  },
+  {
+    name: '7T',
+    description: 'Seven consecutive controls trend strictly upward or downward'
   }
 ];
 
@@ -25,9 +33,9 @@ export const DEFAULT_PARAMETERS = {
 };
 
 export const SAMPLE_DATA = [
-  { sample: "1", value: 2.15, timestamp: "2024-01-01" },
-  { sample: "2", value: 2.08, timestamp: "2024-01-02" },
-  { sample: "3", value: 2.22, timestamp: "2024-01-03" },
-  { sample: "4", value: 2.12, timestamp: "2024-01-04" },
-  { sample: "5", value: 2.18, timestamp: "2024-01-05" }
+  { sample: '1', value: 2.15, timestamp: '2024-01-01' },
+  { sample: '2', value: 2.08, timestamp: '2024-01-02' },
+  { sample: '3', value: 2.22, timestamp: '2024-01-03' },
+  { sample: '4', value: 2.12, timestamp: '2024-01-04' },
+  { sample: '5', value: 2.18, timestamp: '2024-01-05' }
 ];
