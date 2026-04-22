@@ -1,63 +1,169 @@
-import { Activity, User } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { Bell, HelpCircle } from 'lucide-react';
+import * as React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-type NavigationItem = {
+import { getControlDefinition, getDiseaseDefinition } from '@/constants/monitor-config';
+import { getAllViolations } from '@/lib/qcStorage';
+
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+
+type BreadcrumbSegment = {
+  href?: string;
   label: string;
-  href: string;
-  isActive?: boolean;
 };
 
-interface DashboardHeaderProps {
-  activeTab?: 'monitor' | 'history' | 'settings';
+function formatControlLabel(slug: string | undefined): string | null {
+  if (slug === undefined) {
+    return null;
+  }
+
+  return getControlDefinition(slug)?.label.toUpperCase() ?? null;
 }
 
-export function DashboardHeader({ activeTab = 'monitor' }: DashboardHeaderProps) {
-  const navItems: NavigationItem[] = [
-    { label: 'MONITOR', href: '/monitor', isActive: activeTab === 'monitor' },
-    { label: 'HISTORY', href: '/history', isActive: activeTab === 'history' },
-    { label: 'SETTINGS', href: '/settings', isActive: activeTab === 'settings' },
-  ];
+function buildSegments(pathname: string): BreadcrumbSegment[] {
+  if (pathname === '/history') {
+    return [{ label: 'HISTORY' }];
+  }
+
+  if (pathname === '/violations') {
+    return [{ label: 'VIOLATIONS' }];
+  }
+
+  if (pathname === '/settings') {
+    return [{ label: 'SETTINGS' }];
+  }
+
+  if (pathname === '/monitor') {
+    return [{ label: 'DASHBOARD', href: '/monitor' }];
+  }
+
+  const monitorDiseaseMatch = pathname.match(/^\/monitor\/([^/]+)$/);
+
+  if (monitorDiseaseMatch !== null) {
+    const diseaseName = getDiseaseDefinition(monitorDiseaseMatch[1])?.name.toUpperCase() ?? monitorDiseaseMatch[1].toUpperCase();
+
+    return [
+      { label: 'DASHBOARD', href: '/monitor' },
+      { label: diseaseName },
+    ];
+  }
+
+  const monitorControlMatch = pathname.match(/^\/monitor\/([^/]+)\/([^/]+)$/);
+
+  if (monitorControlMatch !== null) {
+    const diseaseSlug = monitorControlMatch[1];
+    const controlSlug = monitorControlMatch[2];
+    const diseaseName = getDiseaseDefinition(diseaseSlug)?.name.toUpperCase() ?? diseaseSlug.toUpperCase();
+    const controlName = formatControlLabel(controlSlug) ?? controlSlug.toUpperCase();
+
+    return [
+      { label: 'DASHBOARD', href: '/monitor' },
+      { label: diseaseName, href: `/monitor/${diseaseSlug}` },
+      { label: controlName },
+    ];
+  }
+
+  return [{ label: 'DASHBOARD', href: '/monitor' }];
+}
+
+export function DashboardHeader() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [openViolationCount, setOpenViolationCount] = React.useState(0);
+  const segments = React.useMemo(() => buildSegments(location.pathname), [location.pathname]);
+
+  React.useEffect(() => {
+    let isCancelled = false;
+
+    const loadOpenViolationCount = async () => {
+      const allViolations = await getAllViolations();
+
+      if (isCancelled) {
+        return;
+      }
+
+      setOpenViolationCount(
+        allViolations.filter((violation) => !violation.acknowledged && violation.severity === 'rejection').length,
+      );
+    };
+
+    void loadOpenViolationCount();
+
+    const handleViolationRefresh = () => {
+      void loadOpenViolationCount();
+    };
+
+    window.addEventListener('qc-violations-changed', handleViolationRefresh);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener('qc-violations-changed', handleViolationRefresh);
+    };
+  }, [location.pathname]);
 
   return (
-    <header className="bg-white border-b sticky top-0 z-10" style={{ borderBottomColor: '#F3F3F3' }}>
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          {/* Logo & Branding */}
-          <Link to="/monitor" className="flex items-center gap-2">
-            <div style={{ background: '#0000FF' }} className="p-2 rounded-lg">
-              <Activity className="text-white" size={24} />
-            </div>
-            <span className="text-sm font-bold uppercase tracking-wider" style={{ color: '#1A1C1C' }}>
-              QC PULSE
-            </span>
-          </Link>
+    <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-[#f0f0f0] bg-white px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <SidebarTrigger className="lg:hidden" />
 
-          {/* Navigation */}
-          <nav className="flex items-center gap-8">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.href}
-                className={`text-xs font-semibold tracking-wide transition-colors ${
-                  item.isActive
-                    ? `border-b-2 pb-1`
-                    : ''
-                }`}
-                style={{
-                  color: item.isActive ? '#0000FF' : '#64748B',
-                  borderBottomColor: item.isActive ? '#0000FF' : 'transparent'
-                }}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+        <Breadcrumb>
+          <BreadcrumbList className="gap-2 text-xs font-semibold tracking-[0.12em]">
+            {segments.map((segment, index) => {
+              const isLastSegment = index === segments.length - 1;
 
-          {/* User Profile */}
-          <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-            <User style={{ color: '#64748B' }} size={20} />
-          </button>
-        </div>
+              return (
+                <React.Fragment key={`${segment.label}-${index}`}>
+                  <BreadcrumbItem>
+                    {isLastSegment ? (
+                      <BreadcrumbPage className="text-[13px] font-medium tracking-[0.12em] text-[#1a1aff]">
+                        {segment.label}
+                      </BreadcrumbPage>
+                    ) : segment.href ? (
+                      <BreadcrumbLink asChild className="text-[13px] font-medium tracking-[0.12em] text-[#6b7280]">
+                        <Link to={segment.href}>{segment.label}</Link>
+                      </BreadcrumbLink>
+                    ) : (
+                      <span className="text-[13px] font-medium tracking-[0.12em] text-[#6b7280]">{segment.label}</span>
+                    )}
+                  </BreadcrumbItem>
+                  {!isLastSegment && (
+                    <BreadcrumbSeparator className="text-[#9ca3af]">
+                      <span>{'>'}</span>
+                    </BreadcrumbSeparator>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/violations')}
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+        >
+          <Bell size={20} />
+          {openViolationCount > 0 && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[#dc2626]" />}
+          <span className="sr-only">Open violations</span>
+        </button>
+
+        <button
+          type="button"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+        >
+          <HelpCircle size={20} />
+          <span className="sr-only">Help</span>
+        </button>
       </div>
     </header>
   );

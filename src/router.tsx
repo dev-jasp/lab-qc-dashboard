@@ -1,17 +1,27 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom';
 
+import { AppShell } from '@/components/layout/AppShell';
 import { ControlMonitor } from '@/pages/ControlMonitor';
 import { DiseaseOverview } from '@/pages/DiseaseOverview';
 import { DiseaseSelector } from '@/pages/DiseaseSelector';
 import { History } from '@/pages/History';
+import { Login } from '@/pages/Login';
 import { Settings } from '@/pages/Settings';
+import { Violations } from '@/pages/Violations';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/monitor" replace /> },
-  { path: '/monitor', element: <DiseaseSelector /> },
-  { path: '/monitor/:disease', element: <DiseaseOverview /> },
-  { path: '/monitor/:disease/:control', element: <ControlMonitor /> },
-  { path: '/history', element: <History /> },
-  { path: '/settings', element: <Settings /> },
+  { path: '/login', element: <Login /> },
+  {
+    element: <AppShell />,
+    children: [
+      { path: '/monitor', element: <DiseaseSelector /> },
+      { path: '/monitor/:disease', element: <DiseaseOverview /> },
+      { path: '/monitor/:disease/:control', element: <ControlMonitor /> },
+      { path: '/history', element: <History /> },
+      { path: '/violations', element: <Violations /> },
+      { path: '/settings', element: <Settings /> },
+    ],
+  },
   { path: '*', element: <Navigate to="/monitor" replace /> },
 ]);

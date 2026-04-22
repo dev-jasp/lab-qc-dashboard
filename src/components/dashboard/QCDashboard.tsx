@@ -1,18 +1,59 @@
+import {
+  Activity,
+  AlertTriangle,
+  BarChart2,
+  Check,
+  Clock3,
+  Download,
+  Lock,
+  MoreHorizontal,
+  Percent,
+  Pencil,
+  Plus,
+  PlusCircle,
+  ShieldCheck,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  UserCircle,
+  X,
+} from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { useEffect, useMemo, useState } from 'react';
-import { Download, FolderKanban, Lock, Pencil, PlusCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import LeveyJenningsChart from '@/components/chart/LeveyJenningsChart';
-import { DashboardHeader } from '@/components/layout/DashboardHeader';
-import Footer from '@/components/layout/Footer';
 import { EditEntriesSheet } from '@/components/panels/EditEntriesSheet';
-import InputPanel from '@/components/panels/InputPanel';
-import QCRulesPanel from '@/components/panels/QCRulesPanel';
-import StatisticsPanel from '@/components/panels/StatisticsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { IsoDatePicker } from '@/components/ui/IsoDatePicker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
 import { useQCLogic } from '@/hooks/useQCLogic';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -23,7 +64,17 @@ import {
   getControlCode,
   getControlParameters,
 } from '@/lib/qcMonitor';
-import { addEntry, addViolation, createLot, getEntries, getLots, getSession, updateEntry } from '@/lib/qcStorage';
+import {
+  addEntry,
+  addViolation,
+  createLot,
+  getEntries,
+  getLots,
+  getSession,
+  getSettings,
+  getViolations,
+  updateEntry,
+} from '@/lib/qcStorage';
 import type {
   AuditEntry,
   ControlTypeSlug,
@@ -31,12 +82,14 @@ import type {
   EntryFormValues,
   LotMetadata,
   QCEntry,
-  QCSession,
+  QCEntryFlag,
   QCRule,
+  QCSession,
+  QCSettings,
   ViolationEntry,
 } from '@/types/qc.types';
-import { exportToCSV, validateODValue } from '@/utils/export';
-import { calculateStatistics, evaluateQCRules } from '@/utils/qc-calculations';
+import { calculateStatistics, calculateZScore, evaluateQCRules } from '@/utils/qc-calculations';
+import { validateODValue } from '@/utils/export';
 
 interface QCDashboardProps {
   diseaseSlug: DiseaseSlug;
@@ -51,6 +104,42 @@ type NewLotFormValues = {
   startDate: string;
   notes: string;
 };
+
+type MonitorStatus = 'stable' | 'normal' | 'watchlist' | 'out';
+
+type RecentFlagItem = {
+  id: string;
+  icon: 'warning' | 'flag';
+  label: string;
+  secondary: string;
+  severity: 'warning' | 'rejection' | 'neutral';
+  sortValue: string;
+};
+
+const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
+  labName: 'Zamboanga City Medical Center',
+  labSection: 'Vaccine Preventable Disease Referral Laboratory (VPDRL)',
+  labAddress: 'Dr. D. Evangelista St. Sta. Catalina, 7000 Zamboanga City',
+  defaultPreparedBy: '',
+  defaultValidatedBy: '',
+  cvAlertThreshold: 15,
+  minDataPointsForWestgard: 10,
+  dateFormat: 'YYYY-MM-DD',
+  recentLogsCount: 10,
+  chartTheme: 'light',
+  defaultChartView: 'daily',
+};
+
+const FLAG_OPTIONS: { label: string; value: QCEntryFlag }[] = [
+  { label: 'Reagent reconstituted', value: 'reagent_reconstituted' },
+  { label: 'New operator', value: 'new_operator' },
+  { label: 'Equipment maintenance', value: 'equipment_maintenance' },
+  { label: 'Repeat test', value: 'repeat_test' },
+  { label: 'Reagent thawed', value: 'reagent_thawed' },
+  { label: 'Instrument calibrated', value: 'instrument_calibrated' },
+  { label: 'Anomalous result', value: 'anomalous_result' },
+  { label: 'Other', value: 'other' },
+];
 
 function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -73,18 +162,6 @@ function createDefaultLotForm(): NewLotFormValues {
   };
 }
 
-function formatDisplayDate(value: string | null): string {
-  if (!value) {
-    return 'Not set';
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  }).format(new Date(`${value}T00:00:00`));
-}
-
 function getSelectedLot(lots: LotMetadata[], selectedLotNumber: string): LotMetadata | null {
   return lots.find((lot) => lot.lotNumber === selectedLotNumber) ?? null;
 }
@@ -103,6 +180,139 @@ function getAuditActorLabel(session: QCSession | null): string {
   }
 
   return session.displayName || session.username;
+}
+
+function formatDateLabel(value: string | null): string {
+  if (!value) {
+    return 'Not set';
+  }
+
+  return format(parseISO(value), 'MMM dd, yyyy');
+}
+
+function formatDateTimeLabel(value: string | null): string {
+  if (!value) {
+    return 'Not available';
+  }
+
+  const resolvedValue = value.includes('T') ? value : `${value}T08:00:00`;
+  return format(new Date(resolvedValue), 'MMM dd, hh:mm a');
+}
+
+function getEntryTimestamp(entry: QCEntry): string {
+  return entry.editedAt ?? `${entry.date}T08:00:00`;
+}
+
+function getMonitorStatus(
+  rules: QCRule[],
+  totalRuns: number,
+  minRunsForWestgard: number,
+  isHighCV: boolean,
+  isRisingCV: boolean,
+): MonitorStatus {
+  if (rules.some((rule) => rule.violated && rule.severity === 'rejection')) {
+    return 'out';
+  }
+
+  if (rules.some((rule) => rule.violated && rule.severity === 'warning') || isHighCV || isRisingCV) {
+    return 'watchlist';
+  }
+
+  if (totalRuns >= minRunsForWestgard && totalRuns > 0) {
+    return 'stable';
+  }
+
+  return 'normal';
+}
+
+function getMonitorStatusMeta(status: MonitorStatus) {
+  if (status === 'out') {
+    return {
+      badgeLabel: 'OUT OF CONTROL',
+      healthLabel: 'Out of Control',
+      badgeClassName: 'bg-[#fee2e2] text-[#dc2626]',
+      systemBadgeClassName: 'bg-[#fee2e2] text-[#dc2626]',
+      dotClassName: 'bg-[#dc2626]',
+      ringClassName: 'border-[#dc2626] text-[#dc2626]',
+      icon: X,
+    };
+  }
+
+  if (status === 'watchlist') {
+    return {
+      badgeLabel: 'WATCHLIST',
+      healthLabel: 'Watchlist',
+      badgeClassName: 'bg-[#fef3c7] text-[#d97706]',
+      systemBadgeClassName: 'bg-[#fef3c7] text-[#d97706]',
+      dotClassName: 'bg-[#d97706]',
+      ringClassName: 'border-[#d97706] text-[#d97706]',
+      icon: AlertTriangle,
+    };
+  }
+
+  if (status === 'stable') {
+    return {
+      badgeLabel: 'STABLE',
+      healthLabel: 'Normal',
+      badgeClassName: 'bg-[#dcfce7] text-[#16a34a]',
+      systemBadgeClassName: 'bg-[#ccfbf1] text-[#0f766e]',
+      dotClassName: 'bg-[#16a34a]',
+      ringClassName: 'border-[#16a34a] text-[#16a34a]',
+      icon: Check,
+    };
+  }
+
+  return {
+    badgeLabel: 'NORMAL',
+    healthLabel: 'Normal',
+    badgeClassName: 'bg-[#dcfce7] text-[#16a34a]',
+    systemBadgeClassName: 'bg-[#dcfce7] text-[#16a34a]',
+    dotClassName: 'bg-[#16a34a]',
+    ringClassName: 'border-[#16a34a] text-[#16a34a]',
+    icon: Check,
+  };
+}
+
+function getZScoreTone(zScore: number) {
+  const absoluteValue = Math.abs(zScore);
+
+  if (absoluteValue > 3) {
+    return {
+      text: '#dc2626',
+      tint: 'bg-[#fee2e2] text-[#dc2626]',
+      status: 'Alert',
+      dot: 'bg-[#dc2626]',
+    };
+  }
+
+  if (absoluteValue > 2) {
+    return {
+      text: '#d97706',
+      tint: 'bg-[#fef3c7] text-[#d97706]',
+      status: 'Watch',
+      dot: 'bg-[#d97706]',
+    };
+  }
+
+  if (absoluteValue > 1) {
+    return {
+      text: '#16a34a',
+      tint: 'bg-[#dcfce7] text-[#16a34a]',
+      status: 'Valid',
+      dot: 'bg-[#16a34a]',
+    };
+  }
+
+  return {
+    text: '#1a1aff',
+    tint: 'bg-[#eff6ff] text-[#1a1aff]',
+    status: 'Valid',
+    dot: 'bg-[#0f766e]',
+  };
+}
+
+function getFlagLabel(flag: QCEntryFlag): string {
+  return flag.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function buildViolationEntries(entries: QCEntry[], rules: QCRule[], lotNumber: string): ViolationEntry[] {
@@ -129,6 +339,52 @@ function buildViolationEntries(entries: QCEntry[], rules: QCRule[], lotNumber: s
     });
 }
 
+function buildRecentFlags(entries: QCEntry[], violations: ViolationEntry[]): RecentFlagItem[] {
+  const violationItems: RecentFlagItem[] = violations.map((violation) => ({
+    id: violation.id,
+    icon: 'warning',
+    label: `Rule ${violation.ruleName.replace('_', '-')}${violation.severity === 'warning' ? ' Warning' : ' Rejection'}`,
+    secondary: `${format(parseISO(violation.timestamp), 'MMM dd')} • ${violation.triggeringProtocols[0] ?? 'QC Run'}`,
+    severity: violation.severity,
+    sortValue: violation.timestamp,
+  }));
+
+  const flagItems: RecentFlagItem[] = entries
+    .filter((entry) => entry.flag !== null)
+    .map((entry) => ({
+      id: `${entry.id}-flag`,
+      icon: 'flag',
+      label: getFlagLabel(entry.flag as QCEntryFlag),
+      secondary: `${formatDateLabel(entry.date)} • ${entry.protocolNumber}`,
+      severity: 'neutral',
+      sortValue: getEntryTimestamp(entry),
+    }));
+
+  return [...violationItems, ...flagItems]
+    .sort((left, right) => right.sortValue.localeCompare(left.sortValue))
+    .slice(0, 3);
+}
+
+function downloadEntry(entry: QCEntry) {
+  const payload = JSON.stringify(entry, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+
+  anchor.href = url;
+  anchor.download = `${entry.protocolNumber || entry.id}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function buildSparklinePath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) {
+    return '';
+  }
+
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+}
+
 export default function QCDashboard({
   diseaseSlug,
   controlType,
@@ -136,21 +392,29 @@ export default function QCDashboard({
   controlName,
   assayTag,
 }: QCDashboardProps) {
+  const navigate = useNavigate();
   const isInHouseControl = controlType === 'in-house-control';
   const parameters = useMemo(() => getControlParameters(diseaseSlug, controlType), [diseaseSlug, controlType]);
   const [entries, setEntries] = useState<QCEntry[]>([]);
+  const [violations, setViolations] = useState<ViolationEntry[]>([]);
   const [lots, setLots] = useState<LotMetadata[]>([]);
-  const [selectedLotNumber, setSelectedLotNumber] = useState<string>('');
+  const [selectedLotNumber, setSelectedLotNumber] = useState('');
   const [formValues, setFormValues] = useState<EntryFormValues>(createDefaultEntryForm);
+  const [selectedFlag, setSelectedFlag] = useState<QCEntryFlag | 'none'>('none');
   const [newLotValues, setNewLotValues] = useState<NewLotFormValues>(createDefaultLotForm);
+  const [settings, setSettings] = useState<QCSettings>(DEFAULT_SETTINGS_FALLBACK);
   const [isStartLotDialogOpen, setIsStartLotDialogOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [currentSession, setCurrentSession] = useState<QCSession | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<QCEntry | null>(null);
+  const [chartView, setChartView] = useState<'daily' | 'weekly'>('daily');
   const { success, error } = useToast();
 
   const baseChartData = useMemo(() => entriesToChartData(entries), [entries]);
-  const { statistics, qcRules, cvTrend, hasViolations } = useQCLogic(baseChartData, parameters);
+  const { statistics, qcRules, cvTrend } = useQCLogic(baseChartData, parameters);
   const violationIndices = useMemo(
     () => new Set(qcRules.flatMap((rule) => (rule.violated ? rule.triggeringIndices ?? [] : []))),
     [qcRules],
@@ -162,9 +426,38 @@ export default function QCDashboard({
   const runStatistics = useMemo(() => buildRunStatisticsSummary(baseChartData, statistics), [baseChartData, statistics]);
   const selectedLot = useMemo(() => getSelectedLot(lots, selectedLotNumber), [lots, selectedLotNumber]);
   const isArchivedLot = !isInHouseControl && selectedLot?.status === 'archived';
-  const currentLotLabel = isInHouseControl ? undefined : selectedLot?.lotNumber ?? selectedLotNumber;
   const canEditEntries = canUsePrivilegedActions(currentSession);
   const activeDatasetLotNumber = isInHouseControl ? DEFAULT_IN_HOUSE_LOT_NUMBER : selectedLotNumber;
+  const currentCV = cvTrend.currentCV ?? 0;
+  const chartSubtitle = `${controlName.toUpperCase()} • ${diseaseName.toUpperCase()}${assayTag ? ` • ${assayTag}` : ''}`;
+  const minRunsForWestgard = settings.minDataPointsForWestgard;
+  const monitorStatus = getMonitorStatus(
+    qcRules,
+    runStatistics.totalRuns,
+    minRunsForWestgard,
+    cvTrend.isHigh,
+    cvTrend.isRising,
+  );
+  const monitorStatusMeta = getMonitorStatusMeta(monitorStatus);
+  const MonitorStatusIcon = monitorStatusMeta.icon;
+  const liveODNumber = Number.parseFloat(formValues.odValue);
+  const liveZScore =
+    Number.isFinite(liveODNumber) && statistics.sampleCount >= 2 && statistics.sd > 0
+      ? calculateZScore(liveODNumber, statistics.mean, statistics.sd)
+      : null;
+  const recentFlags = useMemo(() => buildRecentFlags(entries, violations), [entries, violations]);
+  const sortedRecentEntries = useMemo(
+    () =>
+      [...entries]
+        .sort((left, right) => getEntryTimestamp(right).localeCompare(getEntryTimestamp(left)))
+        .slice(0, settings.recentLogsCount),
+    [entries, settings.recentLogsCount],
+  );
+
+  const nextDisease = useMemo(() => {
+    const diseaseIndex = DISEASE_DEFINITIONS.findIndex((disease) => disease.slug === diseaseSlug);
+    return diseaseIndex >= 0 ? DISEASE_DEFINITIONS[diseaseIndex + 1] ?? null : null;
+  }, [diseaseSlug]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -174,16 +467,27 @@ export default function QCDashboard({
 
       try {
         await ensureControlDatasetInitialized(diseaseSlug, controlType);
-        const session = await getSession();
+        const [session, appSettings] = await Promise.all([getSession(), getSettings()]);
+
+        if (isCancelled) {
+          return;
+        }
+
+        setCurrentSession(session);
+        setSettings(appSettings);
+        setChartView(appSettings.defaultChartView === 'weekly' ? 'weekly' : 'daily');
 
         if (isInHouseControl) {
-          const inHouseEntries = await getEntries(diseaseSlug, controlType);
+          const [inHouseEntries, inHouseViolations] = await Promise.all([
+            getEntries(diseaseSlug, controlType),
+            getViolations(diseaseSlug, controlType),
+          ]);
 
           if (!isCancelled) {
-            setCurrentSession(session);
+            setEntries(inHouseEntries);
+            setViolations(inHouseViolations);
             setLots([]);
             setSelectedLotNumber('');
-            setEntries(inHouseEntries);
           }
 
           return;
@@ -195,16 +499,20 @@ export default function QCDashboard({
           storedLots.find((lot) => lot.status === 'active')?.lotNumber ??
           storedLots[0]?.lotNumber ??
           '';
-        const selectedEntries =
+
+        const [selectedEntries, selectedViolations] =
           nextSelectedLotNumber.length > 0
-            ? await getEntries(diseaseSlug, controlType, nextSelectedLotNumber)
-            : [];
+            ? await Promise.all([
+                getEntries(diseaseSlug, controlType, nextSelectedLotNumber),
+                getViolations(diseaseSlug, controlType, nextSelectedLotNumber),
+              ])
+            : [[], []];
 
         if (!isCancelled) {
-          setCurrentSession(session);
           setLots(storedLots);
           setSelectedLotNumber(nextSelectedLotNumber);
           setEntries(selectedEntries);
+          setViolations(selectedViolations);
         }
       } catch (caughtError) {
         if (!isCancelled) {
@@ -224,15 +532,15 @@ export default function QCDashboard({
     };
   }, [controlType, diseaseSlug, error, isInHouseControl, selectedLotNumber]);
 
+  const refreshViolationsEvent = () => {
+    window.dispatchEvent(new CustomEvent('qc-violations-changed'));
+  };
+
   const handleFieldChange = (field: keyof EntryFormValues, value: string) => {
     setFormValues((currentValues) => ({
       ...currentValues,
       [field]: value,
     }));
-  };
-
-  const handleLotSelection = (lotNumber: string) => {
-    setSelectedLotNumber(lotNumber);
   };
 
   const handleAddEntry = async () => {
@@ -267,9 +575,9 @@ export default function QCDashboard({
       odValue: Number.parseFloat(formValues.odValue),
       lotNumber: datasetLotNumber,
       controlCode: getControlCode(controlType),
-      runNumber: '',
-      vialNumber: '',
-      flag: null,
+      runNumber: String(entries.length + 1).padStart(2, '0'),
+      vialNumber: `V${String(entries.length + 1).padStart(2, '0')}`,
+      flag: selectedFlag === 'none' ? null : selectedFlag,
       notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
       editedAt: null,
       editReason: null,
@@ -277,26 +585,48 @@ export default function QCDashboard({
       signedAt: null,
     };
 
+    setIsSubmitting(true);
+
     try {
       await addEntry(diseaseSlug, controlType, nextEntry, isInHouseControl ? undefined : datasetLotNumber);
-      const updatedEntries = await getEntries(diseaseSlug, controlType, isInHouseControl ? undefined : datasetLotNumber);
+
+      const updatedEntries = await getEntries(
+        diseaseSlug,
+        controlType,
+        isInHouseControl ? undefined : datasetLotNumber,
+      );
+      const recalculatedChartData = entriesToChartData(updatedEntries);
+      const recalculatedStatistics = calculateStatistics(recalculatedChartData);
+      const recalculatedRules = evaluateQCRules(recalculatedChartData, recalculatedStatistics, parameters);
+      const potentialViolations = buildViolationEntries(updatedEntries, recalculatedRules, nextEntry.lotNumber);
+
+      for (const violation of potentialViolations) {
+        await addViolation(
+          diseaseSlug,
+          controlType,
+          violation,
+          isInHouseControl ? undefined : datasetLotNumber,
+        );
+      }
+
+      const updatedViolations = await getViolations(
+        diseaseSlug,
+        controlType,
+        isInHouseControl ? undefined : datasetLotNumber,
+      );
 
       setEntries(updatedEntries);
+      setViolations(updatedViolations);
       setFormValues(createDefaultEntryForm());
-      success(`Run ${nextEntry.protocolNumber} recorded successfully.`);
+      setSelectedFlag('none');
+      setHasSubmitted(true);
+      success('Entry recorded successfully');
+      refreshViolationsEvent();
     } catch (caughtError) {
       error(caughtError instanceof Error ? caughtError.message : 'Unable to save the QC entry.');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleExport = () => {
-    if (baseChartData.length === 0) {
-      error('No data is available for export.');
-      return;
-    }
-
-    exportToCSV(entries, statistics, parameters);
-    success('Current dataset exported successfully.');
   };
 
   const handleSaveEditedEntry = async (entry: QCEntry, odValue: number, reason: string) => {
@@ -359,14 +689,15 @@ export default function QCDashboard({
         );
       }
 
-      const refreshedEntries = await getEntries(
-        diseaseSlug,
-        controlType,
-        isInHouseControl ? undefined : activeDatasetLotNumber,
-      );
+      const [refreshedEntries, refreshedViolations] = await Promise.all([
+        getEntries(diseaseSlug, controlType, isInHouseControl ? undefined : activeDatasetLotNumber),
+        getViolations(diseaseSlug, controlType, isInHouseControl ? undefined : activeDatasetLotNumber),
+      ]);
 
       setEntries(refreshedEntries);
-      success(`Entry ${entry.protocolNumber} updated — change logged in audit trail`);
+      setViolations(refreshedViolations);
+      success(`Entry ${entry.protocolNumber} updated and logged in the audit trail.`);
+      refreshViolationsEvent();
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : 'Unable to update the QC entry.';
       error(message);
@@ -398,6 +729,7 @@ export default function QCDashboard({
       setLots(updatedLots);
       setSelectedLotNumber(trimmedLotNumber);
       setEntries(updatedEntries);
+      setViolations([]);
       setIsStartLotDialogOpen(false);
       setNewLotValues(createDefaultLotForm());
       success(`Lot ${trimmedLotNumber} is now active.`);
@@ -406,249 +738,459 @@ export default function QCDashboard({
     }
   };
 
-  const monitorTitle = `${diseaseName} ${controlName}`;
-  const monitorSubtitle = `${controlName.toUpperCase()} • ${diseaseName.toUpperCase()}${assayTag ? ` • ${assayTag}` : ''}`;
+  const chartTrendDelta =
+    cvTrend.rollingCV.length >= 2
+      ? cvTrend.rollingCV[cvTrend.rollingCV.length - 1].value - cvTrend.rollingCV[cvTrend.rollingCV.length - 2].value
+      : 0;
+  const trendDirection = chartTrendDelta <= 0 ? 'down' : 'up';
+  const trendPath = buildSparklinePath(cvTrend.sparklinePoints);
+  const trendAreaPath =
+    cvTrend.sparklinePoints.length > 0
+      ? `${trendPath} L ${cvTrend.sparklinePoints[cvTrend.sparklinePoints.length - 1].x} 80 L ${cvTrend.sparklinePoints[0].x} 80 Z`
+      : '';
 
   return (
-    <div className="min-h-screen bg-[#F9F9F9]">
-      <DashboardHeader activeTab="monitor" />
-
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-[#1A1C1C]">{monitorTitle}</h1>
-          <p className="mt-1 text-sm text-[#64748B]">{monitorSubtitle}</p>
+    <div>
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">{chartSubtitle}</p>
+          <h1 className="mt-2 text-[28px] font-bold text-[#111827]">{`${diseaseName} ${controlName}`}</h1>
         </div>
 
-        {!isInHouseControl && (
-          <div className="mb-6 rounded-xl border border-[#F3F3F3] bg-white p-5 shadow">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#64748B]">Lot Selector</p>
-                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Select value={selectedLotNumber} onValueChange={handleLotSelection}>
-                    <SelectTrigger className="h-11 w-full min-w-0 justify-between rounded-lg border-[#DCE4F2] px-3 text-left sm:max-w-md">
-                      <SelectValue placeholder="Select a lot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {lots.map((lot) => (
-                        <SelectItem key={lot.lotNumber} value={lot.lotNumber}>
-                          {`${lot.lotNumber} • ${lot.status === 'active' ? 'Active' : 'Archived'} • ${formatDisplayDate(lot.startDate)}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+        <div className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold ${monitorStatusMeta.badgeClassName}`}>
+          <span className={`mr-2 h-2 w-2 rounded-full ${monitorStatusMeta.dotClassName}`} />
+          {monitorStatusMeta.badgeLabel}
+        </div>
+      </div>
 
-                  {selectedLot && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className={selectedLot.status === 'active' ? 'bg-[#DCFCE7] text-[#16A34A]' : 'bg-[#F3F4F6] text-[#6B7280]'}>
-                        {selectedLot.status === 'active' ? 'Active' : 'Archived'}
-                      </Badge>
-                      <span className="text-sm text-[#64748B]">
-                        Started {formatDisplayDate(selectedLot.startDate)}
-                      </span>
-                    </div>
-                  )}
-                </div>
+      {!isInHouseControl && (
+        <div className="qc-card mb-6 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Active Lot</p>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Select value={selectedLotNumber} onValueChange={setSelectedLotNumber}>
+                  <SelectTrigger className="h-11 w-full max-w-md border-[#e5e7eb] bg-white">
+                    <SelectValue placeholder="Select reagent lot" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lots.map((lot) => (
+                      <SelectItem key={lot.lotNumber} value={lot.lotNumber}>
+                        {`${lot.lotNumber} • ${lot.status === 'active' ? 'Active' : 'Archived'} • ${formatDateLabel(lot.startDate)}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {selectedLot && (
+                  <div className="flex items-center gap-2 text-sm text-[#6b7280]">
+                    <Badge className={selectedLot.status === 'active' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#f3f4f6] text-[#6b7280]'}>
+                      {selectedLot.status === 'active' ? 'Active' : 'Archived'}
+                    </Badge>
+                    <span>Started {formatDateLabel(selectedLot.startDate)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Button type="button" variant="outline" className="h-11 border-[#dbe4ff] text-[#1a1aff]" onClick={() => setIsStartLotDialogOpen(true)}>
+              <PlusCircle size={16} />
+              Start new lot
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="qc-card lg:col-span-2">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#9ca3af]">NEW QC ENTRY</p>
+              <h2 className="mt-3 text-[18px] font-semibold text-[#111827]">Record run details for this dataset</h2>
+            </div>
+            <UserCircle size={20} className="text-[#9ca3af]" />
+          </div>
+
+          {isArchivedLot && (
+            <div className="mb-5 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-4 py-3 text-sm text-[#6b7280]">
+              This archived lot is read-only. Select an active lot or start a new lot to continue recording.
+            </div>
+          )}
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleAddEntry();
+            }}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Date</label>
+                <IsoDatePicker
+                  value={formValues.date}
+                  onChange={(value) => handleFieldChange('date', value)}
+                  disabled={isArchivedLot}
+                  displayFormat={settings.dateFormat}
+                  className="h-11 border-[#e5e7eb] bg-white text-[#111827] hover:bg-[#f8fafc]"
+                />
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 border-[#DCE4F2] text-[#0000FF] hover:bg-[#EEF2FF]"
-                onClick={() => setIsStartLotDialogOpen(true)}
-              >
-                <PlusCircle size={16} />
-                Start new lot
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {isArchivedLot && (
-          <div className="mb-6 rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-sm text-[#475569] shadow-sm">
-            This lot is archived. Data is read-only.
-          </div>
-        )}
-
-        <div className="mb-8 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
-          <div className="h-full">
-            {isArchivedLot ? (
-              <div className="flex h-full flex-col justify-between rounded-xl border border-[#E5E7EB] bg-white p-6 shadow">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#64748B]">Archived Dataset</p>
-                  <h2 className="mt-2 text-2xl font-bold text-[#1A1C1C]">{selectedLot?.lotNumber}</h2>
-                  <p className="mt-3 text-sm leading-6 text-[#64748B]">
-                    Historical lot runs remain fully viewable for chart review, statistics checks, and report downloads.
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">OD Value (ABS)</label>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  placeholder="0.0000"
+                  value={formValues.odValue}
+                  disabled={isArchivedLot}
+                  onChange={(event) => handleFieldChange('odValue', event.target.value)}
+                  className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
+                />
+                {liveZScore !== null && (
+                  <p className="text-[11px] font-medium" style={{ color: getZScoreTone(liveZScore).text }}>
+                    {`Z: ${liveZScore >= 0 ? '+' : ''}${liveZScore.toFixed(2)}`}
                   </p>
-                </div>
-
-                <div className="mt-6 rounded-lg border border-[#E5EAF2] bg-[#F9F9F9] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#64748B]">Archived Since</p>
-                  <p className="mt-1 text-lg font-bold text-[#1A1C1C]">{formatDisplayDate(selectedLot?.endDate ?? null)}</p>
-                </div>
+                )}
               </div>
-            ) : (
-              <InputPanel
-                formValues={formValues}
-                onFieldChange={handleFieldChange}
-                onAddOD={handleAddEntry}
-                currentLotNumber={currentLotLabel}
-              />
-            )}
-          </div>
 
-          <div className="flex h-full flex-col rounded-xl border border-[#F3F3F3] bg-white p-5 shadow">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">Current Status</p>
-                <div className={`mt-1 text-2xl font-bold ${hasViolations ? 'text-[#B22222]' : 'text-[#0000FF]'}`}>
-                  {hasViolations ? 'OUT OF CONTROL' : 'NORMAL'}
-                </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Protocol No.</label>
+                <Input
+                  placeholder="Enter protocol number"
+                  value={formValues.protocolNumber}
+                  disabled={isArchivedLot}
+                  onChange={(event) => handleFieldChange('protocolNumber', event.target.value)}
+                  className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
+                />
               </div>
-              <div className={`mt-1 h-3 w-3 shrink-0 rounded-full ${hasViolations ? 'bg-[#B22222]' : 'bg-[#0000FF]'}`} />
             </div>
 
-            <p className="text-sm leading-6 text-[#64748B]">
-              {hasViolations
-                ? 'Violations detected in the latest review window. Inspect the selected dataset before proceeding.'
-                : 'The selected dataset is operating within expected control limits based on the current run history.'}
-            </p>
+            <div className="space-y-2">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Flag</label>
+              <Select value={selectedFlag} onValueChange={(value) => setSelectedFlag(value as QCEntryFlag | 'none')} disabled={isArchivedLot}>
+                <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white">
+                  <SelectValue placeholder="Select optional flag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">(none)</SelectItem>
+                  {FLAG_OPTIONS.map((flag) => (
+                    <SelectItem key={flag.value} value={flag.value}>
+                      {flag.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              <div className="rounded-lg border border-[#F3F3F3] bg-[#F9F9F9] p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">Last OD</p>
-                <p className="mt-1 text-lg font-bold text-[#1A1C1C]">
-                  {runStatistics.lastOD === null ? '-' : runStatistics.lastOD.toFixed(4)}
+            <div className="space-y-2">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Remarks</label>
+              <Textarea
+                rows={2}
+                maxLength={200}
+                placeholder="Optional remarks"
+                value={formValues.remarks}
+                disabled={isArchivedLot}
+                onChange={(event) => handleFieldChange('remarks', event.target.value)}
+                className="min-h-[92px] resize-none border-[#e5e7eb] bg-white px-3 py-2 text-[#111827]"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isArchivedLot || isSubmitting}
+              className="h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
+            >
+              {isSubmitting ? 'Submitting...' : 'SUBMIT RECORDING →'}
+            </Button>
+
+            {hasSubmitted && (
+              <div>
+                {nextDisease ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full border-[#dbe4ff] text-[#1a1aff]"
+                    onClick={() => navigate(`/monitor/${nextDisease.slug}/${controlType}`)}
+                  >
+                    {`Next disease → ${nextDisease.name}`}
+                  </Button>
+                ) : (
+                  <div className="flex h-11 items-center justify-center rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] text-sm font-semibold text-[#16a34a]">
+                    All diseases recorded ✓
+                  </div>
+                )}
+              </div>
+            )}
+          </form>
+        </div>
+
+        <div className="qc-card flex flex-col">
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <h2 className="text-[16px] font-semibold text-[#111827]">System Health</h2>
+            <div className={`rounded-full px-3 py-1 text-xs font-semibold ${monitorStatusMeta.systemBadgeClassName}`}>
+              {monitorStatusMeta.badgeLabel}
+            </div>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center">
+            <div className="flex items-center gap-5">
+              <div className={`flex h-16 w-16 items-center justify-center rounded-full border-4 ${monitorStatusMeta.ringClassName}`}>
+                <MonitorStatusIcon size={26} />
+              </div>
+              <div>
+                <p className="text-[28px] font-bold text-[#111827]">{monitorStatusMeta.healthLabel}</p>
+                <p className="text-[13px] text-[#6b7280]">
+                  {`Last entry validated: ${entries.length > 0 ? formatDateTimeLabel(getEntryTimestamp(entries[entries.length - 1])) : 'No entries yet'}`}
                 </p>
               </div>
-              <div className="rounded-lg border border-[#F3F3F3] bg-[#F9F9F9] p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">Runs</p>
-                <p className="mt-1 text-lg font-bold text-[#1A1C1C]">{runStatistics.totalRuns}</p>
-              </div>
-              <div className="rounded-lg border border-[#F3F3F3] bg-[#F9F9F9] p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">CV</p>
-                <p className="mt-1 text-lg font-bold text-[#1A1C1C]">{runStatistics.cv.toFixed(2)}%</p>
-              </div>
             </div>
-
-            {!isInHouseControl && selectedLot && (
-              <div className="mt-5 rounded-lg border border-[#E5EAF2] bg-[#F9FBFF] p-4">
-                <div className="flex items-center gap-2">
-                  <FolderKanban size={16} className="text-[#0000FF]" />
-                  <p className="text-sm font-semibold text-[#1A1C1C]">Selected Lot Details</p>
-                </div>
-                <div className="mt-3 grid gap-2 text-sm text-[#475569] sm:grid-cols-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Lot</p>
-                    <p className="mt-1 font-semibold text-[#1A1C1C]">{selectedLot.lotNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Start Date</p>
-                    <p className="mt-1 font-semibold text-[#1A1C1C]">{formatDisplayDate(selectedLot.startDate)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Status</p>
-                    <p className="mt-1 font-semibold text-[#1A1C1C]">{selectedLot.status === 'active' ? 'Active' : 'Archived'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
+      </div>
 
-        <div className="mb-6">
-          <StatisticsPanel runStatistics={runStatistics} cvTrend={cvTrend} />
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
+        {[
+          { label: 'MEAN', value: runStatistics.mean.toFixed(3), color: '#111827', icon: Target, iconColor: '#7c3aed' },
+          { label: 'SD', value: runStatistics.sd.toFixed(3), color: '#111827', icon: TrendingUp, iconColor: '#0891b2' },
+          { label: 'SUM', value: runStatistics.sum.toFixed(3), color: '#111827', icon: Plus, iconColor: '#6b7280' },
+          { label: 'CV %', value: `${runStatistics.cv.toFixed(2)}%`, color: '#1a1aff', icon: Percent, iconColor: '#d97706' },
+          { label: 'LAST OD', value: runStatistics.lastOD === null ? '-' : runStatistics.lastOD.toFixed(4), color: '#1a1aff', icon: Activity, iconColor: '#1a1aff' },
+          { label: 'TOTAL RUNS', value: `${runStatistics.totalRuns}`, color: '#111827', icon: BarChart2, iconColor: '#7c3aed' },
+          { label: 'CONFIDENCE', value: `${runStatistics.confidence.toFixed(0)}%`, color: '#111827', icon: ShieldCheck, iconColor: '#16a34a' },
+        ].map((stat) => {
+          const StatIcon = stat.icon;
 
-        <div className="mb-8">
+          return (
+            <div key={stat.label} className="rounded-[12px] border border-[#f0f0f0] bg-white px-5 py-4 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">{stat.label}</p>
+                <StatIcon size={18} style={{ color: stat.iconColor }} />
+              </div>
+              <p className="mt-5 text-[22px] font-bold" style={{ color: stat.color }}>
+                {stat.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-10">
+        <div className="qc-card xl:col-span-7">
           <LeveyJenningsChart
             data={chartData}
             statistics={statistics}
             parameters={parameters}
+            title="Levey-Jennings Quality Control Chart"
+            height={380}
             headerActions={
               canEditEntries ? (
-                isArchivedLot ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled
-                    title="Archived lots are read-only."
-                    className="border-[#E5E7EB] text-[#64748B]"
-                  >
-                    <Lock size={14} />
-                    Edit entries
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-[#DCE4F2] text-[#0000FF] hover:bg-[#EEF2FF]"
-                    onClick={() => setIsEditSheetOpen(true)}
-                  >
-                    <Pencil size={14} />
-                    Edit entries
-                  </Button>
-                )
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-[#dbe4ff] text-[#1f3d87]"
+                  onClick={() => setIsEditSheetOpen(true)}
+                  disabled={isArchivedLot}
+                >
+                  <Pencil size={14} />
+                  Edit entries
+                </Button>
               ) : null
             }
-            badgeLabel={
-              isInHouseControl
-                ? `${chartData.length} runs`
-                : `${selectedLot?.lotNumber || selectedLotNumber || 'No lot selected'}`
-            }
+            badgeLabel={`${chartData.length} runs`}
+            showChartTitle={false}
           />
-        </div>
-
-        <div className="mb-8 flex flex-wrap gap-3">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 rounded-lg border border-[#F3F3F3] px-4 py-2 text-sm font-medium text-[#64748B] transition-colors hover:bg-gray-100"
-          >
-            <Download size={16} />
-            Download dataset
-          </button>
-          <div className="rounded-lg border border-[#F3F3F3] px-4 py-2 text-sm font-medium text-[#64748B]">
-            {isLoading ? 'Refreshing dataset...' : `${chartData.length} plotted runs`}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex rounded-lg border border-[#e5e7eb] bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setChartView('daily')}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${chartView === 'daily' ? 'bg-[#eff6ff] text-[#1a1aff]' : 'text-[#6b7280]'}`}
+              >
+                DAILY
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartView('weekly')}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${chartView === 'weekly' ? 'bg-[#eff6ff] text-[#1a1aff]' : 'text-[#6b7280]'}`}
+              >
+                WEEKLY
+              </button>
+            </div>
+            <p className="text-[13px] text-[#6b7280]">{`${chartData.length} plotted runs`}</p>
           </div>
         </div>
 
-        <div className="mb-8">
-          <QCRulesPanel qcRules={qcRules} />
-        </div>
-
-        <div className="mb-8 rounded-xl border border-[#F3F3F3] bg-white p-6 shadow">
-          <h3 className="mb-4 text-lg font-semibold text-[#1A1C1C]">Recent Logs</h3>
-          <div className="space-y-3">
-            {entries.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-[#D9E2F1] bg-[#F9FBFF] px-4 py-6 text-sm text-[#64748B]">
-                No runs have been recorded for this dataset yet.
+        <div className="space-y-6 xl:col-span-3">
+          <div className="qc-card">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h3 className="text-[15px] font-semibold text-[#111827]">CV Trend</h3>
+              <div className={`flex items-center gap-1 text-[13px] font-semibold ${trendDirection === 'down' ? 'text-[#0f766e]' : 'text-[#d97706]'}`}>
+                <span>{`${Math.abs(chartTrendDelta).toFixed(1)}%`}</span>
+                {trendDirection === 'down' ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
               </div>
+            </div>
+
+            <div className="mb-4 h-20 rounded-xl bg-[linear-gradient(180deg,rgba(13,148,136,0.04)_0%,rgba(13,148,136,0.01)_100%)] p-1">
+              {cvTrend.sparklinePoints.length > 0 ? (
+                <svg viewBox="0 0 160 80" className="h-full w-full" role="img" aria-label="CV trend sparkline">
+                  <path d={trendAreaPath} fill="rgba(13,148,136,0.10)" />
+                  <path d={trendPath} fill="none" stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <div className="flex h-full items-center justify-center text-center text-[13px] text-[#9ca3af]">
+                  Rolling CV trend appears after 10 runs.
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[#6b7280]">Current CV</span>
+                <span className="font-bold text-[#111827]">{`${currentCV.toFixed(2)}%`}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6b7280]">Threshold</span>
+                <span className="font-medium text-[#111827]">{`${settings.cvAlertThreshold.toFixed(1)}%`}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-[#e5e7eb]">
+              <div
+                className={`h-full rounded-full ${currentCV > settings.cvAlertThreshold ? 'bg-[#dc2626]' : 'bg-[#0d9488]'}`}
+                style={{ width: `${Math.min((currentCV / settings.cvAlertThreshold) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="qc-card">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-[15px] font-semibold text-[#111827]">Recent Flags</h3>
+            </div>
+
+            {recentFlags.length === 0 ? (
+              <div className="py-4 text-center text-[13px] text-[#9ca3af]">No recent flags</div>
             ) : (
-              [...entries]
-                .slice(-5)
-                .reverse()
-                .map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between border-b border-[#F3F3F3] py-2 last:border-0"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-[#1A1C1C]">{entry.date}</p>
-                      <p className="text-xs text-[#64748B]">Protocol No. {entry.protocolNumber}</p>
+              <div className="space-y-4">
+                {recentFlags.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3">
+                    <div
+                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        item.icon === 'warning'
+                          ? item.severity === 'rejection'
+                            ? 'bg-[#fee2e2] text-[#dc2626]'
+                            : 'bg-[#fef3c7] text-[#d97706]'
+                          : 'bg-[#f3f4f6] text-[#6b7280]'
+                      }`}
+                    >
+                      {item.icon === 'warning' ? <AlertTriangle size={16} /> : <Clock3 size={16} />}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {entry.editedAt && <Badge className="bg-[#FEF3C7] text-[#D97706]">Edited</Badge>}
-                      <div className="text-sm font-semibold text-[#1A1C1C]">{entry.odValue.toFixed(4)}</div>
+                    <div>
+                      <p className="text-[14px] font-medium text-[#111827]">{item.label}</p>
+                      <p className="text-[12px] text-[#6b7280]">{item.secondary}</p>
                     </div>
                   </div>
-                ))
+                ))}
+              </div>
             )}
+
+            <Button type="button" variant="outline" className="mt-5 h-10 w-full border-[#dbe4ff] text-[#1a1aff]" onClick={() => navigate('/violations')}>
+              View Rule Logs
+            </Button>
           </div>
         </div>
+      </div>
 
-        <Footer />
+      <div className="qc-card">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-[16px] font-semibold text-[#111827]">Recent Control Runs</h2>
+          <p className="text-[13px] text-[#6b7280]">{`Showing last ${sortedRecentEntries.length} of ${entries.length} runs`}</p>
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow className="border-[#eef2f7] hover:bg-transparent">
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">Date &amp; Time</TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                {isInHouseControl ? 'Protocol No.' : 'Lot Number'}
+              </TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">OD Reading</TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">SD Deviation</TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">Status</TableHead>
+              <TableHead className="h-12 text-right text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedRecentEntries.map((entry) => {
+              const zScore = statistics.sampleCount >= 2 && statistics.sd > 0
+                ? calculateZScore(entry.odValue, statistics.mean, statistics.sd)
+                : 0;
+              const zScoreMeta = getZScoreTone(zScore);
+
+              return (
+                <TableRow key={entry.id} className="border-[#eef2f7] bg-white hover:bg-[#f8fafc]">
+                  <TableCell className="py-4 text-[14px] text-[#111827]">{formatDateTimeLabel(getEntryTimestamp(entry))}</TableCell>
+                  <TableCell className="py-4 text-[14px] text-[#374151]">
+                    <div className="flex items-center gap-2">
+                      <span className={isInHouseControl ? 'font-mono' : ''}>{isInHouseControl ? entry.protocolNumber : entry.lotNumber}</span>
+                      {entry.signedBy && <Lock size={14} className="text-[#9ca3af]" />}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-4 text-[14px] font-medium text-[#111827]">
+                    <div className="flex items-center gap-2">
+                      <span>{entry.odValue.toFixed(4)}</span>
+                      {entry.editedAt && <Badge className="bg-[#fef3c7] text-[#d97706]">Edited</Badge>}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold ${zScoreMeta.tint}`}>
+                      {`${zScore >= 0 ? '+' : ''}${zScore.toFixed(1)} SD`}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <div className="flex items-center gap-2 text-[14px] text-[#111827]">
+                      <span className={`h-2.5 w-2.5 rounded-full ${zScoreMeta.dot}`} />
+                      {zScoreMeta.status}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-4 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" className="text-[#94a3b8]">
+                          <MoreHorizontal size={16} />
+                          <span className="sr-only">Open entry actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => setSelectedEntry(entry)}>View detail</DropdownMenuItem>
+                        {canEditEntries && (
+                          <DropdownMenuItem
+                            disabled={isArchivedLot || entry.signedBy !== null}
+                            onClick={() => setIsEditSheetOpen(true)}
+                          >
+                            Edit entry
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => downloadEntry(entry)}>
+                          <Download size={14} />
+                          Download entry
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+
+        <div className="mt-5 text-center">
+          <button type="button" onClick={() => navigate('/history')} className="text-[14px] font-semibold text-[#1a1aff]">
+            View All Analysis History
+          </button>
+        </div>
       </div>
 
       <Dialog open={isStartLotDialogOpen} onOpenChange={setIsStartLotDialogOpen}>
@@ -663,8 +1205,7 @@ export default function QCDashboard({
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#1A1C1C]">Lot Number</label>
-              <input
-                type="text"
+              <Input
                 value={newLotValues.lotNumber}
                 onChange={(event) =>
                   setNewLotValues((currentValues) => ({
@@ -673,7 +1214,7 @@ export default function QCDashboard({
                   }))
                 }
                 placeholder="Enter reagent lot number"
-                className="w-full rounded-lg border border-[#DCE4F2] px-3 py-2 text-sm outline-none transition focus:border-[#0000FF]"
+                className="h-11 border-[#dce4f2] bg-white px-3"
               />
             </div>
 
@@ -687,13 +1228,14 @@ export default function QCDashboard({
                     startDate: value,
                   }))
                 }
-                className="border-[#DCE4F2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
+                displayFormat={settings.dateFormat}
+                className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
               />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#1A1C1C]">Notes</label>
-              <textarea
+              <Textarea
                 value={newLotValues.notes}
                 onChange={(event) =>
                   setNewLotValues((currentValues) => ({
@@ -704,7 +1246,7 @@ export default function QCDashboard({
                 rows={3}
                 maxLength={200}
                 placeholder="Optional notes for this lot"
-                className="w-full resize-none rounded-lg border border-[#DCE4F2] px-3 py-2 text-sm outline-none transition focus:border-[#0000FF]"
+                className="resize-none border-[#dce4f2] bg-white px-3 py-2"
               />
             </div>
           </div>
@@ -727,7 +1269,41 @@ export default function QCDashboard({
         </DialogContent>
       </Dialog>
 
-      {canEditEntries && !isArchivedLot && (
+      <Dialog open={selectedEntry !== null} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedEntry?.protocolNumber ?? 'Entry detail'}</DialogTitle>
+            <DialogDescription>Review the selected QC entry details.</DialogDescription>
+          </DialogHeader>
+
+          {selectedEntry && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Date</p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">{formatDateLabel(selectedEntry.date)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">OD Reading</p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.odValue.toFixed(4)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Protocol No.</p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.protocolNumber}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Lot Number</p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.lotNumber}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Remarks</p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.notes ?? 'No remarks recorded.'}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {canEditEntries && (
         <EditEntriesSheet
           entries={entries}
           mean={statistics.mean}
@@ -736,6 +1312,10 @@ export default function QCDashboard({
           onOpenChange={setIsEditSheetOpen}
           onSave={handleSaveEditedEntry}
         />
+      )}
+
+      {isLoading && (
+        <div className="mt-4 text-sm text-[#6b7280]">Refreshing dataset...</div>
       )}
     </div>
   );

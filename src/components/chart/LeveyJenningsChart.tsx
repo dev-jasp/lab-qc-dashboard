@@ -10,7 +10,6 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { TrendingUp } from 'lucide-react';
 import type { LeveyJenningsChartProps } from '../../types/qc.types';
 import { createChartConfig } from '../../utils/chart-config';
 
@@ -29,7 +28,7 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
   data, 
   statistics, 
   parameters,
-  title = 'Quality Control Chart',
+  title = 'Levey-Jennings Quality Control Chart',
   height = 550,
   badgeLabel,
   headerActions,
@@ -79,17 +78,12 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
   }, []);
 
   return (
-    <div style={{ backgroundColor: '#FFFFFF', borderColor: '#F3F3F3' }} className="rounded-xl shadow border p-6 hover:shadow-xl transition-shadow duration-300">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div style={{ background: '#0000FF' }} className="p-2 rounded-lg">
-            <TrendingUp className="text-white" size={20} />
-          </div>
-          <h3 className="text-lg font-semibold" style={{ color: '#1A1C1C' }}>{title}</h3>
-        </div>
+    <div className="rounded-[12px] border border-[#f0f0f0] bg-white p-6 shadow-[0_6px_18px_rgba(15,23,42,0.06)]">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-[16px] font-semibold text-[#111827]">{title}</h3>
         <div className="flex items-center gap-2">
           {headerActions}
-          <div style={{ backgroundColor: '#F9F9F9', color: '#64748B' }} className="rounded-full px-4 py-1.5 text-xs">
+          <div className="rounded-full bg-[#f3f4f6] px-4 py-1.5 text-xs text-[#6b7280]">
             {badgeLabel ?? `${data.length} data points`}
           </div>
         </div>

@@ -11,9 +11,24 @@ interface IsoDatePickerProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   className?: string;
+  displayFormat?: 'YYYY-MM-DD';
 }
 
-export function IsoDatePicker({ value, onChange, disabled = false, className }: IsoDatePickerProps) {
+function resolveDisplayLabel(value: string, displayFormat: 'YYYY-MM-DD') {
+  if (displayFormat === 'YYYY-MM-DD') {
+    return format(parseISO(value), 'yyyy-MM-dd');
+  }
+
+  return format(parseISO(value), 'MMM dd, yyyy');
+}
+
+export function IsoDatePicker({
+  value,
+  onChange,
+  disabled = false,
+  className,
+  displayFormat = 'YYYY-MM-DD',
+}: IsoDatePickerProps) {
   const selectedDate = value ? parseISO(value) : undefined;
 
   return (
@@ -28,7 +43,7 @@ export function IsoDatePicker({ value, onChange, disabled = false, className }: 
             className,
           )}
         >
-          <span>{selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'Select date'}</span>
+          <span>{selectedDate ? resolveDisplayLabel(value, displayFormat) : 'Select date'}</span>
           <CalendarDays size={16} />
         </Button>
       </PopoverTrigger>
