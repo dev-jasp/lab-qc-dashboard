@@ -8,17 +8,7 @@ import { cn } from '@/utils/cn';
 
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
-
-type SidebarContextValue = {
-  isMobile: boolean;
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  openMobile: boolean;
-  setOpenMobile: React.Dispatch<React.SetStateAction<boolean>>;
-  toggleSidebar: () => void;
-};
-
-const SidebarContext = React.createContext<SidebarContextValue | null>(null);
+import { SidebarContext, useSidebar } from '@/components/ui/sidebar-context';
 
 const SIDEBAR_EXPANDED_WIDTH = 260;
 const SIDEBAR_COLLAPSED_WIDTH = 64;
@@ -30,16 +20,6 @@ const SIDEBAR_TRANSITION: Transition = {
 
 const MotionSheetOverlay = motion.create(SheetPrimitive.Overlay);
 const MotionSheetContent = motion.create(SheetPrimitive.Content);
-
-function useSidebar() {
-  const context = React.useContext(SidebarContext);
-
-  if (context === null) {
-    throw new Error('Sidebar components must be used within <SidebarProvider>.');
-  }
-
-  return context;
-}
 
 function SidebarProvider({
   defaultOpen = true,
@@ -198,7 +178,7 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="sidebar-header"
       className={cn(
-        'py-5',
+        'min-h-[88px] py-5',
         !open && !isMobile ? 'px-3' : 'px-4',
         className,
       )}
@@ -242,15 +222,11 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<'section'>) 
 function SidebarGroupLabel({ className, children, ...props }: React.ComponentProps<'p'>) {
   const { open, isMobile } = useSidebar();
 
-  if (!open && !isMobile) {
-    return <p data-slot="sidebar-group-label" className={cn('mb-0 h-0 overflow-hidden px-1', className)} {...props} />;
-  }
-
   return (
     <p
       data-slot="sidebar-group-label"
       className={cn(
-        'mb-3 block overflow-hidden whitespace-nowrap px-1 text-[11px] font-semibold tracking-[0.16em] text-[#94a3b8]',
+        'mb-3 block h-4 overflow-hidden whitespace-nowrap px-1 text-[11px] font-semibold leading-4 tracking-[0.16em] text-[#94a3b8]',
         className,
       )}
       {...props}
@@ -325,7 +301,7 @@ function SidebarMenuButton({
       title={!open && !isMobile ? label : undefined}
       className={cn(
         'flex w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-xl text-left text-sm font-medium outline-none transition-[background-color,color] duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
-        size === 'lg' ? 'min-h-14 px-3 py-3' : 'min-h-10 px-3 py-2.5',
+        size === 'lg' ? 'h-14 min-h-14 px-3 py-3' : 'h-10 min-h-10 px-3 py-2.5',
         isActive ? 'bg-[var(--sidebar-primary)] text-white shadow-sm' : 'text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]',
         !open && !isMobile ? 'justify-center p-0' : 'justify-start',
         className,
@@ -448,5 +424,4 @@ export {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
-  useSidebar,
 };

@@ -1,5 +1,5 @@
-import { PulseIcon } from '@phosphor-icons/react';
-import { Link } from 'react-router-dom';
+import { PulseIcon } from "@phosphor-icons/react";
+import { Link } from "react-router-dom";
 
 export function Login() {
   return (
@@ -11,13 +11,15 @@ export function Login() {
           </div>
           <div>
             <p className="text-lg font-bold text-[#1a1aff]">QC PULSE</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[#9ca3af]">Laboratory System</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#9ca3af]">
+              Laboratory System
+            </p>
           </div>
         </div>
 
         <h1 className="text-2xl font-bold text-[#111827]">Session cleared</h1>
         <p className="mt-3 text-sm leading-6 text-[#6b7280]">
-          This route is ready for the future PIN-based login flow. For now, you can return to the monitor workspace from here.
+          what's up nigaboy
         </p>
 
         <Link

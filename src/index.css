@@ -216,15 +216,6 @@
     white-space: nowrap;
   }
 
-  @media (min-width: 768px) {
-    [data-sidebar='sidebar'][data-state='collapsed'] [data-slot='sidebar-group-label'] {
-      margin-bottom: 0;
-    }
-
-    [data-sidebar='sidebar'][data-state='expanded'] [data-slot='sidebar-group-label'] {
-      margin-bottom: 0.75rem;
-    }
-  }
 }
 
 @keyframes slideInRight {
