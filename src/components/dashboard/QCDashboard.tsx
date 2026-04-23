@@ -895,11 +895,11 @@ export default function QCDashboard({
           </div>
 
           <div className="flex flex-1 items-center justify-center">
-            <div className="flex items-center gap-5">
+            <div className="flex flex-col items-center gap-4">
               <div className={`flex h-16 w-16 items-center justify-center rounded-full border-4 ${monitorStatusMeta.ringClassName}`}>
                 <MonitorStatusIcon size={26} />
               </div>
-              <div>
+              <div className="text-center">
                 <p className="text-[28px] font-bold text-[#111827]">{monitorStatusMeta.healthLabel}</p>
                 <p className="text-[13px] text-[#6b7280]">
                   {`Last entry validated: ${entries.length > 0 ? formatDateTimeLabel(getEntryTimestamp(entries[entries.length - 1])) : 'No entries yet'}`}
@@ -964,7 +964,7 @@ export default function QCDashboard({
           />
         </div>
 
-        <div className="space-y-6 lg:col-span-1">
+        <div className="flex flex-col gap-6 lg:col-span-1">
           <div className="qc-card">
             <div className="mb-4 flex items-start justify-between gap-3">
               <h3 className="text-[15px] font-semibold text-[#111827]">CV Trend</h3>
@@ -1006,15 +1006,15 @@ export default function QCDashboard({
             </div>
           </div>
 
-          <div className="qc-card">
+          <div className="flex flex-col qc-card flex-1">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-[15px] font-semibold text-[#111827]">Recent Flags</h3>
             </div>
 
             {recentFlags.length === 0 ? (
-              <div className="py-4 text-center text-[13px] text-[#9ca3af]">No recent flags</div>
+              <div className="flex flex-1 items-center justify-center py-4 text-center text-[13px] text-[#9ca3af]">No recent flags</div>
             ) : (
-              <div className="space-y-4">
+              <div className="flex flex-1 flex-col space-y-4">
                 {recentFlags.map((item) => (
                   <div key={item.id} className="flex items-start gap-3">
                     <div
@@ -1037,7 +1037,7 @@ export default function QCDashboard({
               </div>
             )}
 
-            <Button type="button" variant="outline" className="mt-5 h-10 w-full border-[#dbe4ff] text-[#1a1aff]" onClick={() => navigate('/violations')}>
+            <Button type="button" variant="outline" className="mt-auto h-10 w-full border-[#dbe4ff] text-[#1a1aff]" onClick={() => navigate('/violations')}>
               View Rule Logs
             </Button>
           </div>
