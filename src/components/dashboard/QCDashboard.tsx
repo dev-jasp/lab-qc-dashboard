@@ -936,8 +936,8 @@ export default function QCDashboard({
         })}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-10">
-        <div className="xl:col-span-7">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
           <LeveyJenningsChart
             data={chartData}
             statistics={statistics}
@@ -964,7 +964,7 @@ export default function QCDashboard({
           />
         </div>
 
-        <div className="space-y-6 xl:col-span-3">
+        <div className="space-y-6 lg:col-span-1">
           <div className="qc-card">
             <div className="mb-4 flex items-start justify-between gap-3">
               <h3 className="text-[15px] font-semibold text-[#111827]">CV Trend</h3>
