@@ -19,8 +19,8 @@ type SidebarContextValue = {
 
 const SidebarContext = React.createContext<SidebarContextValue | null>(null);
 
-const SIDEBAR_EXPANDED_WIDTH = 288;
-const SIDEBAR_COLLAPSED_WIDTH = 84;
+const SIDEBAR_EXPANDED_WIDTH = 272;
+const SIDEBAR_COLLAPSED_WIDTH = 88;
 const SIDEBAR_TRANSITION = '250ms cubic-bezier(0.4, 0, 0.2, 1)';
 
 function useSidebar() {
@@ -67,7 +67,7 @@ function SidebarProvider({
     >
       <div
         data-slot="sidebar-wrapper"
-        className={cn('flex min-h-screen w-full bg-[var(--page-bg)] text-foreground', className)}
+        className={cn('min-h-screen w-full bg-[var(--page-bg)] text-foreground', className)}
         {...props}
       >
         {children}
@@ -117,7 +117,7 @@ function Sidebar({
       data-sidebar="sidebar"
       data-state={state}
       className={cn(
-        'group/sidebar fixed inset-y-0 left-0 z-30 hidden flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-background)] text-[var(--sidebar-foreground)] md:flex',
+        'group/sidebar fixed inset-y-0 left-0 z-30 hidden h-dvh flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-background)] text-[var(--sidebar-foreground)] md:flex',
         className,
       )}
       style={{

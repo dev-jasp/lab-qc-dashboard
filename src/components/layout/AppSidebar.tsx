@@ -1,4 +1,3 @@
-import { Collapsible as CollapsiblePrimitive } from 'radix-ui';
 import {
   Activity,
   AlertTriangle,
@@ -142,9 +141,9 @@ export function AppSidebar() {
   const [mounted, setMounted] = React.useState(false);
   const [session, setSession] = React.useState<QCSession | null>(null);
   const [openViolationCount, setOpenViolationCount] = React.useState(0);
-  const [openDiseases, setOpenDiseases] = React.useState<Record<string, boolean>>({});
   const activeDisease = getActiveDisease(location.pathname);
   const activeControl = getActiveControl(location.pathname);
+  const [expandedDisease, setExpandedDisease] = React.useState<DiseaseSlug | null>(activeDisease);
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setMounted(true), 50);
@@ -184,11 +183,12 @@ export function AppSidebar() {
     };
   }, [location.pathname]);
 
-  const handleDiseaseToggle = (disease: DiseaseSlug, nextOpen: boolean) => {
-    setOpenDiseases((currentValue) => ({
-      ...currentValue,
-      [disease]: nextOpen,
-    }));
+  React.useEffect(() => {
+    setExpandedDisease(activeDisease);
+  }, [activeDisease]);
+
+  const handleDiseaseToggle = (disease: DiseaseSlug) => {
+    setExpandedDisease((currentDisease) => (currentDisease === disease ? null : disease));
   };
 
   const handleSidebarNavigate = (href: string) => {
@@ -211,7 +211,7 @@ export function AppSidebar() {
 
   return (
     <TooltipProvider>
-      <Sidebar variant="sidebar" collapsible="icon" className={cn('relative', !mounted && 'no-transition')}>
+      <Sidebar variant="sidebar" collapsible="icon" className={cn(!mounted && 'no-transition')}>
         <SidebarHeader className="pr-16">
           <SidebarTooltip label="QC Pulse">
             <button
@@ -243,43 +243,40 @@ export function AppSidebar() {
                 {DISEASE_ROUTE_CONFIG.map((disease) => {
                   const Icon = disease.icon;
                   const isCurrentDisease = activeDisease === disease.slug;
-                  const isOpen = openDiseases[disease.slug] ?? false;
+                  const isOpen = expandedDisease === disease.slug;
                   const diseaseDisplayName =
                     DISEASE_DEFINITIONS.find((item) => item.slug === disease.slug)?.name ?? disease.name;
 
                   return (
                     <SidebarMenuItem key={disease.slug}>
-                      <CollapsiblePrimitive.Root
-                        open={isOpen}
-                        onOpenChange={(nextOpen) => handleDiseaseToggle(disease.slug, nextOpen)}
-                      >
-                        <SidebarTooltip label={diseaseDisplayName}>
-                          <CollapsiblePrimitive.Trigger asChild>
-                            <SidebarMenuButton
-                              type="button"
-                              isActive={isCurrentDisease}
-                              title={diseaseDisplayName}
-                              className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl' : undefined}
-                            >
-                              <Icon size={17} className="shrink-0" />
-                              <div
-                                data-sidebar-label=""
-                                className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
-                              >
-                                <span className="truncate">{diseaseDisplayName}</span>
-                                <ChevronDown
-                                  size={16}
-                                  className={cn(
-                                    'ml-2 shrink-0 transition-transform duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
-                                    isOpen ? 'rotate-180' : 'rotate-0',
-                                  )}
-                                />
-                              </div>
-                            </SidebarMenuButton>
-                          </CollapsiblePrimitive.Trigger>
-                        </SidebarTooltip>
+                      <SidebarTooltip label={diseaseDisplayName}>
+                        <SidebarMenuButton
+                          type="button"
+                          isActive={isCurrentDisease}
+                          title={diseaseDisplayName}
+                          aria-expanded={isOpen}
+                          onClick={() => handleDiseaseToggle(disease.slug)}
+                          className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl' : undefined}
+                        >
+                          <Icon size={17} className="shrink-0" />
+                          <div
+                            data-sidebar-label=""
+                            className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
+                          >
+                            <span className="truncate">{diseaseDisplayName}</span>
+                            <ChevronDown
+                              size={16}
+                              className={cn(
+                                'ml-2 shrink-0 transition-transform duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
+                                isOpen ? 'rotate-180' : 'rotate-0',
+                              )}
+                            />
+                          </div>
+                        </SidebarMenuButton>
+                      </SidebarTooltip>
 
-                        <CollapsiblePrimitive.Content forceMount data-radix-collapsible-content="" className="overflow-hidden">
+                      {isOpen && (open || isMobile) ? (
+                        <div className="overflow-hidden">
                           <SidebarMenuSub>
                             {CONTROL_LINKS.map((control) => {
                               const href = `/monitor/${disease.slug}/${control.slug}`;
@@ -296,8 +293,8 @@ export function AppSidebar() {
                               );
                             })}
                           </SidebarMenuSub>
-                        </CollapsiblePrimitive.Content>
-                      </CollapsiblePrimitive.Root>
+                        </div>
+                      ) : null}
                     </SidebarMenuItem>
                   );
                 })}
