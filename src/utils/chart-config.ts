@@ -1,6 +1,8 @@
 import type { ChartConfiguration, LegendItem, TooltipItem } from 'chart.js';
 import type { ChartDataPoint as QCChartDataPoint } from '../types/qc.types';
-import { calculateZScore, getPointColor } from './qc-calculations';
+import { calculateZScore } from './qc-calculations';
+
+const OD_BLUE = '#1A1AFF';
 
 function formatTooltipDate(value: string): string {
   const parsedValue = new Date(value.includes('T') ? value : `${value}T08:00:00`);
@@ -35,64 +37,45 @@ export const createChartConfig = (
   sd: number,
   showChartTitle: boolean = true,
 ): ChartConfiguration<'line'> => {
-  const pointColors = data.map(d => {
-    if (d.isViolation) {
-      return '#EF4444';
-    }
-
-    if (d.isEdited) {
-      return '#FF7F50';
-    }
-
-    if (d.isFlagged) {
-      return '#0000FF';
-    }
-
-    const zScore = calculateZScore(d.value, mean, sd);
-    return getPointColor(zScore);
-  });
   const pointBackgroundColors = data.map((point) => {
     if (point.isViolation) {
-      return '#EF4444';
+      return OD_BLUE;
     }
 
     if (point.isEdited) {
-      return '#FF7F50';
+      return OD_BLUE;
     }
 
     if (point.isFlagged) {
       return '#FFFFFF';
     }
 
-    return '#FFFFFF';
+    return OD_BLUE;
   });
-  const pointBorderColors = data.map((point, index) => {
+  const pointBorderColors = data.map((point) => {
     if (point.isViolation) {
-      return '#EF4444';
+      return OD_BLUE;
     }
 
-    if (point.isEdited) {
-      return '#FF7F50';
+    if (point.isFlagged) {
+      return OD_BLUE;
     }
 
-    return pointColors[index];
+    return OD_BLUE;
   });
   const pointStyles = data.map((point) => (point.isFlagged ? 'rectRot' : 'circle'));
   const pointRadii = data.map((point) => {
     if (point.isViolation) {
-      return 6;
-    }
-
-    if (point.isFlagged) {
       return 5;
     }
 
-    if (point.isEdited) {
+    if (point.isFlagged) {
       return 4;
     }
 
-    return 4;
+    return 3.5;
   });
+  const yPadding = sd * 0.35;
 
   return {
     type: 'line' as const,
@@ -102,52 +85,52 @@ export const createChartConfig = (
         {
           label: 'OD MEAN',
           data: Array(data.length).fill(mean),
-          borderColor: '#888888',
-          borderWidth: 2,
+          borderColor: '#8A8F98',
+          borderWidth: 1.5,
           pointRadius: 0,
           fill: false,
         },
         {
           label: '+1SD',
           data: Array(data.length).fill(mean + sd),
-          borderColor: '#A89F91',
-          borderWidth: 1,
+          borderColor: '#B8BDC5',
+          borderWidth: 1.25,
           pointRadius: 0,
           fill: false,
-          borderDash: [5, 5],
+          borderDash: [6, 6],
         },
         {
           label: '-1SD',
           data: Array(data.length).fill(mean - sd),
-          borderColor: '#A89F91',
-          borderWidth: 1,
+          borderColor: '#B8BDC5',
+          borderWidth: 1.25,
           pointRadius: 0,
           fill: false,
-          borderDash: [5, 5],
+          borderDash: [6, 6],
         },
         {
           label: '+2 SD',
           data: Array(data.length).fill(mean + 2 * sd),
           borderColor: '#F59E0B',
-          borderWidth: 1,
+          borderWidth: 1.25,
           pointRadius: 0,
           fill: false,
-          borderDash: [3, 3],
+          borderDash: [4, 5],
         },
         {
           label: '-2 SD',
           data: Array(data.length).fill(mean - 2 * sd),
           borderColor: '#F59E0B',
-          borderWidth: 1,
+          borderWidth: 1.25,
           pointRadius: 0,
           fill: false,
-          borderDash: [3, 3],
+          borderDash: [4, 5],
         },
         {
           label: '+3 SD',
           data: Array(data.length).fill(mean + 3 * sd),
           borderColor: '#EF4444',
-          borderWidth: 2,
+          borderWidth: 1.5,
           pointRadius: 0,
           fill: false,
         },
@@ -155,26 +138,26 @@ export const createChartConfig = (
           label: '-3 SD',
           data: Array(data.length).fill(mean - 3 * sd),
           borderColor: '#EF4444',
-          borderWidth: 2,
+          borderWidth: 1.5,
           pointRadius: 0,
           fill: false,
         },
         {
           label: 'OD',
           data: data.map((d) => d.value),
-          borderColor: '#0000FF',
+          borderColor: OD_BLUE,
           borderWidth: 2,
           borderJoinStyle: 'round' as const,
           borderCapStyle: 'round' as const,
-          backgroundColor: pointBorderColors,
+          backgroundColor: OD_BLUE,
           pointBackgroundColor: pointBackgroundColors,
           pointBorderColor: pointBorderColors,
-          pointBorderWidth: data.map((point) => (point.isViolation || point.isEdited ? 2 : 2)),
+          pointBorderWidth: 2,
           pointRadius: pointRadii,
           pointHoverRadius: pointRadii.map((radius) => radius + 1),
           pointHitRadius: 8,
           pointStyle: pointStyles,
-          tension: 0.32,
+          tension: 0.18,
           cubicInterpolationMode: 'monotone' as const,
           fill: false,
         },
@@ -183,6 +166,14 @@ export const createChartConfig = (
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 12,
+          right: 18,
+          bottom: 4,
+          left: 10,
+        },
+      },
       interaction: {
         intersect: true,
         mode: 'nearest' as const,
@@ -201,7 +192,7 @@ export const createChartConfig = (
             boxWidth: 28,
             boxHeight: 2,
             borderRadius: 0,
-            padding: 18,
+            padding: 20,
             font: { size: 12, family: "'Manrope', sans-serif" },
             usePointStyle: false,
             color: '#64748B',
@@ -246,35 +237,50 @@ export const createChartConfig = (
             text: 'Protocol No.',
             font: { size: 12, weight: 600, family: "'Manrope', sans-serif" },
             color: '#64748B',
-            padding: { top: 10 }
+            padding: { top: 12 }
           },
           grid: {
-            color: '#E2E8F0',
-            lineWidth: 1
+            color: 'rgba(226, 232, 240, 0.28)',
+            lineWidth: 0.8,
+            drawTicks: false,
+          },
+          border: {
+            color: 'rgba(229, 234, 242, 0.75)',
           },
           ticks: {
             font: { size: 11, family: "'Manrope', sans-serif" },
-            color: '#9CA3AF'
+            color: '#64748B',
+            padding: 10,
           }
         },
         y: {
           title: {
-            display: false,
+            display: true,
             text: 'OD Value',
             font: { size: 14, weight: 600, family: "'Manrope', sans-serif" },
             color: '#64748B',
-            padding: { bottom: 10 }
+            padding: { bottom: 12 }
           },
-          min: mean - 3 * sd,
-          max: mean + 3 * sd,
+          min: mean - 3 * sd - yPadding,
+          max: mean + 3 * sd + yPadding,
+          afterBuildTicks: (scale) => {
+            scale.ticks = [-3, -2, -1, 0, 1, 2, 3].map((offset) => ({
+              value: mean + offset * sd,
+            }));
+          },
           grid: {
-            color: '#E2E8F0',
-            lineWidth: 1
+            color: 'rgba(226, 232, 240, 0.55)',
+            lineWidth: 1,
+            drawTicks: false,
+          },
+          border: {
+            color: '#E5EAF2',
           },
           ticks: {
-            font: { size: 11, family: "'Manrope', sans-serif" },
-            color: '#9CA3AF',
+            font: { size: 12, family: "'Manrope', sans-serif" },
+            color: '#64748B',
             stepSize: sd,
+            padding: 12,
             callback: (value) => getSDTickLabel(Number(value), mean, sd)
           }
         },

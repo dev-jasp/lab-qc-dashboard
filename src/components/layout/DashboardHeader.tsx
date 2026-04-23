@@ -110,7 +110,7 @@ export function DashboardHeader() {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-[#f0f0f0] bg-white px-6">
+    <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-[#f0f0f0] bg-white px-6">
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger className="lg:hidden" />
 

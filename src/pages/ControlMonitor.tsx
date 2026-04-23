@@ -1,10 +1,10 @@
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams } from "react-router-dom";
 
-import QCDashboard from '@/components/dashboard/QCDashboard';
+import QCDashboard from "@/components/dashboard/QCDashboard";
 import {
   getControlDefinition,
   getDiseaseDefinition,
-} from '@/constants/monitor-config';
+} from "@/constants/monitor-config";
 
 export function ControlMonitor() {
   const { disease, control } = useParams();
@@ -27,4 +27,3 @@ export function ControlMonitor() {
     />
   );
 }
-
