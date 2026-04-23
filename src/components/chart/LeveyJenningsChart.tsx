@@ -33,10 +33,15 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
   badgeLabel,
   headerActions,
   showChartTitle = true,
+  variant = 'card',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<ChartJS | null>(null);
   const hasData = data.length > 0;
+  const containerClassName =
+    variant === 'plain'
+      ? 'p-0'
+      : 'qc-card';
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -78,7 +83,7 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
   }, []);
 
   return (
-    <div className="rounded-[12px] border border-[#f0f0f0] bg-white p-6 shadow-[0_6px_18px_rgba(15,23,42,0.06)]">
+    <div className={containerClassName}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="text-[16px] font-semibold text-[#111827]">{title}</h3>
         <div className="flex items-center gap-2">

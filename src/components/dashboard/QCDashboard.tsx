@@ -14,7 +14,6 @@ import {
   TargetIcon,
   TrendDownIcon,
   TrendUpIcon,
-  UserCircleIcon,
   WarningIcon,
   XIcon,
 } from '@phosphor-icons/react';
@@ -139,6 +138,7 @@ function createDefaultEntryForm(): EntryFormValues {
     date: getTodayIsoDate(),
     odValue: '',
     protocolNumber: '',
+    remarks: '',
   };
 }
 
@@ -397,7 +397,6 @@ export default function QCDashboard({
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [currentSession, setCurrentSession] = useState<QCSession | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<QCEntry | null>(null);
-  const [chartView, setChartView] = useState<'daily' | 'weekly'>('daily');
   const { success, error } = useToast();
 
   const baseChartData = useMemo(() => entriesToChartData(entries), [entries]);
@@ -462,7 +461,6 @@ export default function QCDashboard({
 
         setCurrentSession(session);
         setSettings(appSettings);
-        setChartView(appSettings.defaultChartView === 'weekly' ? 'weekly' : 'daily');
 
         if (isInHouseControl) {
           const [inHouseEntries, inHouseViolations] = await Promise.all([
@@ -565,7 +563,7 @@ export default function QCDashboard({
       runNumber: String(entries.length + 1).padStart(2, '0'),
       vialNumber: `V${String(entries.length + 1).padStart(2, '0')}`,
       flag: null,
-      notes: null,
+      notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
       editedAt: null,
       editReason: null,
       signedBy: null,
@@ -742,11 +740,6 @@ export default function QCDashboard({
           <p className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">{chartSubtitle}</p>
           <h1 className="mt-2 text-[28px] font-bold text-[#111827]">{`${diseaseName} ${controlName}`}</h1>
         </div>
-
-        <div className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold ${monitorStatusMeta.badgeClassName}`}>
-          <span className={`mr-2 h-2 w-2 rounded-full ${monitorStatusMeta.dotClassName}`} />
-          {monitorStatusMeta.badgeLabel}
-        </div>
       </div>
 
       {!isInHouseControl && (
@@ -794,7 +787,6 @@ export default function QCDashboard({
               <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#9ca3af]">NEW QC ENTRY</p>
               <h2 className="mt-3 text-[18px] font-semibold text-[#111827]">Record run details for this dataset</h2>
             </div>
-            <UserCircleIcon size={20} className="text-[#9ca3af]" />
           </div>
 
           {isArchivedLot && (
@@ -852,13 +844,29 @@ export default function QCDashboard({
               </div>
             </div>
 
-            <Button
-              type="submit"
-              disabled={isArchivedLot || isSubmitting}
-              className="h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Recording'}
-            </Button>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Remarks</label>
+                <Input
+                  placeholder="Optional remarks"
+                  value={formValues.remarks}
+                  disabled={isArchivedLot}
+                  maxLength={200}
+                  onChange={(event) => handleFieldChange('remarks', event.target.value)}
+                  className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  type="submit"
+                  disabled={isArchivedLot || isSubmitting}
+                  className="h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Recording'}
+                </Button>
+              </div>
+            </div>
 
             {hasSubmitted && (
               <div>
@@ -884,9 +892,6 @@ export default function QCDashboard({
         <div className="qc-card flex flex-col">
           <div className="mb-8 flex items-start justify-between gap-4">
             <h2 className="text-[16px] font-semibold text-[#111827]">System Health</h2>
-            <div className={`rounded-full px-3 py-1 text-xs font-semibold ${monitorStatusMeta.systemBadgeClassName}`}>
-              {monitorStatusMeta.badgeLabel}
-            </div>
           </div>
 
           <div className="flex flex-1 items-center justify-center">
@@ -932,13 +937,13 @@ export default function QCDashboard({
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-10">
-        <div className="qc-card xl:col-span-7">
+        <div className="xl:col-span-7">
           <LeveyJenningsChart
             data={chartData}
             statistics={statistics}
             parameters={parameters}
             title="Levey-Jennings Quality Control Chart"
-            height={380}
+            height={440}
             headerActions={
               canEditEntries ? (
                 <Button
@@ -957,25 +962,6 @@ export default function QCDashboard({
             badgeLabel={`${chartData.length} runs`}
             showChartTitle={false}
           />
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex rounded-lg border border-[#e5e7eb] bg-white p-1">
-              <button
-                type="button"
-                onClick={() => setChartView('daily')}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${chartView === 'daily' ? 'bg-[#eff6ff] text-[#1a1aff]' : 'text-[#6b7280]'}`}
-              >
-                DAILY
-              </button>
-              <button
-                type="button"
-                onClick={() => setChartView('weekly')}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${chartView === 'weekly' ? 'bg-[#eff6ff] text-[#1a1aff]' : 'text-[#6b7280]'}`}
-              >
-                WEEKLY
-              </button>
-            </div>
-            <p className="text-[13px] text-[#6b7280]">{`${chartData.length} plotted runs`}</p>
-          </div>
         </div>
 
         <div className="space-y-6 xl:col-span-3">

@@ -1,4 +1,5 @@
 import {
+  ArrowRightIcon,
   CaretDownIcon,
   ClockIcon,
   GaugeIcon,
@@ -9,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import { AnimatePresence, motion, type Transition } from 'framer-motion';
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
@@ -67,9 +69,39 @@ const SYSTEM_ROUTES: SystemRoute[] = [
   { href: '/settings', icon: GearIcon, label: 'Settings' },
 ];
 
+const DISEASE_ACCENTS: Record<DiseaseSlug, string> = {
+  measles: '#2563eb',
+  rubella: '#db2777',
+  rotavirus: '#ea580c',
+  'japanese-encephalitis': '#7c3aed',
+  dengue: '#0891b2',
+};
+
+const DISEASE_BADGES: Record<DiseaseSlug, string> = {
+  measles: 'MEA',
+  rubella: 'RUB',
+  rotavirus: 'ROT',
+  'japanese-encephalitis': 'JE',
+  dengue: 'DEN',
+};
+
 const SIDEBAR_TRANSITION: Transition = {
   duration: 0.25,
   ease: [0.4, 0, 0.2, 1],
+};
+
+const FLYOUT_LEFT = 76;
+const FLYOUT_WIDTH = 244;
+const FLYOUT_HEIGHT = 198;
+const FLYOUT_ANIMATION: Transition = {
+  duration: 0.15,
+  ease: [0.4, 0, 0.2, 1],
+};
+
+type FloatingDiseaseState = {
+  disease: DiseaseRouteConfig;
+  displayName: string;
+  top: number;
 };
 
 function getActiveDisease(pathname: string): DiseaseSlug | null {
@@ -195,6 +227,13 @@ function SidebarAnimatedLabel({
   );
 }
 
+function getFlyoutTop(triggerRect: DOMRect): number {
+  const preferredTop = triggerRect.top - 16;
+  const maxTop = window.innerHeight - FLYOUT_HEIGHT - 12;
+
+  return Math.max(12, Math.min(preferredTop, maxTop));
+}
+
 export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -205,6 +244,9 @@ export function AppSidebar() {
   const activeDisease = getActiveDisease(location.pathname);
   const activeControl = getActiveControl(location.pathname);
   const [expandedDisease, setExpandedDisease] = React.useState<DiseaseSlug | null>(activeDisease);
+  const [floatingDisease, setFloatingDisease] = React.useState<FloatingDiseaseState | null>(null);
+  const showFlyoutTimer = React.useRef<number | null>(null);
+  const hideFlyoutTimer = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setMounted(true), 50);
@@ -248,8 +290,90 @@ export function AppSidebar() {
     setExpandedDisease(activeDisease);
   }, [activeDisease]);
 
+  React.useEffect(() => {
+    if (open || isMobile) {
+      setFloatingDisease(null);
+    }
+  }, [isMobile, open]);
+
+  React.useEffect(() => {
+    return () => {
+      if (showFlyoutTimer.current !== null) {
+        window.clearTimeout(showFlyoutTimer.current);
+      }
+
+      if (hideFlyoutTimer.current !== null) {
+        window.clearTimeout(hideFlyoutTimer.current);
+      }
+    };
+  }, []);
+
+  const clearFlyoutTimers = () => {
+    if (showFlyoutTimer.current !== null) {
+      window.clearTimeout(showFlyoutTimer.current);
+      showFlyoutTimer.current = null;
+    }
+
+    if (hideFlyoutTimer.current !== null) {
+      window.clearTimeout(hideFlyoutTimer.current);
+      hideFlyoutTimer.current = null;
+    }
+  };
+
+  const closeFloatingDisease = () => {
+    clearFlyoutTimers();
+    setFloatingDisease(null);
+  };
+
+  const openFloatingDisease = (
+    disease: DiseaseRouteConfig,
+    displayName: string,
+    triggerElement: HTMLElement,
+    delay = 100,
+  ) => {
+    clearFlyoutTimers();
+
+    showFlyoutTimer.current = window.setTimeout(() => {
+      const triggerRect = triggerElement.getBoundingClientRect();
+
+      setFloatingDisease({
+        disease,
+        displayName,
+        top: getFlyoutTop(triggerRect),
+      });
+    }, delay);
+  };
+
+  const scheduleFloatingDiseaseClose = () => {
+    if (showFlyoutTimer.current !== null) {
+      window.clearTimeout(showFlyoutTimer.current);
+      showFlyoutTimer.current = null;
+    }
+
+    if (hideFlyoutTimer.current !== null) {
+      window.clearTimeout(hideFlyoutTimer.current);
+    }
+
+    hideFlyoutTimer.current = window.setTimeout(() => {
+      setFloatingDisease(null);
+    }, 120);
+  };
+
   const handleDiseaseToggle = (disease: DiseaseSlug) => {
     setExpandedDisease((currentDisease) => (currentDisease === disease ? null : disease));
+  };
+
+  const handleDiseaseButtonClick = (
+    disease: DiseaseRouteConfig,
+    displayName: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    if (!open && !isMobile) {
+      openFloatingDisease(disease, displayName, event.currentTarget, 0);
+      return;
+    }
+
+    handleDiseaseToggle(disease.slug);
   };
 
   const handleSidebarNavigate = (href: string) => {
@@ -269,6 +393,8 @@ export function AppSidebar() {
   const currentUserName = session?.displayName || session?.username || 'Local QC User';
   const currentRole = getRoleLabel(session?.role);
   const currentUserInitials = getInitials(session);
+  const isCollapsedDesktop = !open && !isMobile;
+  const floatingDiseaseSlug = floatingDisease?.disease.slug ?? null;
 
   return (
     <TooltipProvider>
@@ -308,29 +434,64 @@ export function AppSidebar() {
                   const isOpen = expandedDisease === disease.slug;
                   const diseaseDisplayName =
                     DISEASE_DEFINITIONS.find((item) => item.slug === disease.slug)?.name ?? disease.name;
+                  const diseaseAccent = DISEASE_ACCENTS[disease.slug];
+                  const diseaseMenuButton = (
+                    <SidebarMenuButton
+                      type="button"
+                      isActive={isCurrentDisease && !isCollapsedDesktop}
+                      title={diseaseDisplayName}
+                      aria-expanded={isCollapsedDesktop ? floatingDiseaseSlug === disease.slug : isOpen}
+                      onClick={(event) => handleDiseaseButtonClick(disease, diseaseDisplayName, event)}
+                      onMouseEnter={(event) => {
+                        if (isCollapsedDesktop) {
+                          openFloatingDisease(disease, diseaseDisplayName, event.currentTarget);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (isCollapsedDesktop) {
+                          scheduleFloatingDiseaseClose();
+                        }
+                      }}
+                      className={cn(
+                        isCollapsedDesktop && 'mx-auto h-10 w-10 rounded-lg p-0',
+                        isCollapsedDesktop &&
+                          isCurrentDisease &&
+                          'bg-[#eff6ff] text-[var(--sidebar-accent-foreground)] hover:bg-[#eff6ff]',
+                      )}
+                    >
+                      {isCollapsedDesktop ? (
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                          style={
+                            isCurrentDisease
+                              ? {
+                                  color: diseaseAccent,
+                                  boxShadow: `0 0 0 2px #ffffff, 0 0 0 3px ${diseaseAccent}`,
+                                }
+                              : { color: '#334155' }
+                          }
+                        >
+                          <Icon size={17} />
+                        </span>
+                      ) : (
+                        <Icon size={17} className="shrink-0" />
+                      )}
+                      <SidebarAnimatedLabel
+                        className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
+                      >
+                        <span className="truncate">{diseaseDisplayName}</span>
+                        <motion.div initial={false} animate={{ rotate: isOpen ? 180 : 0 }} transition={SIDEBAR_TRANSITION}>
+                          <CaretDownIcon size={16} className="ml-2 shrink-0" />
+                        </motion.div>
+                      </SidebarAnimatedLabel>
+                    </SidebarMenuButton>
+                  );
 
                   return (
                     <SidebarMenuItem key={disease.slug}>
-                      <SidebarTooltip label={diseaseDisplayName}>
-                        <SidebarMenuButton
-                          type="button"
-                          isActive={isCurrentDisease}
-                          title={diseaseDisplayName}
-                          aria-expanded={isOpen}
-                          onClick={() => handleDiseaseToggle(disease.slug)}
-                          className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl p-0' : undefined}
-                        >
-                          <Icon size={17} className="shrink-0" />
-                          <SidebarAnimatedLabel
-                            className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
-                          >
-                            <span className="truncate">{diseaseDisplayName}</span>
-                            <motion.div initial={false} animate={{ rotate: isOpen ? 180 : 0 }} transition={SIDEBAR_TRANSITION}>
-                              <CaretDownIcon size={16} className="ml-2 shrink-0" />
-                            </motion.div>
-                          </SidebarAnimatedLabel>
-                        </SidebarMenuButton>
-                      </SidebarTooltip>
+                      {isCollapsedDesktop ? diseaseMenuButton : (
+                        <SidebarTooltip label={diseaseDisplayName}>{diseaseMenuButton}</SidebarTooltip>
+                      )}
 
                       <AnimatePresence initial={false}>
                         {isOpen && (open || isMobile) ? (
@@ -468,6 +629,89 @@ export function AppSidebar() {
 
         <SidebarRail />
       </Sidebar>
+
+      {typeof document === 'undefined'
+        ? null
+        : createPortal(
+            <AnimatePresence initial={false}>
+              {floatingDisease !== null && isCollapsedDesktop ? (
+                <>
+                  <div
+                    aria-hidden="true"
+                    className="fixed z-40"
+                    style={{
+                      left: 58,
+                      top: floatingDisease.top,
+                      width: FLYOUT_LEFT - 58,
+                      height: FLYOUT_HEIGHT,
+                    }}
+                    onMouseEnter={clearFlyoutTimers}
+                    onMouseLeave={scheduleFloatingDiseaseClose}
+                  />
+                  <motion.div
+                    key={floatingDisease.disease.slug}
+                    initial={{ opacity: 0, x: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -8, scale: 0.96 }}
+                    transition={FLYOUT_ANIMATION}
+                    className="fixed z-50 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
+                    style={{
+                      left: FLYOUT_LEFT,
+                      top: floatingDisease.top,
+                      width: FLYOUT_WIDTH,
+                      transformOrigin: 'left center',
+                    }}
+                    onMouseEnter={clearFlyoutTimers}
+                    onMouseLeave={scheduleFloatingDiseaseClose}
+                  >
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <span
+                        className="inline-flex h-7 min-w-10 items-center justify-center rounded-lg px-2 text-[11px] font-bold tracking-[0.08em] text-white"
+                        style={{ backgroundColor: DISEASE_ACCENTS[floatingDisease.disease.slug] }}
+                      >
+                        {DISEASE_BADGES[floatingDisease.disease.slug]}
+                      </span>
+                      <span className="min-w-0 truncate text-sm font-semibold text-[#111827]">
+                        {floatingDisease.displayName}
+                      </span>
+                    </div>
+                    <div className="mx-3 h-px bg-[#e5e7eb]" />
+                    <div className="py-2">
+                      {CONTROL_LINKS.map((control) => {
+                        const href = `/monitor/${floatingDisease.disease.slug}/${control.slug}`;
+                        const isActiveControl =
+                          activeDisease === floatingDisease.disease.slug && activeControl === control.slug;
+
+                        return (
+                          <button
+                            key={control.slug}
+                            type="button"
+                            onClick={() => {
+                              navigate(href);
+                              closeFloatingDisease();
+                            }}
+                            className={cn(
+                              'group/flyout flex h-10 w-full items-center justify-between rounded-xl px-3 text-left text-sm font-medium transition-colors',
+                              isActiveControl
+                                ? 'bg-[#eff6ff] text-[var(--brand-blue)]'
+                                : 'text-[#475569] hover:bg-[#f8fafc] hover:text-[var(--brand-blue)]',
+                            )}
+                          >
+                            <span>{control.label} Control</span>
+                            <ArrowRightIcon
+                              size={15}
+                              className="opacity-0 transition-opacity group-hover/flyout:opacity-100"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                </>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )}
     </TooltipProvider>
   );
 }

@@ -103,6 +103,7 @@ export type EntryFormValues = {
   date: string;
   odValue: string;
   protocolNumber: string;
+  remarks: string;
 };
 
 export type LotMetadata = {
@@ -186,6 +187,7 @@ export interface LeveyJenningsChartProps {
   badgeLabel?: string;
   headerActions?: React.ReactNode;
   showChartTitle?: boolean;
+  variant?: 'card' | 'plain';
 }
 
 export interface InputPanelProps {
