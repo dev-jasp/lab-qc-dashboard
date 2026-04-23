@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 
 import LeveyJenningsChart from '@/components/chart/LeveyJenningsChart';
 import { EditEntriesSheet } from '@/components/panels/EditEntriesSheet';
+import { QCRulesReferenceCard } from '@/components/panels/QCRulesReferenceCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -1134,6 +1135,8 @@ export default function QCDashboard({
           </button>
         </div>
       </div>
+
+      <QCRulesReferenceCard className="mt-6" minRunsForWestgard={minRunsForWestgard} />
 
       <Dialog open={isStartLotDialogOpen} onOpenChange={setIsStartLotDialogOpen}>
         <DialogContent className="sm:max-w-lg">
