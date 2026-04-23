@@ -1,4 +1,4 @@
-import { FlaskConical } from 'lucide-react';
+import { FlaskIcon } from '@phosphor-icons/react';
 
 import { IsoDatePicker } from '@/components/ui/IsoDatePicker';
 import type { InputPanelProps } from '@/types/qc.types';
@@ -33,7 +33,7 @@ export default function InputPanel({
           <h2 className="mt-2 text-xl font-bold">Record run details for this dataset</h2>
         </div>
         <div className="rounded-full bg-white/15 p-2">
-          <FlaskConical size={18} />
+          <FlaskIcon size={18} />
         </div>
       </div>
 
@@ -82,18 +82,6 @@ export default function InputPanel({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-blue-50">REMARKS</label>
-          <textarea
-            value={formValues.remarks}
-            onChange={(event) => onFieldChange('remarks', event.target.value)}
-            placeholder="Optional remarks"
-            disabled={isReadOnly}
-            maxLength={200}
-            rows={3}
-            className={`${fieldClassName} min-h-[92px] resize-none`}
-          />
-        </div>
       </div>
 
       <button

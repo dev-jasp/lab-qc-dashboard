@@ -1,4 +1,4 @@
-import { Github, Mail, Shield } from 'lucide-react';
+import { EnvelopeIcon, GithubLogoIcon, ShieldIcon } from '@phosphor-icons/react';
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Shield className="text-blue-600" size={20} />
+              <ShieldIcon className="text-blue-600" size={20} />
               <h3 className="font-semibold text-gray-900">Quality Assurance</h3>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
@@ -31,11 +31,11 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="font-semibold text-gray-900 mb-3">Contact</h3>
             <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <Mail size={16} />
+              <EnvelopeIcon size={16} />
               <span>support@qcdashboard.com</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Github size={16} />
+              <GithubLogoIcon size={16} />
               <span>Documentation</span>
             </div>
           </div>

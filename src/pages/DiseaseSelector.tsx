@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRightIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router-dom';
 
 import { diseaseCardBackgrounds } from '@/constants/landing-images';
@@ -269,7 +269,7 @@ export function DiseaseSelector() {
                   }}
                 >
                   <span>View charts</span>
-                  <ArrowRight
+                  <ArrowRightIcon
                     size={18}
                     className="transition-transform duration-300 group-hover/cta:translate-x-1"
                     style={{ color: '#1730D1' }}

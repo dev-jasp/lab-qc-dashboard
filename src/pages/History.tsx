@@ -1,4 +1,4 @@
-import { Filter, ListFilter } from 'lucide-react';
+import { FunnelIcon, ListMagnifyingGlassIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router-dom';
 
 export function History() {
@@ -14,7 +14,7 @@ export function History() {
           </h1>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full bg-[#F9F9F9] px-4 py-2 text-sm font-semibold" style={{ color: '#64748B' }}>
-          <Filter size={16} />
+          <FunnelIcon size={16} />
           Disease + control filters ready
         </div>
       </div>
@@ -28,7 +28,7 @@ export function History() {
         </div>
         <div className="rounded-xl border border-[#F3F3F3] bg-[#FBFBFB] p-6">
           <div className="mb-3 flex items-center gap-2" style={{ color: '#0000FF' }}>
-            <ListFilter size={18} />
+            <ListMagnifyingGlassIcon size={18} />
             <span className="font-bold">Next step</span>
           </div>
           <p className="text-sm" style={{ color: '#64748B' }}>

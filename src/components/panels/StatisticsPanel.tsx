@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Calculator, Gauge, Microscope, Sigma, TrendingUp } from 'lucide-react';
+import { CalculatorIcon, ChartBarIcon, GaugeIcon, MicroscopeIcon, PulseIcon, SigmaIcon, TrendUpIcon } from '@phosphor-icons/react';
 import type { RunStatisticsSummary } from '../../types/qc.types';
 import type { CVTrendStatus, CVTrendSummary, SparklinePoint } from '../../utils/qc-calculations';
 
@@ -90,43 +90,43 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ runStatistics, cvTren
     {
       label: 'Mean',
       value: runStatistics.mean.toFixed(3),
-      icon: BarChart3,
+      icon: ChartBarIcon,
       accent: '#0000FF'
     },
     {
       label: 'SD',
       value: runStatistics.sd.toFixed(3),
-      icon: Activity,
+      icon: PulseIcon,
       accent: '#4F46E5'
     },
     {
       label: 'Sum',
       value: runStatistics.sum.toFixed(3),
-      icon: Sigma,
+      icon: SigmaIcon,
       accent: '#0F766E'
     },
     {
       label: 'CV',
       value: `${runStatistics.cv.toFixed(2)}%`,
-      icon: Calculator,
+      icon: CalculatorIcon,
       accent: '#B45309'
     },
     {
       label: 'Last OD',
       value: runStatistics.lastOD === null ? '-' : runStatistics.lastOD.toFixed(3),
-      icon: Microscope,
+      icon: MicroscopeIcon,
       accent: '#7C3AED'
     },
     {
       label: 'Total Runs',
       value: runStatistics.totalRuns.toString(),
-      icon: Gauge,
+      icon: GaugeIcon,
       accent: '#334155'
     },
     {
       label: 'Confidence',
       value: `${runStatistics.confidence.toFixed(1)}%`,
-      icon: Activity,
+      icon: PulseIcon,
       accent: '#047857'
     }
   ];
@@ -138,7 +138,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ runStatistics, cvTren
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div style={{ background: '#0000FF' }} className="p-1.5 rounded-lg">
-            <BarChart3 className="text-white" size={16} />
+            <ChartBarIcon className="text-white" size={16} />
           </div>
           <div>
             <h3 className="text-base font-semibold" style={{ color: '#1A1C1C' }}>Run Statistics</h3>
@@ -185,7 +185,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ runStatistics, cvTren
       >
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
-            <TrendingUp size={16} style={{ color: activeTrendStyle.accent }} />
+            <TrendUpIcon size={16} style={{ color: activeTrendStyle.accent }} />
             <div>
               <h4 className="text-sm font-semibold" style={{ color: '#1A1C1C' }}>CV Trend Monitor</h4>
               <p className="text-xs" style={{ color: '#64748B' }}>

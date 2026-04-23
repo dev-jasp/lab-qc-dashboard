@@ -1,4 +1,4 @@
-import { Bell, HelpCircle } from 'lucide-react';
+import { BellIcon, QuestionIcon } from '@phosphor-icons/react';
 import * as React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -152,7 +152,7 @@ export function DashboardHeader() {
           onClick={() => navigate('/violations')}
           className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
         >
-          <Bell size={20} />
+          <BellIcon size={20} />
           {openViolationCount > 0 && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[#dc2626]" />}
           <span className="sr-only">Open violations</span>
         </button>
@@ -161,7 +161,7 @@ export function DashboardHeader() {
           type="button"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
         >
-          <HelpCircle size={20} />
+          <QuestionIcon size={20} />
           <span className="sr-only">Help</span>
         </button>
       </div>

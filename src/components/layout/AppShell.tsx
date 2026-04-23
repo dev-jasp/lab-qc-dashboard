@@ -10,7 +10,7 @@ export function AppShell() {
       <AppSidebar />
       <SidebarInset>
         <DashboardHeader />
-        <main className="min-h-screen bg-[#f8fafc] p-6">
+        <main className="min-h-[calc(100vh-3.5rem)] bg-[#f8fafc] p-4 sm:p-5 lg:p-6">
           <Outlet />
         </main>
       </SidebarInset>

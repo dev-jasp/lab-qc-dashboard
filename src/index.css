@@ -196,6 +196,35 @@
   .animate-scale-in {
     animation: scaleIn 0.2s ease-out;
   }
+
+  .no-transition,
+  .no-transition *,
+  .no-transition + [data-sidebar='inset'],
+  .no-transition + [data-sidebar='inset'] * {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  [data-sidebar='sidebar'] [data-sidebar-label] {
+    display: flex;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  [data-sidebar='sidebar'] [data-slot='sidebar-menu-button'] {
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 768px) {
+    [data-sidebar='sidebar'][data-state='collapsed'] [data-slot='sidebar-group-label'] {
+      margin-bottom: 0;
+    }
+
+    [data-sidebar='sidebar'][data-state='expanded'] [data-slot='sidebar-group-label'] {
+      margin-bottom: 0.75rem;
+    }
+  }
 }
 
 @keyframes slideInRight {
