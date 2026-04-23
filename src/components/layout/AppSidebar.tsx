@@ -1,16 +1,13 @@
 import {
-  Activity,
-  AlertTriangle,
-  Biohazard,
-  Brain,
-  Bug,
-  ChevronDown,
-  Clock,
-  Gauge,
-  LogOut,
-  Microscope,
-  Settings,
-} from 'lucide-react';
+  CaretDownIcon,
+  ClockIcon,
+  GaugeIcon,
+  GearIcon,
+  SignOutIcon,
+  VirusIcon,
+  WarningIcon,
+} from '@phosphor-icons/react';
+import { AnimatePresence, motion, type Transition } from 'framer-motion';
 import * as React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -51,11 +48,11 @@ type DiseaseRouteConfig = {
 };
 
 const DISEASE_ROUTE_CONFIG: DiseaseRouteConfig[] = [
-  { slug: 'measles', name: 'Measles', icon: Biohazard },
-  { slug: 'rubella', name: 'Rubella', icon: Microscope },
-  { slug: 'rotavirus', name: 'Rotavirus', icon: Activity },
-  { slug: 'japanese-encephalitis', name: 'Japanese Encephalitis', icon: Brain },
-  { slug: 'dengue', name: 'Dengue', icon: Bug },
+  { slug: 'measles', name: 'Measles', icon: VirusIcon },
+  { slug: 'rubella', name: 'Rubella', icon: VirusIcon },
+  { slug: 'rotavirus', name: 'Rotavirus', icon: VirusIcon },
+  { slug: 'japanese-encephalitis', name: 'Japanese Encephalitis', icon: VirusIcon },
+  { slug: 'dengue', name: 'Dengue', icon: VirusIcon },
 ];
 
 const CONTROL_LINKS: { slug: ControlTypeSlug; label: string }[] = [
@@ -65,10 +62,15 @@ const CONTROL_LINKS: { slug: ControlTypeSlug; label: string }[] = [
 ];
 
 const SYSTEM_ROUTES: SystemRoute[] = [
-  { href: '/history', icon: Clock, label: 'History' },
-  { href: '/violations', icon: AlertTriangle, label: 'Violations' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/history', icon: ClockIcon, label: 'History' },
+  { href: '/violations', icon: WarningIcon, label: 'Violations' },
+  { href: '/settings', icon: GearIcon, label: 'Settings' },
 ];
+
+const SIDEBAR_TRANSITION: Transition = {
+  duration: 0.25,
+  ease: [0.4, 0, 0.2, 1],
+};
 
 function getActiveDisease(pathname: string): DiseaseSlug | null {
   const match = pathname.match(/^\/monitor\/([^/]+)/);
@@ -131,6 +133,65 @@ function SidebarTooltip({
         {label}
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+function SidebarAnimatedLabel({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const { open, isMobile } = useSidebar();
+
+  if (isMobile) {
+    return (
+      <div data-sidebar-label="" className={className}>
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {open ? (
+        <motion.div
+          key="label"
+          data-sidebar-label=""
+          initial={{ opacity: 0, width: 0 }}
+          animate={{
+            opacity: 1,
+            flexGrow: 1,
+            width: 'auto',
+            transition: {
+              opacity: { duration: 0.15, delay: 0.1 },
+              width: SIDEBAR_TRANSITION,
+              flexGrow: SIDEBAR_TRANSITION,
+            },
+          }}
+          exit={{
+            opacity: 0,
+            flexGrow: 0,
+            width: 0,
+            transition: {
+              opacity: { duration: 0.1 },
+              width: SIDEBAR_TRANSITION,
+              flexGrow: SIDEBAR_TRANSITION,
+            },
+          }}
+          className={className}
+          style={{
+            display: 'flex',
+            flexBasis: 'auto',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {children}
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -213,26 +274,27 @@ export function AppSidebar() {
     <TooltipProvider>
       <Sidebar variant="sidebar" collapsible="icon" className={cn(!mounted && 'no-transition')}>
         <SidebarHeader className="pr-16">
-          <SidebarTooltip label="QC Pulse">
-            <button
-              type="button"
-              onClick={() => handleSidebarNavigate('/monitor')}
-              className={`flex w-full items-center rounded-xl px-2 py-2 transition ${open || isMobile ? 'justify-start' : 'justify-center'}`}
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-blue)] text-white shadow-sm">
-                <Gauge size={17} />
-              </div>
-              <div
-                data-sidebar-label=""
-                className="ml-3 flex min-w-0 flex-col overflow-hidden whitespace-nowrap text-left [--sidebar-label-width:11rem]"
+          {(open || isMobile) && (
+            <SidebarTooltip label="QC Pulse">
+              <button
+                type="button"
+                onClick={() => handleSidebarNavigate('/monitor')}
+                className="flex w-full items-center justify-start rounded-xl px-2 py-2 transition"
               >
-                <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">QC PULSE</p>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9ca3af]">
-                  Laboratory System
-                </p>
-              </div>
-            </button>
-          </SidebarTooltip>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-blue)] text-white shadow-sm">
+                  <GaugeIcon size={17} />
+                </div>
+                <SidebarAnimatedLabel
+                  className="ml-3 flex min-w-0 flex-col overflow-hidden whitespace-nowrap text-left [--sidebar-label-width:11rem]"
+                >
+                  <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">QC PULSE</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9ca3af]">
+                    Laboratory System
+                  </p>
+                </SidebarAnimatedLabel>
+              </button>
+            </SidebarTooltip>
+          )}
         </SidebarHeader>
 
         <SidebarContent>
@@ -256,45 +318,62 @@ export function AppSidebar() {
                           title={diseaseDisplayName}
                           aria-expanded={isOpen}
                           onClick={() => handleDiseaseToggle(disease.slug)}
-                          className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl' : undefined}
+                          className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl p-0' : undefined}
                         >
                           <Icon size={17} className="shrink-0" />
-                          <div
-                            data-sidebar-label=""
+                          <SidebarAnimatedLabel
                             className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
                           >
                             <span className="truncate">{diseaseDisplayName}</span>
-                            <ChevronDown
-                              size={16}
-                              className={cn(
-                                'ml-2 shrink-0 transition-transform duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
-                                isOpen ? 'rotate-180' : 'rotate-0',
-                              )}
-                            />
-                          </div>
+                            <motion.div initial={false} animate={{ rotate: isOpen ? 180 : 0 }} transition={SIDEBAR_TRANSITION}>
+                              <CaretDownIcon size={16} className="ml-2 shrink-0" />
+                            </motion.div>
+                          </SidebarAnimatedLabel>
                         </SidebarMenuButton>
                       </SidebarTooltip>
 
-                      {isOpen && (open || isMobile) ? (
-                        <div className="overflow-hidden">
-                          <SidebarMenuSub>
-                            {CONTROL_LINKS.map((control) => {
-                              const href = `/monitor/${disease.slug}/${control.slug}`;
-                              const isActive = isCurrentDisease && activeControl === control.slug;
+                      <AnimatePresence initial={false}>
+                        {isOpen && (open || isMobile) ? (
+                          <motion.div
+                            key="submenu"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{
+                              height: 'auto',
+                              opacity: 1,
+                              transition: {
+                                height: SIDEBAR_TRANSITION,
+                                opacity: { duration: 0.2, delay: 0.05 },
+                              },
+                            }}
+                            exit={{
+                              height: 0,
+                              opacity: 0,
+                              transition: {
+                                height: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
+                                opacity: { duration: 0.1 },
+                              },
+                            }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <SidebarMenuSub>
+                              {CONTROL_LINKS.map((control) => {
+                                const href = `/monitor/${disease.slug}/${control.slug}`;
+                                const isActive = isCurrentDisease && activeControl === control.slug;
 
-                              return (
-                                <SidebarMenuSubItem key={control.slug}>
-                                  <SidebarMenuSubButton asChild isActive={isActive}>
-                                    <Link to={href} onClick={() => isMobile && setOpenMobile(false)}>
-                                      {control.label}
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              );
-                            })}
-                          </SidebarMenuSub>
-                        </div>
-                      ) : null}
+                                return (
+                                  <SidebarMenuSubItem key={control.slug}>
+                                    <SidebarMenuSubButton asChild isActive={isActive}>
+                                      <Link to={href} onClick={() => isMobile && setOpenMobile(false)}>
+                                        {control.label}
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                );
+                              })}
+                            </SidebarMenuSub>
+                          </motion.div>
+                        ) : null}
+                      </AnimatePresence>
                     </SidebarMenuItem>
                   );
                 })}
@@ -324,11 +403,10 @@ export function AppSidebar() {
                           isActive={isActive}
                           onClick={() => handleSidebarNavigate(route.href)}
                           title={route.label}
-                          className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl' : undefined}
+                          className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl p-0' : undefined}
                         >
                           <Icon size={17} className="shrink-0" />
-                          <div
-                            data-sidebar-label=""
+                          <SidebarAnimatedLabel
                             className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:8.5rem]"
                           >
                             <span className="truncate">{route.label}</span>
@@ -339,7 +417,7 @@ export function AppSidebar() {
                             ) : (
                               <span className="w-0" aria-hidden="true" />
                             )}
-                          </div>
+                          </SidebarAnimatedLabel>
                         </SidebarMenuButton>
                       </SidebarTooltip>
                     </SidebarMenuItem>
@@ -370,16 +448,16 @@ export function AppSidebar() {
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-blue)] text-sm font-semibold text-white">
                     {currentUserInitials}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <SidebarAnimatedLabel className="min-w-0 flex-1 flex-col">
                     <p className="truncate text-sm font-medium text-[#111827]">{currentUserName}</p>
                     <p className="text-xs text-[#6b7280]">{currentRole}</p>
-                  </div>
+                  </SidebarAnimatedLabel>
                   <button
                     type="button"
                     onClick={handleLogout}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
                   >
-                    <LogOut size={16} />
+                    <SignOutIcon size={16} />
                     <span className="sr-only">Logout</span>
                   </button>
                 </SidebarMenuButton>

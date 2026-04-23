@@ -1,23 +1,23 @@
 import {
-  Activity,
-  AlertTriangle,
-  BarChart2,
-  Check,
-  Clock3,
-  Download,
-  Lock,
-  MoreHorizontal,
-  Percent,
-  Pencil,
-  Plus,
-  PlusCircle,
-  ShieldCheck,
-  Target,
-  TrendingDown,
-  TrendingUp,
-  UserCircle,
-  X,
-} from 'lucide-react';
+  ChartBarIcon,
+  CheckIcon,
+  ClockIcon,
+  DotsThreeIcon,
+  DownloadIcon,
+  LockIcon,
+  PencilIcon,
+  PercentIcon,
+  PlusCircleIcon,
+  PlusIcon,
+  PulseIcon,
+  ShieldCheckIcon,
+  TargetIcon,
+  TrendDownIcon,
+  TrendUpIcon,
+  UserCircleIcon,
+  WarningIcon,
+  XIcon,
+} from '@phosphor-icons/react';
 import { format, parseISO } from 'date-fns';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -222,7 +222,7 @@ function getMonitorStatusMeta(status: MonitorStatus) {
       systemBadgeClassName: 'bg-[#fee2e2] text-[#dc2626]',
       dotClassName: 'bg-[#dc2626]',
       ringClassName: 'border-[#dc2626] text-[#dc2626]',
-      icon: X,
+      icon: XIcon,
     };
   }
 
@@ -234,7 +234,7 @@ function getMonitorStatusMeta(status: MonitorStatus) {
       systemBadgeClassName: 'bg-[#fef3c7] text-[#d97706]',
       dotClassName: 'bg-[#d97706]',
       ringClassName: 'border-[#d97706] text-[#d97706]',
-      icon: AlertTriangle,
+      icon: WarningIcon,
     };
   }
 
@@ -246,7 +246,7 @@ function getMonitorStatusMeta(status: MonitorStatus) {
       systemBadgeClassName: 'bg-[#ccfbf1] text-[#0f766e]',
       dotClassName: 'bg-[#16a34a]',
       ringClassName: 'border-[#16a34a] text-[#16a34a]',
-      icon: Check,
+      icon: CheckIcon,
     };
   }
 
@@ -257,7 +257,7 @@ function getMonitorStatusMeta(status: MonitorStatus) {
     systemBadgeClassName: 'bg-[#dcfce7] text-[#16a34a]',
     dotClassName: 'bg-[#16a34a]',
     ringClassName: 'border-[#16a34a] text-[#16a34a]',
-    icon: Check,
+    icon: CheckIcon,
   };
 }
 
@@ -780,7 +780,7 @@ export default function QCDashboard({
             </div>
 
             <Button type="button" variant="outline" className="h-11 border-[#dbe4ff] text-[#1a1aff]" onClick={() => setIsStartLotDialogOpen(true)}>
-              <PlusCircle size={16} />
+              <PlusCircleIcon size={16} />
               Start new lot
             </Button>
           </div>
@@ -794,7 +794,7 @@ export default function QCDashboard({
               <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#9ca3af]">NEW QC ENTRY</p>
               <h2 className="mt-3 text-[18px] font-semibold text-[#111827]">Record run details for this dataset</h2>
             </div>
-            <UserCircle size={20} className="text-[#9ca3af]" />
+            <UserCircleIcon size={20} className="text-[#9ca3af]" />
           </div>
 
           {isArchivedLot && (
@@ -907,13 +907,13 @@ export default function QCDashboard({
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
         {[
-          { label: 'MEAN', value: runStatistics.mean.toFixed(3), color: '#111827', icon: Target, iconColor: '#7c3aed' },
-          { label: 'SD', value: runStatistics.sd.toFixed(3), color: '#111827', icon: TrendingUp, iconColor: '#0891b2' },
-          { label: 'SUM', value: runStatistics.sum.toFixed(3), color: '#111827', icon: Plus, iconColor: '#6b7280' },
-          { label: 'CV %', value: `${runStatistics.cv.toFixed(2)}%`, color: '#1a1aff', icon: Percent, iconColor: '#d97706' },
-          { label: 'LAST OD', value: runStatistics.lastOD === null ? '-' : runStatistics.lastOD.toFixed(4), color: '#1a1aff', icon: Activity, iconColor: '#1a1aff' },
-          { label: 'TOTAL RUNS', value: `${runStatistics.totalRuns}`, color: '#111827', icon: BarChart2, iconColor: '#7c3aed' },
-          { label: 'CONFIDENCE', value: `${runStatistics.confidence.toFixed(0)}%`, color: '#111827', icon: ShieldCheck, iconColor: '#16a34a' },
+          { label: 'MEAN', value: runStatistics.mean.toFixed(3), color: '#111827', icon: TargetIcon, iconColor: '#7c3aed' },
+          { label: 'SD', value: runStatistics.sd.toFixed(3), color: '#111827', icon: TrendUpIcon, iconColor: '#0891b2' },
+          { label: 'SUM', value: runStatistics.sum.toFixed(3), color: '#111827', icon: PlusIcon, iconColor: '#6b7280' },
+          { label: 'CV %', value: `${runStatistics.cv.toFixed(2)}%`, color: '#1a1aff', icon: PercentIcon, iconColor: '#d97706' },
+          { label: 'LAST OD', value: runStatistics.lastOD === null ? '-' : runStatistics.lastOD.toFixed(4), color: '#1a1aff', icon: PulseIcon, iconColor: '#1a1aff' },
+          { label: 'TOTAL RUNS', value: `${runStatistics.totalRuns}`, color: '#111827', icon: ChartBarIcon, iconColor: '#7c3aed' },
+          { label: 'CONFIDENCE', value: `${runStatistics.confidence.toFixed(0)}%`, color: '#111827', icon: ShieldCheckIcon, iconColor: '#16a34a' },
         ].map((stat) => {
           const StatIcon = stat.icon;
 
@@ -949,7 +949,7 @@ export default function QCDashboard({
                   onClick={() => setIsEditSheetOpen(true)}
                   disabled={isArchivedLot}
                 >
-                  <Pencil size={14} />
+                  <PencilIcon size={14} />
                   Edit entries
                 </Button>
               ) : null
@@ -984,7 +984,7 @@ export default function QCDashboard({
               <h3 className="text-[15px] font-semibold text-[#111827]">CV Trend</h3>
               <div className={`flex items-center gap-1 text-[13px] font-semibold ${trendDirection === 'down' ? 'text-[#0f766e]' : 'text-[#d97706]'}`}>
                 <span>{`${Math.abs(chartTrendDelta).toFixed(1)}%`}</span>
-                {trendDirection === 'down' ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+                {trendDirection === 'down' ? <TrendDownIcon size={14} /> : <TrendUpIcon size={14} />}
               </div>
             </div>
 
@@ -1040,7 +1040,7 @@ export default function QCDashboard({
                           : 'bg-[#f3f4f6] text-[#6b7280]'
                       }`}
                     >
-                      {item.icon === 'warning' ? <AlertTriangle size={16} /> : <Clock3 size={16} />}
+                      {item.icon === 'warning' ? <WarningIcon size={16} /> : <ClockIcon size={16} />}
                     </div>
                     <div>
                       <p className="text-[14px] font-medium text-[#111827]">{item.label}</p>
@@ -1090,7 +1090,7 @@ export default function QCDashboard({
                   <TableCell className="py-4 text-[14px] text-[#374151]">
                     <div className="flex items-center gap-2">
                       <span className={isInHouseControl ? 'font-mono' : ''}>{isInHouseControl ? entry.protocolNumber : entry.lotNumber}</span>
-                      {entry.signedBy && <Lock size={14} className="text-[#9ca3af]" />}
+                      {entry.signedBy && <LockIcon size={14} className="text-[#9ca3af]" />}
                     </div>
                   </TableCell>
                   <TableCell className="py-4 text-[14px] font-medium text-[#111827]">
@@ -1114,7 +1114,7 @@ export default function QCDashboard({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button type="button" variant="ghost" size="icon-sm" className="text-[#94a3b8]">
-                          <MoreHorizontal size={16} />
+                          <DotsThreeIcon size={16} />
                           <span className="sr-only">Open entry actions</span>
                         </Button>
                       </DropdownMenuTrigger>
@@ -1130,7 +1130,7 @@ export default function QCDashboard({
                         )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => downloadEntry(entry)}>
-                          <Download size={14} />
+                          <DownloadIcon size={14} />
                           Download entry
                         </DropdownMenuItem>
                       </DropdownMenuContent>

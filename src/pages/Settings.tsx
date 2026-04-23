@@ -1,4 +1,4 @@
-import { Cog, SlidersHorizontal } from 'lucide-react';
+import { GearIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router-dom';
 
 export function Settings() {
@@ -6,7 +6,7 @@ export function Settings() {
     <div className="rounded-2xl border border-[#F3F3F3] bg-white p-8 shadow">
       <div className="mb-6 flex items-center gap-3">
         <div className="rounded-lg bg-[#0000FF] p-2">
-          <Cog className="text-white" size={20} />
+          <GearIcon className="text-white" size={20} />
         </div>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em]" style={{ color: '#0000FF' }}>
@@ -21,7 +21,7 @@ export function Settings() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="rounded-xl border border-[#F3F3F3] bg-[#FBFBFB] p-6">
           <div className="mb-3 flex items-center gap-2" style={{ color: '#0000FF' }}>
-            <SlidersHorizontal size={18} />
+            <SlidersHorizontalIcon size={18} />
             <span className="font-bold">Lab configuration</span>
           </div>
           <p className="text-sm leading-7" style={{ color: '#64748B' }}>

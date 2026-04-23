@@ -1,4 +1,4 @@
-import { FlaskConical } from 'lucide-react';
+import { FlaskIcon } from '@phosphor-icons/react';
 
 import { IsoDatePicker } from '@/components/ui/IsoDatePicker';
 import type { InputPanelProps } from '@/types/qc.types';
@@ -33,7 +33,7 @@ export default function InputPanel({
           <h2 className="mt-2 text-xl font-bold">Record run details for this dataset</h2>
         </div>
         <div className="rounded-full bg-white/15 p-2">
-          <FlaskConical size={18} />
+          <FlaskIcon size={18} />
         </div>
       </div>
 

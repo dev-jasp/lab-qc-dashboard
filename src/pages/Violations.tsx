@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { WarningIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -114,7 +114,7 @@ export function Violations() {
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full bg-[#fee2e2] px-4 py-2 text-sm font-semibold text-[#dc2626]">
-            <AlertTriangle size={16} />
+            <WarningIcon size={16} />
             {`${openViolations.length} open items`}
           </div>
         </div>

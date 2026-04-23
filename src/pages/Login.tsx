@@ -1,4 +1,4 @@
-import { Activity } from 'lucide-react';
+import { PulseIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router-dom';
 
 export function Login() {
@@ -7,7 +7,7 @@ export function Login() {
       <div className="w-full max-w-md rounded-[20px] border border-[#f0f0f0] bg-white p-8 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1a1aff] text-white">
-            <Activity size={20} />
+            <PulseIcon size={20} />
           </div>
           <div>
             <p className="text-lg font-bold text-[#1a1aff]">QC PULSE</p>

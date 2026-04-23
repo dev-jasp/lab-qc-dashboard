@@ -1,4 +1,4 @@
-import { Shield, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircleIcon, ShieldIcon, XCircleIcon } from '@phosphor-icons/react';
 import type { QCRulesPanelProps } from '../../types/qc.types';
 
 const RULE_LABELS = {
@@ -20,7 +20,7 @@ const QCRulesPanel: React.FC<QCRulesPanelProps> = ({ qcRules }) => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div style={{ background: '#0000FF' }} className="p-2 rounded-lg">
-            <Shield className="text-white" size={20} />
+            <ShieldIcon className="text-white" size={20} />
           </div>
           <h3 className="text-xl font-bold" style={{ color: '#1A1C1C' }}>Westgard QC Rules</h3>
         </div>
@@ -63,9 +63,9 @@ const QCRulesPanel: React.FC<QCRulesPanelProps> = ({ qcRules }) => {
                 {RULE_LABELS[rule.name]}
               </div>
               {rule.violated ? (
-                <XCircle style={{ color: rule.severity === 'warning' ? '#D97706' : '#B22222' }} className="flex-shrink-0" size={20} />
+                <XCircleIcon style={{ color: rule.severity === 'warning' ? '#D97706' : '#B22222' }} className="flex-shrink-0" size={20} />
               ) : (
-                <CheckCircle2 style={{ color: '#0000FF' }} className="flex-shrink-0" size={20} />
+                <CheckCircleIcon style={{ color: '#0000FF' }} className="flex-shrink-0" size={20} />
               )}
             </div>
             <div
@@ -94,12 +94,12 @@ const QCRulesPanel: React.FC<QCRulesPanelProps> = ({ qcRules }) => {
             }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold">
               {rule.violated ? (
                 <>
-                  <XCircle size={12} />
+                  <XCircleIcon size={12} />
                   {rule.severity === 'warning' ? 'WARNING' : 'VIOLATED'}
                 </>
               ) : (
                 <>
-                  <CheckCircle2 size={12} />
+                  <CheckCircleIcon size={12} />
                   PASSED
                 </>
               )}

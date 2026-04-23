@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import { Link, useParams } from 'react-router-dom';
 
 import LeveyJenningsChart from '@/components/chart/LeveyJenningsChart';
@@ -110,7 +110,7 @@ export function DiseaseOverview() {
           The requested surveillance area does not exist in the current QC configuration.
         </p>
         <Link to="/monitor" className="mt-6 inline-flex items-center gap-2 font-semibold text-[#0000FF]">
-          <ArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
           Back to monitor
         </Link>
       </div>
@@ -121,7 +121,7 @@ export function DiseaseOverview() {
     <div>
       <div className="mb-8">
         <Link to="/monitor" className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#64748B]">
-          <ArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
           Back to disease selector
         </Link>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -178,7 +178,7 @@ export function DiseaseOverview() {
                 className="inline-flex items-center gap-2 text-sm font-bold text-[#0000FF]"
               >
                 Open control monitor
-                <ArrowRight size={16} />
+                <ArrowRightIcon size={16} />
               </Link>
             </div>
           );

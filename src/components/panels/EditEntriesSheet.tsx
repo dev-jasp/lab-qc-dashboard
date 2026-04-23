@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Flag, Lock, Pencil } from 'lucide-react';
+import { FlagIcon, LockIcon, PencilIcon } from '@phosphor-icons/react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -153,7 +153,7 @@ export function EditEntriesSheet({
                           <p className="text-sm font-semibold text-[#1A1C1C]">{entry.protocolNumber}</p>
                           {entry.flag && (
                             <Badge className="bg-[#EFF6FF] text-[#2563EB]">
-                              <Flag size={12} />
+                              <FlagIcon size={12} />
                               {entry.flag.replaceAll('_', ' ')}
                             </Badge>
                           )}
@@ -168,7 +168,7 @@ export function EditEntriesSheet({
 
                       {isSigned ? (
                         <div className="flex items-center text-[#64748B]" title="Signed - cannot edit">
-                          <Lock size={16} />
+                          <LockIcon size={16} />
                         </div>
                       ) : (
                         <Button
@@ -178,7 +178,7 @@ export function EditEntriesSheet({
                           className={`shrink-0 text-[#0000FF] transition-opacity ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                           onClick={() => startEditing(entry)}
                         >
-                          <Pencil size={16} />
+                          <PencilIcon size={16} />
                           <span className="sr-only">Edit entry {entry.protocolNumber}</span>
                         </Button>
                       )}

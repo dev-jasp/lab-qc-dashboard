@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { CalendarDays } from 'lucide-react';
+import { CalendarIcon } from '@phosphor-icons/react';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -44,7 +44,7 @@ export function IsoDatePicker({
           )}
         >
           <span>{selectedDate ? resolveDisplayLabel(value, displayFormat) : 'Select date'}</span>
-          <CalendarDays size={16} />
+          <CalendarIcon size={16} />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
