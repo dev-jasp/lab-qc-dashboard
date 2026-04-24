@@ -3,7 +3,6 @@ import type {
   CorrectiveAction,
   LotMetadata,
   QCEntry,
-  QCSession,
   QCSettings,
   QCUser,
   ViolationEntry,
@@ -13,7 +12,6 @@ const STORAGE_PREFIX = 'qc_';
 const STORAGE_INDEX_KEY = '__qc_storage_index__';
 const SETTINGS_KEY = 'qc_settings';
 const USERS_KEY = 'qc_users';
-const SESSION_KEY = 'qc_session';
 const LOGO_KEYS = {
   seal: 'qc_logo_seal',
   pathology: 'qc_logo_pathology',
@@ -241,23 +239,6 @@ function isQCUser(value: unknown): value is QCUser {
   );
 }
 
-function isQCSession(value: unknown): value is QCSession {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    isString(value.userId) &&
-    isString(value.username) &&
-    isString(value.displayName) &&
-    isString(value.role) &&
-    USER_ROLES.has(value.role) &&
-    isString(value.startedAt) &&
-    isString(value.lastActivityAt) &&
-    isString(value.expiresAt)
-  );
-}
-
 function isArrayOf<T>(value: unknown, itemGuard: (item: unknown) => item is T): value is T[] {
   return Array.isArray(value) && value.every(itemGuard);
 }
@@ -320,36 +301,6 @@ function setKey<T>(key: string, value: T): void {
     }
   } catch (error) {
     throw new Error(`Failed to write storage key "${key}": ${toErrorMessage(error)}`);
-  }
-}
-
-function getSessionKey<T>(key: string): T | null {
-  try {
-    const rawValue = window.sessionStorage.getItem(key);
-
-    if (rawValue === null) {
-      return null;
-    }
-
-    return JSON.parse(rawValue) as T;
-  } catch (error) {
-    throw new Error(`Failed to read session key "${key}": ${toErrorMessage(error)}`);
-  }
-}
-
-function setSessionKey<T>(key: string, value: T): void {
-  try {
-    window.sessionStorage.setItem(key, JSON.stringify(value));
-  } catch (error) {
-    throw new Error(`Failed to write session key "${key}": ${toErrorMessage(error)}`);
-  }
-}
-
-function removeSessionKey(key: string): void {
-  try {
-    window.sessionStorage.removeItem(key);
-  } catch (error) {
-    throw new Error(`Failed to remove session key "${key}": ${toErrorMessage(error)}`);
   }
 }
 
@@ -1256,48 +1207,6 @@ export async function updateUser(userId: string, updates: Partial<QCUser>): Prom
   const nextUsers = [...users];
   nextUsers[userIndex] = mergedUser;
   setKey(USERS_KEY, nextUsers);
-}
-
-/**
- * Returns the current authenticated QC session from session storage.
- *
- * @throws {Error} When the stored session payload is malformed.
- */
-export async function getSession(): Promise<QCSession | null> {
-  const session = getSessionKey<unknown>(SESSION_KEY);
-
-  if (session === null) {
-    return null;
-  }
-
-  if (!isQCSession(session)) {
-    throw new Error('Stored QC session is malformed.');
-  }
-
-  return session;
-}
-
-/**
- * Stores the authenticated QC session in session storage.
- *
- * @param session Session payload to persist.
- * @throws {Error} When the session payload is malformed.
- */
-export async function setSession(session: QCSession): Promise<void> {
-  if (!isQCSession(session)) {
-    throw new Error('Cannot store QC session because the payload is malformed.');
-  }
-
-  setSessionKey(SESSION_KEY, session);
-}
-
-/**
- * Clears the authenticated QC session from session storage.
- *
- * @throws {Error} When the session key cannot be removed.
- */
-export async function clearSession(): Promise<void> {
-  removeSessionKey(SESSION_KEY);
 }
 
 /**

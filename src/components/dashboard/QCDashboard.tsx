@@ -56,6 +56,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
 import { useQCLogic } from '@/hooks/useQCLogic';
 import { useToast } from '@/hooks/useToast';
+import { getUser, type AuthUser } from '@/lib/auth';
 import {
   buildRunStatisticsSummary,
   DEFAULT_IN_HOUSE_LOT_NUMBER,
@@ -70,7 +71,6 @@ import {
   createLot,
   getEntries,
   getLots,
-  getSession,
   getSettings,
   getViolations,
   updateEntry,
@@ -84,7 +84,6 @@ import type {
   QCEntry,
   QCEntryFlag,
   QCRule,
-  QCSession,
   QCSettings,
   ViolationEntry,
 } from '@/types/qc.types';
@@ -155,20 +154,20 @@ function getSelectedLot(lots: LotMetadata[], selectedLotNumber: string): LotMeta
   return lots.find((lot) => lot.lotNumber === selectedLotNumber) ?? null;
 }
 
-function isPrivilegedRole(session: QCSession | null): boolean {
-  return session?.role === 'supervisor' || session?.role === 'admin';
+function isPrivilegedRole(user: AuthUser | null): boolean {
+  return user?.role === 'Supervisor' || user?.role === 'Admin';
 }
 
-function canUsePrivilegedActions(session: QCSession | null): boolean {
-  return session === null || isPrivilegedRole(session);
+function canUsePrivilegedActions(user: AuthUser | null): boolean {
+  return isPrivilegedRole(user);
 }
 
-function getAuditActorLabel(session: QCSession | null): string {
-  if (session === null) {
+function getAuditActorLabel(user: AuthUser | null): string {
+  if (user === null) {
     return 'Local QC User';
   }
 
-  return session.displayName || session.username;
+  return user.name;
 }
 
 function formatDateLabel(value: string | null): string {
@@ -396,7 +395,7 @@ export default function QCDashboard({
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [currentSession, setCurrentSession] = useState<QCSession | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<QCEntry | null>(null);
   const { success, error } = useToast();
 
@@ -413,7 +412,7 @@ export default function QCDashboard({
   const runStatistics = useMemo(() => buildRunStatisticsSummary(baseChartData, statistics), [baseChartData, statistics]);
   const selectedLot = useMemo(() => getSelectedLot(lots, selectedLotNumber), [lots, selectedLotNumber]);
   const isArchivedLot = !isInHouseControl && selectedLot?.status === 'archived';
-  const canEditEntries = canUsePrivilegedActions(currentSession);
+  const canEditEntries = canUsePrivilegedActions(currentUser);
   const activeDatasetLotNumber = isInHouseControl ? DEFAULT_IN_HOUSE_LOT_NUMBER : selectedLotNumber;
   const currentCV = cvTrend.currentCV ?? 0;
   const chartSubtitle = `${controlName.toUpperCase()} - ${diseaseName.toUpperCase()}${assayTag ? ` - ${assayTag}` : ''}`;
@@ -454,13 +453,13 @@ export default function QCDashboard({
 
       try {
         await ensureControlDatasetInitialized(diseaseSlug, controlType);
-        const [session, appSettings] = await Promise.all([getSession(), getSettings()]);
+        const [authUser, appSettings] = await Promise.all([getUser(), getSettings()]);
 
         if (isCancelled) {
           return;
         }
 
-        setCurrentSession(session);
+        setCurrentUser(authUser);
         setSettings(appSettings);
 
         if (isInHouseControl) {
@@ -644,7 +643,7 @@ export default function QCDashboard({
       id: crypto.randomUUID(),
       timestamp,
       action: 'EDIT',
-      performedBy: getAuditActorLabel(currentSession),
+      performedBy: getAuditActorLabel(currentUser),
       originalValues: entry,
       newValues: updatedEntry,
       reason,

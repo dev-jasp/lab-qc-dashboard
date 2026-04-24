@@ -15,8 +15,9 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
-import { clearSession, getAllViolations, getSession } from '@/lib/qcStorage';
-import type { ControlTypeSlug, DiseaseSlug, QCSession } from '@/types/qc.types';
+import { useAuth } from '@/hooks/useAuth';
+import { getAllViolations } from '@/lib/qcStorage';
+import type { ControlTypeSlug, DiseaseSlug } from '@/types/qc.types';
 import { cn } from '@/utils/cn';
 
 import {
@@ -135,25 +136,6 @@ function getActiveControl(pathname: string): ControlTypeSlug | null {
   return CONTROL_LINKS.some((control) => control.slug === slug) ? slug : null;
 }
 
-function getRoleLabel(role: QCSession['role'] | undefined): string {
-  if (role === undefined) {
-    return 'Analyst';
-  }
-
-  return `${role.charAt(0).toUpperCase()}${role.slice(1)}`;
-}
-
-function getInitials(session: QCSession | null): string {
-  const source = session?.displayName || session?.username || 'Local User';
-
-  return source
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-}
-
 function SidebarTooltip({
   children,
   label,
@@ -247,8 +229,8 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { open, isMobile, setOpenMobile } = useSidebar();
+  const { user, signOut } = useAuth();
   const [mounted, setMounted] = React.useState(false);
-  const [session, setSession] = React.useState<QCSession | null>(null);
   const [openViolationCount, setOpenViolationCount] = React.useState(0);
   const activeDisease = getActiveDisease(location.pathname);
   const activeControl = getActiveControl(location.pathname);
@@ -269,13 +251,12 @@ export function AppSidebar() {
     let isCancelled = false;
 
     const loadSidebarMeta = async () => {
-      const [currentSession, allViolations] = await Promise.all([getSession(), getAllViolations()]);
+      const allViolations = await getAllViolations();
 
       if (isCancelled) {
         return;
       }
 
-      setSession(currentSession);
       setOpenViolationCount(
         allViolations.filter((violation) => !violation.acknowledged && violation.severity === 'rejection').length,
       );
@@ -394,8 +375,7 @@ export function AppSidebar() {
   };
 
   const handleLogout = async () => {
-    await clearSession();
-    setSession(null);
+    await signOut();
 
     if (isMobile) {
       setOpenMobile(false);
@@ -404,9 +384,9 @@ export function AppSidebar() {
     navigate('/login');
   };
 
-  const currentUserName = session?.displayName || session?.username || 'Local QC User';
-  const currentRole = getRoleLabel(session?.role);
-  const currentUserInitials = getInitials(session);
+  const currentUserName = user?.name ?? 'QC Pulse User';
+  const currentRole = user?.role ?? 'Analyst';
+  const currentUserInitials = user?.initials ?? 'QC';
   const isCollapsedDesktop = !open && !isMobile;
   const floatingDiseaseSlug = floatingDisease?.disease.slug ?? null;
 
@@ -466,7 +446,12 @@ export function AppSidebar() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
-            <p className="text-xs text-[#6b7280]">{currentRole}</p>
+            <Badge
+              variant="secondary"
+              className="mt-1 h-4 rounded-full border-[#dbeafe] bg-[#eff6ff] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-blue)]"
+            >
+              {currentRole}
+            </Badge>
           </div>
           <ArrowRightIcon size={14} className="text-[#94a3b8]" />
         </div>
@@ -749,7 +734,12 @@ export function AppSidebar() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
-                    <p className="text-xs text-[#6b7280]">{currentRole}</p>
+                    <Badge
+                      variant="secondary"
+                      className="mt-1 h-4 rounded-full border-[#dbeafe] bg-[#eff6ff] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-blue)]"
+                    >
+                      {currentRole}
+                    </Badge>
                   </div>
                 </button>
               </DropdownMenuTrigger>
