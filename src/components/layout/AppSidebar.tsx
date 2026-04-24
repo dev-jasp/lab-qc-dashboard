@@ -2,7 +2,6 @@ import {
   ArrowRightIcon,
   CaretDownIcon,
   ClockIcon,
-  GaugeIcon,
   GearIcon,
   SignOutIcon,
   VirusIcon,
@@ -399,7 +398,7 @@ export function AppSidebar() {
   return (
     <TooltipProvider>
       <Sidebar variant="sidebar" collapsible="icon" className={cn(!mounted && 'no-transition')}>
-        <SidebarHeader className="pr-16">
+        <SidebarHeader className="pr-12">
           {(open || isMobile) && (
             <SidebarTooltip label="QC Pulse">
               <button
@@ -407,14 +406,20 @@ export function AppSidebar() {
                 onClick={() => handleSidebarNavigate('/monitor')}
                 className="flex w-full items-center justify-start rounded-xl px-2 py-2 transition"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-blue)] text-white shadow-sm">
-                  <GaugeIcon size={17} />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-[#e5e7eb]">
+                  <img
+                    src="/images/brand-logo.png"
+                    alt="QC Pulse brand logo"
+                    className="h-full w-full object-cover"
+                    loading="eager"
+                    decoding="async"
+                  />
                 </div>
                 <SidebarAnimatedLabel
                   className="ml-3 flex min-w-0 flex-col overflow-hidden whitespace-nowrap text-left [--sidebar-label-width:11rem]"
                 >
                   <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">QC PULSE</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9ca3af]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9ca3af]">
                     Laboratory System
                   </p>
                 </SidebarAnimatedLabel>
@@ -457,6 +462,7 @@ export function AppSidebar() {
                         isCollapsedDesktop &&
                           isCurrentDisease &&
                           'bg-[#eff6ff] text-[var(--sidebar-accent-foreground)] hover:bg-[#eff6ff]',
+                        !isCollapsedDesktop && 'justify-between',
                       )}
                     >
                       {isCollapsedDesktop ? (
@@ -474,16 +480,26 @@ export function AppSidebar() {
                           <Icon size={17} />
                         </span>
                       ) : (
-                        <Icon size={17} className="shrink-0" />
+                        <span className="flex min-w-0 flex-1 items-center">
+                          <Icon size={17} className="shrink-0" />
+                          <SidebarAnimatedLabel
+                            className="ml-2 flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
+                          >
+                            <span className="truncate">{diseaseDisplayName}</span>
+                          </SidebarAnimatedLabel>
+                        </span>
                       )}
-                      <SidebarAnimatedLabel
-                        className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
-                      >
-                        <span className="truncate">{diseaseDisplayName}</span>
-                        <motion.div initial={false} animate={{ rotate: isOpen ? 180 : 0 }} transition={SIDEBAR_TRANSITION}>
-                          <CaretDownIcon size={16} className="ml-2 shrink-0" />
-                        </motion.div>
-                      </SidebarAnimatedLabel>
+                      {!isCollapsedDesktop ? (
+                        <span className="ml-auto flex h-4 w-4 flex-none items-center justify-center">
+                          <CaretDownIcon
+                            size={16}
+                            className={cn(
+                              'h-4 w-4 flex-none origin-center transition-transform duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]',
+                              isOpen && 'rotate-180',
+                            )}
+                          />
+                        </span>
+                      ) : null}
                     </SidebarMenuButton>
                   );
 
