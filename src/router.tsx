@@ -5,13 +5,14 @@ import { ControlMonitor } from '@/pages/ControlMonitor';
 import { DiseaseOverview } from '@/pages/DiseaseOverview';
 import { DiseaseSelector } from '@/pages/DiseaseSelector';
 import { History } from '@/pages/History';
-import { Login } from '@/pages/Login';
+import LoginPage from '@/pages/LoginPage.jsx';
 import { Settings } from '@/pages/Settings';
 import { Violations } from '@/pages/Violations';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/monitor" replace /> },
-  { path: '/login', element: <Login /> },
+  { path: '/login', element: <LoginPage /> },
+  { path: '/dashboard', element: <div>Dashboard</div> },
   {
     element: <AppShell />,
     children: [
