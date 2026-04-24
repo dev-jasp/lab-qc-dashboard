@@ -1,6 +1,8 @@
 import {
   ArrowRightIcon,
+  BellIcon,
   CaretDownIcon,
+  ChartBarIcon,
   ClockIcon,
   GearIcon,
   SignOutIcon,
@@ -17,6 +19,14 @@ import { clearSession, getAllViolations, getSession } from '@/lib/qcStorage';
 import type { ControlTypeSlug, DiseaseSlug, QCSession } from '@/types/qc.types';
 import { cn } from '@/utils/cn';
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import {
   Sidebar,
   SidebarContent,
@@ -386,6 +396,11 @@ export function AppSidebar() {
   const handleLogout = async () => {
     await clearSession();
     setSession(null);
+
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+
     navigate('/login');
   };
 
@@ -394,6 +409,106 @@ export function AppSidebar() {
   const currentUserInitials = getInitials(session);
   const isCollapsedDesktop = !open && !isMobile;
   const floatingDiseaseSlug = floatingDisease?.disease.slug ?? null;
+
+  const accountMenuItems: Array<{
+    label: string;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+    href?: string;
+    badge?: string;
+    disabled?: boolean;
+  }> = [
+    {
+      label: 'Reports',
+      icon: ChartBarIcon,
+      badge: 'New',
+      disabled: true,
+    },
+    {
+      label: 'History / Audit Log',
+      icon: ClockIcon,
+      href: '/history',
+    },
+    {
+      label: 'Violations',
+      icon: WarningIcon,
+      href: '/violations',
+    },
+    {
+      label: 'Notifications',
+      icon: BellIcon,
+      badge: 'New',
+      disabled: true,
+    },
+    {
+      label: 'Settings',
+      icon: GearIcon,
+      href: '/settings',
+    },
+  ];
+
+  const handleAccountMenuNavigate = (href?: string) => {
+    if (href !== undefined) {
+      handleSidebarNavigate(href);
+    }
+  };
+
+  const accountMenuContent = (
+    <DropdownMenuContent
+      align={isCollapsedDesktop ? 'start' : 'end'}
+      side={isCollapsedDesktop ? 'right' : 'top'}
+      sideOffset={8}
+      className="w-64 rounded-[1.15rem] border border-[#e5e7eb] bg-white p-1.5 shadow-[0_16px_38px_rgba(15,23,42,0.12)]"
+    >
+      <div className="rounded-[0.95rem] bg-[#f8fafc] px-2.5 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-blue)] text-xs font-semibold text-white">
+            {currentUserInitials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
+            <p className="text-xs text-[#6b7280]">{currentRole}</p>
+          </div>
+          <ArrowRightIcon size={14} className="text-[#94a3b8]" />
+        </div>
+      </div>
+
+      <DropdownMenuSeparator className="mx-1 my-2 bg-[#e5e7eb]" />
+
+      {accountMenuItems.map((item) => {
+        const Icon = item.icon;
+
+        return (
+          <DropdownMenuItem
+            key={item.label}
+            disabled={item.disabled}
+            onSelect={() => handleAccountMenuNavigate(item.href)}
+            className="rounded-lg px-2.5 py-2 text-[13px] font-medium text-[#111827] data-[disabled]:opacity-55"
+          >
+            <Icon size={16} className="text-[#475569]" />
+            <span>{item.label}</span>
+            {item.badge ? (
+              <Badge
+                variant="secondary"
+                className="ml-auto h-4.5 rounded-full border-[#dbeafe] bg-[#eff6ff] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-blue)]"
+              >
+                {item.badge}
+              </Badge>
+            ) : null}
+          </DropdownMenuItem>
+        );
+      })}
+
+      <DropdownMenuSeparator className="mx-1 my-2 bg-[#e5e7eb]" />
+
+      <DropdownMenuItem
+        onSelect={handleLogout}
+        className="rounded-lg px-2.5 py-2 text-[13px] font-medium text-[#111827]"
+      >
+        <SignOutIcon size={16} className="text-[#475569]" />
+        <span>Log out</span>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
 
   return (
     <TooltipProvider>
@@ -608,38 +723,38 @@ export function AppSidebar() {
         <SidebarFooter>
           {!open && !isMobile ? (
             <div className="flex justify-center">
-              <SidebarTooltip label={`${currentUserName} - ${currentRole} | Logout`}>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-blue)] text-sm font-semibold text-white"
-                >
-                  {currentUserInitials}
-                </button>
-              </SidebarTooltip>
+              <DropdownMenu modal={false}>
+                <SidebarTooltip label={`${currentUserName} - ${currentRole}`}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-[var(--brand-blue)] text-xs font-semibold text-white"
+                    >
+                      {currentUserInitials}
+                    </button>
+                  </DropdownMenuTrigger>
+                </SidebarTooltip>
+                {accountMenuContent}
+              </DropdownMenu>
             </div>
           ) : (
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton size="lg" className="cursor-default hover:bg-transparent hover:text-inherit">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-blue)] text-sm font-semibold text-white">
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="mt-2 flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-1.5 text-left transition hover:bg-[#f8fafc]"
+                >
+                  <div className="flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-full bg-[var(--brand-blue)] text-xs font-semibold text-white">
                     {currentUserInitials}
                   </div>
-                  <SidebarAnimatedLabel className="min-w-0 flex-1 flex-col">
-                    <p className="truncate text-sm font-medium text-[#111827]">{currentUserName}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
                     <p className="text-xs text-[#6b7280]">{currentRole}</p>
-                  </SidebarAnimatedLabel>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
-                  >
-                    <SignOutIcon size={16} />
-                    <span className="sr-only">Logout</span>
-                  </button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              {accountMenuContent}
+            </DropdownMenu>
           )}
         </SidebarFooter>
 

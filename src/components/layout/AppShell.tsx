@@ -2,9 +2,12 @@ import { Outlet } from 'react-router-dom';
 
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
+import { useRouteScrollRestoration } from '@/hooks/useRouteScrollRestoration';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export function AppShell() {
+  useRouteScrollRestoration();
+
   return (
     <SidebarProvider>
       <AppSidebar />
