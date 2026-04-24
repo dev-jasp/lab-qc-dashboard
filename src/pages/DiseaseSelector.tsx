@@ -1,5 +1,4 @@
 import { ArrowRightIcon } from "@phosphor-icons/react";
-import * as React from "react";
 import { Link } from "react-router-dom";
 
 import { diseaseCardBackgrounds } from "@/constants/landing-images";
@@ -59,10 +58,6 @@ const diseaseBackgroundStyles: Partial<
 };
 
 export function DiseaseSelector() {
-  const [hoveredDisease, setHoveredDisease] = React.useState<
-    (typeof DISEASE_DEFINITIONS)[number]["slug"] | null
-  >(null);
-
   return (
     <section
       style={{ backgroundColor: "#FFFFFF" }}
@@ -91,13 +86,7 @@ export function DiseaseSelector() {
             <div
               key={disease.slug}
               style={{ borderColor: "#F3F3F3", backgroundColor: "#FAFAFA" }}
-              onMouseEnter={() => setHoveredDisease(disease.slug)}
-              onMouseLeave={() => setHoveredDisease(null)}
-              className={`group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-[transform,filter,box-shadow] duration-300 hover:z-10  hover:shadow-xl ${
-                hoveredDisease !== null && hoveredDisease !== disease.slug
-                  ? "blur-[1.5px]"
-                  : "blur-0"
-              } ${cardSpanClass}`}
+              className={`group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-[transform,box-shadow] duration-300 hover:z-10 hover:shadow-xl ${cardSpanClass}`}
             >
               {backgroundImage && (
                 <img

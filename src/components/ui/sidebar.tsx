@@ -187,7 +187,7 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
+function SidebarContent({ className, style, ...props }: React.ComponentProps<'div'>) {
   const { open, isMobile } = useSidebar();
 
   return (
@@ -198,6 +198,10 @@ function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
         !open && !isMobile ? 'px-3' : 'px-4',
         className,
       )}
+      style={{
+        scrollbarGutter: 'stable',
+        ...style,
+      }}
       {...props}
     />
   );
