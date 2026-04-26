@@ -1,10 +1,11 @@
 import {
+  BellIcon,
   CaretDownIcon,
   ChartBarIcon,
-  CheckCircleIcon,
+  ChartLineUpIcon,
   EyeIcon,
   EyeSlashIcon,
-  WarningIcon,
+  ShieldCheckIcon,
 } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -45,13 +46,12 @@ const DEFAULT_DEMO_LOGIN = {
   password: "Analyst@2025",
 };
 
-const CONTROL_STREAMS = [
-  { label: "In-house", value: "0.7812", state: "Stable", color: "#16a34a" },
-  { label: "Positive", value: "1.4288", state: "Watch", color: "#d97706" },
-  { label: "Negative", value: "0.1186", state: "Clear", color: "#16a34a" },
+const LOGIN_FEATURES = [
+  { label: "Real-time QC Monitoring", Icon: ChartLineUpIcon },
+  { label: "Data Integrity & Compliance", Icon: ShieldCheckIcon },
+  { label: "Alerts & Violations", Icon: BellIcon },
+  { label: "Actionable Insights", Icon: ChartBarIcon },
 ];
-
-const RECENT_RUNS = ["MEA-IH-024", "RUB-PC-018", "DEN-NC-011"];
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -73,6 +73,34 @@ function LoginSpinner() {
         />
       ))}
     </span>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      role="img"
+    >
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.31 9.14 5.38 12 5.38z"
+      />
+    </svg>
   );
 }
 
@@ -146,15 +174,23 @@ export default function LoginPage() {
     setFeedback(null);
   };
 
+  const handleGoogleLogin = () => {
+    setFeedback({
+      tone: "info",
+      message:
+        "Google login is visual only for now. Please use email sign-in while setup is pending.",
+    });
+  };
+
   return (
     <div className="h-svh overflow-hidden bg-[#eef2f6] text-[#0f172a]">
-      <div className="grid h-svh lg:grid-cols-[minmax(420px,0.86fr)_minmax(0,1.14fr)]">
+      <div className="grid h-svh lg:grid-cols-[minmax(420px,0.78fr)_minmax(0,1.22fr)]">
         <section className="flex h-svh items-center bg-white px-5 py-4 sm:px-8 lg:px-12 xl:px-16">
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.55, ease: MOTION_EASE }}
-            className="mx-auto w-full max-w-[470px]"
+            className="mx-auto w-full max-w-[500px] rounded-2xl border border-sky-200/80 bg-white px-6 py-7 shadow-[0_24px_70px_rgba(14,165,233,0.11)] sm:px-7 lg:px-8"
           >
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -284,6 +320,22 @@ export default function LoginPage() {
                 )}
               </Button>
 
+              <div className="flex items-center gap-3 text-[12px] font-semibold text-[#94a3b8]">
+                <span className="h-px flex-1 bg-[#e2e8f0]" />
+                <span>or</span>
+                <span className="h-px flex-1 bg-[#e2e8f0]" />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleLogin}
+                className="h-11 w-full gap-3 rounded-md border-[#cbd5e1] bg-white text-[15px] font-semibold text-[#334155] shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition hover:border-[#94a3b8] hover:bg-[#f8fafc]"
+              >
+                <GoogleIcon />
+                Continue with Google
+              </Button>
+
               <div className="flex flex-col gap-2.5 text-[13px] leading-5 text-[#334155] sm:flex-row sm:items-center sm:justify-between">
                 <label className="inline-flex items-center gap-2">
                   <input
@@ -352,166 +404,44 @@ export default function LoginPage() {
           </motion.div>
         </section>
 
-        <section className="relative hidden h-svh overflow-hidden bg-[#dbeafe] px-8 py-6 lg:flex lg:items-center xl:px-14">
+        <section className="relative hidden h-svh overflow-hidden bg-[#eef4ff] lg:block">
+          <img
+            src="/images/qc-lab-background-source.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover saturate-[1.08] contrast-[1.03]"
+            loading="eager"
+            decoding="async"
+          />
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-[linear-gradient(135deg,#1a1aff_0%,#4f7dff_42%,#dbeafe_76%,#f8fbff_100%)]"
+            className="absolute inset-0 bg-[linear-gradient(90deg,rgba(248,251,255,0.18)_0%,rgba(248,251,255,0.08)_34%,rgba(8,24,53,0.04)_100%)]"
           />
 
           <motion.div
             initial={{ opacity: 0, x: 28, scale: 0.98 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ delay: 0.12, duration: 0.65, ease: MOTION_EASE }}
-            className="relative mx-auto w-full max-w-[760px]"
+            className="relative h-full w-full overflow-hidden"
           >
-            <div className="mb-5 max-w-[590px]">
-              <h2 className="max-w-xl text-4xl leading-[1.05] font-extrabold text-white drop-shadow-[0_10px_32px_rgba(15,23,42,0.18)] xl:text-[2.8rem]">
-                Monitor OD runs before they become release risks.
-              </h2>
-            </div>
-
-            <div className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-[0_28px_78px_rgba(29,78,216,0.24)]">
-              <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3.5">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#64748b]">
-                    Levey-Jennings Monitor
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-[#111827]">
-                    Measles - In-house Control
-                  </p>
-                </div>
-                <div className="rounded-full bg-[#dcfce7] px-3 py-1 text-xs font-bold text-[#16a34a]">
-                  In Control
-                </div>
-              </div>
-
-              <div className="grid gap-0 xl:grid-cols-[1fr_220px]">
-                <div className="border-b border-[#e5e7eb] p-4 xl:border-r xl:border-b-0">
-                  <div className="mb-3 grid grid-cols-3 gap-3">
-                    {CONTROL_STREAMS.map((stream) => (
-                      <div
-                        key={stream.label}
-                        className="rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-2.5"
-                      >
-                        <p className="text-[11px] font-semibold text-[#64748b]">
-                          {stream.label}
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-[#111827]">
-                          {stream.value}
-                        </p>
-                        <p
-                          className="mt-1 text-[11px] font-semibold"
-                          style={{ color: stream.color }}
-                        >
-                          {stream.state}
-                        </p>
-                      </div>
-                    ))}
+            <div className="absolute left-1/2 top-1/2 z-20 w-full max-w-[520px] -translate-x-1/2 -translate-y-1/2 px-8 text-center xl:max-w-[580px]">
+              <p className="text-[2.15rem] leading-[1.08] font-extrabold text-[#081835] xl:text-[2.45rem] 2xl:text-[2.75rem]">
+                Monitor your samples.
+                <span className="mt-1 block text-[#1a1aff]">
+                  Ensure every result is reliable.
+                </span>
+              </p>
+              <div className="mx-auto mt-8 flex w-fit flex-col gap-4 text-left">
+                {LOGIN_FEATURES.map(({ label, Icon }) => (
+                  <div key={label} className="flex items-center gap-4">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#c7d2fe] bg-white/72 text-[#1a1aff] shadow-[0_10px_28px_rgba(26,26,255,0.12)] backdrop-blur-sm">
+                      <Icon size={28} weight="regular" aria-hidden="true" />
+                    </span>
+                    <span className="text-[1.08rem] leading-6 font-medium text-[#081835] xl:text-[1.16rem]">
+                      {label}
+                    </span>
                   </div>
-
-                  <div className="relative h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4">
-                    <div className="absolute inset-x-4 top-[48px] border-t border-[#ef4444]" />
-                    <div className="absolute inset-x-4 top-[86px] border-t border-dashed border-[#f59e0b]" />
-                    <div className="absolute inset-x-4 top-[134px] border-t border-[#94a3b8]" />
-                    <div className="absolute inset-x-4 top-[182px] border-t border-dashed border-[#f59e0b]" />
-                    <div className="absolute inset-x-4 top-[220px] border-t border-[#ef4444]" />
-                    <svg
-                      viewBox="0 0 560 230"
-                      className="relative z-10 h-full w-full"
-                      role="img"
-                      aria-label="Mock Levey-Jennings chart with OD points around the mean"
-                    >
-                      <polyline
-                        points="18,145 68,123 118,132 168,111 218,118 268,96 318,108 368,82 418,101 468,76 518,91"
-                        fill="none"
-                        stroke="#1a1aff"
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {[
-                        18, 68, 118, 168, 218, 268, 318, 368, 418, 468, 518,
-                      ].map((x, index) => {
-                        const y = [
-                          145, 123, 132, 111, 118, 96, 108, 82, 101, 76, 91,
-                        ][index];
-                        const isFlagged = index === 7;
-
-                        return (
-                          <circle
-                            key={`${x}-${y}`}
-                            cx={x}
-                            cy={y}
-                            r={isFlagged ? 8 : 6}
-                            fill={isFlagged ? "#ef4444" : "#1a1aff"}
-                            stroke="#ffffff"
-                            strokeWidth="4"
-                          />
-                        );
-                      })}
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="bg-[#f8fafc] p-4">
-                  <div className="mb-4">
-                    <div className="mb-3 flex items-center gap-2 text-sm font-bold text-[#111827]">
-                      <ChartBarIcon size={17} className="text-[#1a1aff]" />
-                      Run Statistics
-                    </div>
-                    <div className="space-y-2.5">
-                      {[
-                        ["Mean", "0.762"],
-                        ["SD", "0.041"],
-                        ["CV", "5.38%"],
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="flex items-center justify-between"
-                        >
-                          <span className="text-xs font-semibold text-[#64748b]">
-                            {label}
-                          </span>
-                          <span className="font-bold text-[#111827]">
-                            {value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mb-4 rounded-2xl border border-[#dcfce7] bg-[#f0fdf4] p-3">
-                    <div className="flex items-center gap-2 text-sm font-bold text-[#166534]">
-                      <CheckCircleIcon size={17} weight="fill" />
-                      Rules Passed
-                    </div>
-                    <p className="mt-2 text-xs leading-5 text-[#166534]/80">
-                      No rejection rules in the active set.
-                    </p>
-                  </div>
-
-                  <div>
-                    <div className="mb-3 flex items-center gap-2 text-sm font-bold text-[#111827]">
-                      <WarningIcon size={17} className="text-[#d97706]" />
-                      Recent Runs
-                    </div>
-                    <div className="space-y-2">
-                      {RECENT_RUNS.map((run, index) => (
-                        <div
-                          key={run}
-                          className="flex items-center justify-between rounded-xl border border-[#e5e7eb] bg-white px-3 py-2"
-                        >
-                          <span className="text-xs font-semibold text-[#334155]">
-                            {run}
-                          </span>
-                          <span className="text-[11px] font-bold text-[#94a3b8]">
-                            #{index + 1}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </motion.div>
