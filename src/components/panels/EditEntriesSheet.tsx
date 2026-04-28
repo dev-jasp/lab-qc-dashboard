@@ -130,7 +130,7 @@ export function EditEntriesSheet({
           <SheetDescription>All changes are logged in the audit trail</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 pb-4">
           {entries.length === 0 ? (
             <div className="mt-4 rounded-xl border border-dashed border-[#D9E2F1] bg-[#F9FBFF] px-4 py-6 text-sm text-[#64748B]">
               No entries are available for editing in this dataset.
