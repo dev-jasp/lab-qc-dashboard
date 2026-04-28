@@ -214,7 +214,7 @@ export const createChartConfig = (
           callbacks: {
             title: (items: TooltipItem<'line'>[]) => {
               const point = data[items[0].dataIndex];
-              return `Run #${items[0].dataIndex + 1} - ${formatTooltipDate(point.timestamp)}`;
+              return `${point.sample} - ${formatTooltipDate(point.timestamp)}`;
             },
             label: function(context: TooltipItem<'line'>) {
               const point = data[context.dataIndex];
