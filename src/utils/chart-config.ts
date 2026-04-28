@@ -219,7 +219,7 @@ export const createChartConfig = (
             label: function(context: TooltipItem<'line'>) {
               const point = data[context.dataIndex];
               const zScore = calculateZScore(point.value, mean, sd);
-              const labels = [`Value: ${point.value.toFixed(4)} (${zScore >= 0 ? '+' : ''}${zScore.toFixed(1)} SD)`];
+              const labels = [`OD: ${point.value.toFixed(4)} (${zScore >= 0 ? '+' : ''}${zScore.toFixed(1)} SD)`];
 
               if (point.isEdited) {
                 labels.push('Edited entry');
