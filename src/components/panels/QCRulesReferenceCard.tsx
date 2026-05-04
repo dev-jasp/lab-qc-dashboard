@@ -24,8 +24,6 @@ function getSeverityMeta(severity: QCRule['severity']) {
     return {
       label: 'Rejection',
       badgeClassName: 'bg-[#fee2e2] text-[#dc2626]',
-      borderClassName: 'border-[#fecaca]',
-      accentClassName: 'text-[#dc2626]',
       note: 'Requires corrective action review',
     };
   }
@@ -33,8 +31,6 @@ function getSeverityMeta(severity: QCRule['severity']) {
   return {
     label: 'Warning',
     badgeClassName: 'bg-[#fef3c7] text-[#d97706]',
-    borderClassName: 'border-[#fde68a]',
-    accentClassName: 'text-[#d97706]',
     note: 'Watchlist signal for follow-up',
   };
 }
@@ -69,10 +65,10 @@ export function QCRulesReferenceCard({ className = '', minRunsForWestgard }: QCR
           const severityMeta = getSeverityMeta(rule.severity);
 
           return (
-            <article key={rule.name} className={`rounded-2xl border bg-white p-4 ${severityMeta.borderClassName}`}>
+            <article key={rule.name} className="rounded-2xl border border-[#e5e7eb] bg-white p-4">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
-                  <p className={`text-[18px] font-bold ${severityMeta.accentClassName}`}>{RULE_LABELS[rule.name]}</p>
+                  <p className="text-[18px] font-bold text-[#111827]">{RULE_LABELS[rule.name]}</p>
                   <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
                     Westgard rule
                   </p>
