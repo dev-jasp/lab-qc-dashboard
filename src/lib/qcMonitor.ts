@@ -90,7 +90,7 @@ export async function ensureControlDatasetInitialized(
   const seedEntries = buildSeedEntries(disease, controlType);
 
   if (controlType === 'in-house-control') {
-    await initializeEntries(disease, controlType, seedEntries);
+    await initializeEntries(disease, controlType, seedEntries, DEFAULT_IN_HOUSE_LOT_NUMBER);
     return;
   }
 

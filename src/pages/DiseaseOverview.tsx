@@ -12,7 +12,7 @@ import {
   entriesToChartData,
   getControlParameters,
 } from "@/lib/qcMonitor";
-import { getEntries, getLots } from "@/lib/qcStorage";
+import { getEntries, getInHouseBatches, getLots } from "@/lib/qcStorage";
 import type {
   ChartDataPoint,
   ControlTypeSlug,
@@ -40,13 +40,17 @@ async function buildControlSummary(
   await ensureControlDatasetInitialized(disease, control.slug);
 
   if (control.slug === "in-house-control") {
-    const entries = await getEntries(disease, control.slug);
+    const batches = await getInHouseBatches(disease);
+    const activeBatch = batches.find((batch) => batch.status === "active") ?? batches[0] ?? null;
+    const entries = activeBatch
+      ? await getEntries(disease, control.slug, activeBatch.batchId)
+      : [];
 
     return {
       ...control,
       parameters: getControlParameters(disease, control.slug),
       data: entriesToChartData(entries),
-      activeLotNumber: "Continuous dataset",
+      activeLotNumber: activeBatch?.batchId ?? "No active batch",
       lotStartDate: entries[0]?.date ?? null,
       activeRuns: entries.length,
     };
@@ -157,7 +161,7 @@ export function DiseaseOverview() {
             </h1>
           </div>
 
-          <div className="inline-flex items-center rounded-full bg-[rgba(0,0,255,0.08)] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#0000FF]">
+          <div className="inline-flex w-fit max-w-full self-start rounded-full bg-[rgba(0,0,255,0.08)] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#0000FF]">
             {diseaseConfig.assayTag}
           </div>
         </div>

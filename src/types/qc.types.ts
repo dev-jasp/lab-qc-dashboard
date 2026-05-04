@@ -115,6 +115,14 @@ export type LotMetadata = {
   notes: string | null;
 };
 
+export type InHouseBatchMetadata = {
+  batchId: string;
+  startDate: string;
+  endDate: string | null;
+  status: 'active' | 'archived';
+  notes: string | null;
+};
+
 export type ViolationEntry = {
   id: string;
   timestamp: string;

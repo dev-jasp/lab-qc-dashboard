@@ -1,6 +1,7 @@
 import type {
   AuditEntry,
   CorrectiveAction,
+  InHouseBatchMetadata,
   LotMetadata,
   QCEntry,
   QCSettings,
@@ -132,6 +133,21 @@ function isLotMetadata(value: unknown): value is LotMetadata {
     isString(value.startDate) &&
     isNullableString(value.endDate) &&
     isNullableString(value.expiryDate) &&
+    isString(value.status) &&
+    LOT_STATUSES.has(value.status) &&
+    isNullableString(value.notes)
+  );
+}
+
+function isInHouseBatchMetadata(value: unknown): value is InHouseBatchMetadata {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.batchId) &&
+    isString(value.startDate) &&
+    isNullableString(value.endDate) &&
     isString(value.status) &&
     LOT_STATUSES.has(value.status) &&
     isNullableString(value.notes)
@@ -316,6 +332,30 @@ function buildLegacyInHouseEntriesKey(disease: string): string {
   return `${STORAGE_PREFIX}${disease}_in-house-control`;
 }
 
+function buildInHouseBatchesKey(disease: string): string {
+  return `${STORAGE_PREFIX}inhouse_batches_${disease}`;
+}
+
+function buildInHouseBatchEntriesKey(disease: string, batchId: string): string {
+  return `${STORAGE_PREFIX}${disease}_in-house-control_${batchId}`;
+}
+
+function buildLegacyInHouseViolationsKey(disease: string): string {
+  return `qc_violations_${disease}_in-house-control`;
+}
+
+function buildInHouseBatchViolationsKey(disease: string, batchId: string): string {
+  return `qc_violations_${disease}_in-house-control_${batchId}`;
+}
+
+function buildLegacyInHouseAuditKey(disease: string): string {
+  return `qc_audit_${disease}_in-house-control`;
+}
+
+function buildInHouseBatchAuditKey(disease: string, batchId: string): string {
+  return `qc_audit_${disease}_in-house-control_${batchId}`;
+}
+
 function requireNonEmptyString(value: string, label: string): string {
   const normalizedValue = value.trim();
 
@@ -359,13 +399,97 @@ function migrateInHouseEntriesKey(disease: string): void {
   setKey<undefined>(legacyKey, undefined);
 }
 
+function getSeedInHouseBatchId(): string {
+  return 'INHOUSE';
+}
+
+function moveKeyIfPresent(sourceKey: string, targetKey: string): void {
+  if (!hasStoredKey(sourceKey)) {
+    return;
+  }
+
+  if (!hasStoredKey(targetKey)) {
+    const storedValue = getKey<unknown>(sourceKey);
+
+    if (storedValue !== null) {
+      setKey(targetKey, storedValue);
+    }
+  }
+
+  setKey<undefined>(sourceKey, undefined);
+}
+
+function ensureInHouseBatchRegistry(disease: string): void {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  const batchesKey = buildInHouseBatchesKey(safeDisease);
+
+  if (hasStoredKey(batchesKey)) {
+    const batches = readInHouseBatches(batchesKey);
+
+    if (batches.length === 0) {
+      const initialBatchId = getSeedInHouseBatchId();
+      setKey(batchesKey, [
+        {
+          batchId: initialBatchId,
+          startDate: getTodayIsoDate(),
+          endDate: null,
+          status: 'active' as const,
+          notes: 'Initial in-house batch',
+        },
+      ]);
+    }
+
+    return;
+  }
+
+  migrateInHouseEntriesKey(safeDisease);
+
+  const initialBatchId = getSeedInHouseBatchId();
+  const primaryEntriesKey = buildPrimaryInHouseEntriesKey(safeDisease);
+  const batchEntriesKey = buildInHouseBatchEntriesKey(safeDisease, initialBatchId);
+  const hasPrimaryEntries = hasStoredKey(primaryEntriesKey);
+  const existingEntries = hasPrimaryEntries ? readEntries(primaryEntriesKey) : [];
+
+  if (hasPrimaryEntries && !hasStoredKey(batchEntriesKey)) {
+    setKey(batchEntriesKey, existingEntries);
+  }
+
+  moveKeyIfPresent(buildLegacyInHouseViolationsKey(safeDisease), buildInHouseBatchViolationsKey(safeDisease, initialBatchId));
+  moveKeyIfPresent(buildLegacyInHouseAuditKey(safeDisease), buildInHouseBatchAuditKey(safeDisease, initialBatchId));
+
+  setKey(batchesKey, [
+    {
+      batchId: initialBatchId,
+      startDate: existingEntries[0]?.date ?? getTodayIsoDate(),
+      endDate: null,
+      status: 'active' as const,
+      notes: 'Initial in-house batch migrated from the continuous in-house dataset',
+    },
+  ]);
+}
+
+function getActiveInHouseBatchId(disease: string): string {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  ensureInHouseBatchRegistry(safeDisease);
+
+  const batches = readInHouseBatches(buildInHouseBatchesKey(safeDisease));
+  const activeBatch = batches.find((batch) => batch.status === 'active') ?? batches[0];
+
+  if (activeBatch === undefined) {
+    throw new Error(`No in-house batch exists for ${safeDisease}.`);
+  }
+
+  return activeBatch.batchId;
+}
+
 function buildEntriesKey(disease: string, controlType: string, lotNumber?: string): string {
   const safeDisease = requireNonEmptyString(disease, 'Disease');
   const safeControlType = requireNonEmptyString(controlType, 'Control type');
 
   if (isInHouseControl(safeControlType)) {
-    migrateInHouseEntriesKey(safeDisease);
-    return buildPrimaryInHouseEntriesKey(safeDisease);
+    const batchId = lotNumber === undefined ? getActiveInHouseBatchId(safeDisease) : requireNonEmptyString(lotNumber, 'In-house batch ID');
+    ensureInHouseBatchRegistry(safeDisease);
+    return buildInHouseBatchEntriesKey(safeDisease, batchId);
   }
 
   const safeLotNumber = requireLotNumber(safeControlType, lotNumber);
@@ -383,7 +507,9 @@ function buildViolationsKey(disease: string, controlType: string, lotNumber?: st
   const safeControlType = requireNonEmptyString(controlType, 'Control type');
 
   if (isInHouseControl(safeControlType)) {
-    return `qc_violations_${safeDisease}_${safeControlType}`;
+    const batchId = lotNumber === undefined ? getActiveInHouseBatchId(safeDisease) : requireNonEmptyString(lotNumber, 'In-house batch ID');
+    ensureInHouseBatchRegistry(safeDisease);
+    return buildInHouseBatchViolationsKey(safeDisease, batchId);
   }
 
   return `qc_violations_${safeDisease}_${safeControlType}_${requireLotNumber(safeControlType, lotNumber)}`;
@@ -394,7 +520,9 @@ function buildAuditKey(disease: string, controlType: string, lotNumber?: string)
   const safeControlType = requireNonEmptyString(controlType, 'Control type');
 
   if (isInHouseControl(safeControlType)) {
-    return `qc_audit_${safeDisease}_${safeControlType}`;
+    const batchId = lotNumber === undefined ? getActiveInHouseBatchId(safeDisease) : requireNonEmptyString(lotNumber, 'In-house batch ID');
+    ensureInHouseBatchRegistry(safeDisease);
+    return buildInHouseBatchAuditKey(safeDisease, batchId);
   }
 
   return `qc_audit_${safeDisease}_${safeControlType}_${requireLotNumber(safeControlType, lotNumber)}`;
@@ -431,6 +559,20 @@ function readLots(key: string): LotMetadata[] {
   }
 
   return lots;
+}
+
+function readInHouseBatches(key: string): InHouseBatchMetadata[] {
+  const batches = getKey<unknown>(key);
+
+  if (batches === null) {
+    return [];
+  }
+
+  if (!isArrayOf(batches, isInHouseBatchMetadata)) {
+    throw new Error(`Stored in-house batches for "${key}" are malformed.`);
+  }
+
+  return batches;
 }
 
 function readViolations(key: string): ViolationEntry[] {
@@ -496,6 +638,10 @@ function validateEntryArray(entries: QCEntry[]): void {
 
 function sortLotsDescending(lots: LotMetadata[]): LotMetadata[] {
   return [...lots].sort((left, right) => right.startDate.localeCompare(left.startDate));
+}
+
+function sortInHouseBatchesDescending(batches: InHouseBatchMetadata[]): InHouseBatchMetadata[] {
+  return [...batches].sort((left, right) => right.startDate.localeCompare(left.startDate));
 }
 
 function sortViolationsDescending(violations: ViolationEntry[]): ViolationEntry[] {
@@ -620,6 +766,13 @@ function ensureBackupPayload(value: unknown): StoredBackup {
     if (key === LOGO_KEYS.seal || key === LOGO_KEYS.pathology) {
       if (!isString(storedValue)) {
         throw new Error(`Backup logo payload for "${key}" is malformed.`);
+      }
+      continue;
+    }
+
+    if (key.startsWith('qc_inhouse_batches_')) {
+      if (!isArrayOf(storedValue, isInHouseBatchMetadata)) {
+        throw new Error(`Backup in-house batch payload for "${key}" is malformed.`);
       }
       continue;
     }
@@ -846,6 +999,76 @@ export async function getActiveLot(disease: string, controlType: string): Promis
 
   const lots = readLots(buildLotsKey(disease, controlType));
   return lots.find((lot) => lot.status === 'active') ?? null;
+}
+
+/**
+ * Returns all in-house batches for a disease sorted newest first.
+ *
+ * @param disease Disease slug that owns the in-house batches.
+ * @throws {Error} When the batch payload is malformed.
+ */
+export async function getInHouseBatches(disease: string): Promise<InHouseBatchMetadata[]> {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  ensureInHouseBatchRegistry(safeDisease);
+  return sortInHouseBatchesDescending(readInHouseBatches(buildInHouseBatchesKey(safeDisease)));
+}
+
+/**
+ * Returns the active in-house batch for a disease.
+ *
+ * @param disease Disease slug that owns the in-house batches.
+ * @throws {Error} When the batch payload is malformed.
+ */
+export async function getActiveInHouseBatch(disease: string): Promise<InHouseBatchMetadata | null> {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  ensureInHouseBatchRegistry(safeDisease);
+
+  const batches = readInHouseBatches(buildInHouseBatchesKey(safeDisease));
+  return batches.find((batch) => batch.status === 'active') ?? null;
+}
+
+/**
+ * Creates a new active in-house batch, archiving the existing active batch first.
+ *
+ * @param disease Disease slug that owns the in-house batch.
+ * @param batch Batch metadata to activate.
+ * @throws {Error} When the batch payload is malformed or already exists.
+ */
+export async function createInHouseBatch(disease: string, batch: InHouseBatchMetadata): Promise<void> {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+
+  if (!isInHouseBatchMetadata(batch)) {
+    throw new Error('Cannot create in-house batch because the payload is malformed.');
+  }
+
+  ensureInHouseBatchRegistry(safeDisease);
+
+  const batchesKey = buildInHouseBatchesKey(safeDisease);
+  const batches = readInHouseBatches(batchesKey);
+
+  if (batches.some((existingBatch) => existingBatch.batchId === batch.batchId)) {
+    throw new Error(`In-house batch "${batch.batchId}" already exists for ${safeDisease}.`);
+  }
+
+  const archivedBatches = batches.map((existingBatch) =>
+    existingBatch.status === 'active'
+      ? {
+          ...existingBatch,
+          endDate: batch.startDate,
+          status: 'archived' as const,
+        }
+      : existingBatch,
+  );
+
+  const entriesKey = buildInHouseBatchEntriesKey(safeDisease, batch.batchId);
+
+  applyMutationsAtomically(
+    [
+      { key: batchesKey, value: [...archivedBatches, batch] },
+      { key: entriesKey, value: [] },
+    ],
+    `create in-house batch "${batch.batchId}"`,
+  );
 }
 
 /**
@@ -1292,6 +1515,7 @@ export async function clearDiseaseData(disease: string): Promise<void> {
   const safeDisease = requireNonEmptyString(disease, 'Disease');
   const keyPrefixes = [
     `${STORAGE_PREFIX}${safeDisease}_`,
+    `${STORAGE_PREFIX}inhouse_batches_${safeDisease}`,
     `qc_lots_${safeDisease}_`,
     `qc_violations_${safeDisease}_`,
     `qc_audit_${safeDisease}_`,

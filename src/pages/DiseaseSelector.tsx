@@ -120,10 +120,10 @@ export function DiseaseSelector() {
                 <div
                   className={`flex h-full flex-col rounded-2xl border p-4 shadow-[0_14px_30px_rgba(15,23,42,0.08)] backdrop-blur-[1px] ${
                     disease.slug === "dengue"
-                      ? "max-w-[48%] md:max-w-[42%]"
+                      ? "max-w-[78%] md:max-w-[42%]"
                       : disease.featured
-                        ? "max-w-[62%]"
-                        : "max-w-[80%]"
+                        ? "max-w-[78%] md:max-w-[62%]"
+                        : "max-w-[86%] md:max-w-[80%]"
                   }`}
                   style={{
                     backgroundColor: "rgba(244, 247, 252, 0.88)",
@@ -132,7 +132,7 @@ export function DiseaseSelector() {
                 >
                   <div className="mb-5">
                     <h2
-                      className="mt-2 text-2xl font-bold"
+                      className="mt-2 text-2xl font-bold leading-tight"
                       style={{ color: "#1E293B" }}
                     >
                       {disease.name}

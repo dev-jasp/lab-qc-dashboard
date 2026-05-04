@@ -68,8 +68,10 @@ import {
 import {
   addEntry,
   addViolation,
+  createInHouseBatch,
   createLot,
   getEntries,
+  getInHouseBatches,
   getLots,
   getSettings,
   getViolations,
@@ -80,6 +82,7 @@ import type {
   ControlTypeSlug,
   DiseaseSlug,
   EntryFormValues,
+  InHouseBatchMetadata,
   LotMetadata,
   QCEntry,
   QCEntryFlag,
@@ -152,6 +155,13 @@ function createDefaultLotForm(): NewLotFormValues {
 
 function getSelectedLot(lots: LotMetadata[], selectedLotNumber: string): LotMetadata | null {
   return lots.find((lot) => lot.lotNumber === selectedLotNumber) ?? null;
+}
+
+function getSelectedInHouseBatch(
+  batches: InHouseBatchMetadata[],
+  selectedBatchId: string,
+): InHouseBatchMetadata | null {
+  return batches.find((batch) => batch.batchId === selectedBatchId) ?? null;
 }
 
 function isPrivilegedRole(user: AuthUser | null): boolean {
@@ -386,7 +396,9 @@ export default function QCDashboard({
   const [entries, setEntries] = useState<QCEntry[]>([]);
   const [violations, setViolations] = useState<ViolationEntry[]>([]);
   const [lots, setLots] = useState<LotMetadata[]>([]);
+  const [inHouseBatches, setInHouseBatches] = useState<InHouseBatchMetadata[]>([]);
   const [selectedLotNumber, setSelectedLotNumber] = useState('');
+  const [selectedInHouseBatchId, setSelectedInHouseBatchId] = useState('');
   const [formValues, setFormValues] = useState<EntryFormValues>(createDefaultEntryForm);
   const [newLotValues, setNewLotValues] = useState<NewLotFormValues>(createDefaultLotForm);
   const [settings, setSettings] = useState<QCSettings>(DEFAULT_SETTINGS_FALLBACK);
@@ -411,9 +423,13 @@ export default function QCDashboard({
   );
   const runStatistics = useMemo(() => buildRunStatisticsSummary(baseChartData, statistics), [baseChartData, statistics]);
   const selectedLot = useMemo(() => getSelectedLot(lots, selectedLotNumber), [lots, selectedLotNumber]);
-  const isArchivedLot = !isInHouseControl && selectedLot?.status === 'archived';
+  const selectedInHouseBatch = useMemo(
+    () => getSelectedInHouseBatch(inHouseBatches, selectedInHouseBatchId),
+    [inHouseBatches, selectedInHouseBatchId],
+  );
+  const isArchivedDataset = isInHouseControl ? selectedInHouseBatch?.status === 'archived' : selectedLot?.status === 'archived';
   const canEditEntries = canUsePrivilegedActions(currentUser);
-  const activeDatasetLotNumber = isInHouseControl ? DEFAULT_IN_HOUSE_LOT_NUMBER : selectedLotNumber;
+  const activeDatasetLotNumber = isInHouseControl ? selectedInHouseBatchId : selectedLotNumber;
   const currentCV = cvTrend.currentCV ?? 0;
   const chartSubtitle = `${controlName.toUpperCase()} - ${diseaseName.toUpperCase()}${assayTag ? ` - ${assayTag}` : ''}`;
   const minRunsForWestgard = settings.minDataPointsForWestgard;
@@ -463,14 +479,23 @@ export default function QCDashboard({
         setSettings(appSettings);
 
         if (isInHouseControl) {
+          const storedBatches = await getInHouseBatches(diseaseSlug);
+          const nextSelectedBatchId =
+            storedBatches.find((batch) => batch.batchId === selectedInHouseBatchId)?.batchId ??
+            storedBatches.find((batch) => batch.status === 'active')?.batchId ??
+            storedBatches[0]?.batchId ??
+            DEFAULT_IN_HOUSE_LOT_NUMBER;
+
           const [inHouseEntries, inHouseViolations] = await Promise.all([
-            getEntries(diseaseSlug, controlType),
-            getViolations(diseaseSlug, controlType),
+            getEntries(diseaseSlug, controlType, nextSelectedBatchId),
+            getViolations(diseaseSlug, controlType, nextSelectedBatchId),
           ]);
 
           if (!isCancelled) {
             setEntries(inHouseEntries);
             setViolations(inHouseViolations);
+            setInHouseBatches(storedBatches);
+            setSelectedInHouseBatchId(nextSelectedBatchId);
             setLots([]);
             setSelectedLotNumber('');
           }
@@ -495,6 +520,8 @@ export default function QCDashboard({
 
         if (!isCancelled) {
           setLots(storedLots);
+          setInHouseBatches([]);
+          setSelectedInHouseBatchId('');
           setSelectedLotNumber(nextSelectedLotNumber);
           setEntries(selectedEntries);
           setViolations(selectedViolations);
@@ -515,7 +542,7 @@ export default function QCDashboard({
     return () => {
       isCancelled = true;
     };
-  }, [controlType, diseaseSlug, error, isInHouseControl, selectedLotNumber]);
+  }, [controlType, diseaseSlug, error, isInHouseControl, selectedInHouseBatchId, selectedLotNumber]);
 
   const refreshViolationsEvent = () => {
     window.dispatchEvent(new CustomEvent('qc-violations-changed'));
@@ -529,7 +556,7 @@ export default function QCDashboard({
   };
 
   const handleAddEntry = async () => {
-    const datasetLotNumber = isInHouseControl ? DEFAULT_IN_HOUSE_LOT_NUMBER : selectedLotNumber;
+    const datasetLotNumber = activeDatasetLotNumber;
 
     if (!formValues.date) {
       error('Date is required.');
@@ -542,7 +569,7 @@ export default function QCDashboard({
     }
 
     if (!datasetLotNumber) {
-      error('Select an active lot before adding entries.');
+      error(isInHouseControl ? 'Select an active in-house batch before adding entries.' : 'Select an active lot before adding entries.');
       return;
     }
 
@@ -573,12 +600,12 @@ export default function QCDashboard({
     setIsSubmitting(true);
 
     try {
-      await addEntry(diseaseSlug, controlType, nextEntry, isInHouseControl ? undefined : datasetLotNumber);
+      await addEntry(diseaseSlug, controlType, nextEntry, datasetLotNumber);
 
       const updatedEntries = await getEntries(
         diseaseSlug,
         controlType,
-        isInHouseControl ? undefined : datasetLotNumber,
+        datasetLotNumber,
       );
       const recalculatedChartData = entriesToChartData(updatedEntries);
       const recalculatedStatistics = calculateStatistics(recalculatedChartData);
@@ -590,14 +617,14 @@ export default function QCDashboard({
           diseaseSlug,
           controlType,
           violation,
-          isInHouseControl ? undefined : datasetLotNumber,
+          datasetLotNumber,
         );
       }
 
       const updatedViolations = await getViolations(
         diseaseSlug,
         controlType,
-        isInHouseControl ? undefined : datasetLotNumber,
+        datasetLotNumber,
       );
 
       setEntries(updatedEntries);
@@ -620,8 +647,10 @@ export default function QCDashboard({
       throw new Error(message);
     }
 
-    if (isArchivedLot) {
-      const message = 'Archived lots are read-only and cannot be edited.';
+    if (isArchivedDataset) {
+      const message = isInHouseControl
+        ? 'Archived in-house batches are read-only and cannot be edited.'
+        : 'Archived lots are read-only and cannot be edited.';
       error(message);
       throw new Error(message);
     }
@@ -655,7 +684,7 @@ export default function QCDashboard({
         controlType,
         updatedEntry,
         auditEntry,
-        isInHouseControl ? undefined : activeDatasetLotNumber,
+        activeDatasetLotNumber,
       );
 
       const updatedEntries = entries.map((currentEntry) => (currentEntry.id === entry.id ? updatedEntry : currentEntry));
@@ -669,13 +698,13 @@ export default function QCDashboard({
           diseaseSlug,
           controlType,
           violation,
-          isInHouseControl ? undefined : activeDatasetLotNumber,
+          activeDatasetLotNumber,
         );
       }
 
       const [refreshedEntries, refreshedViolations] = await Promise.all([
-        getEntries(diseaseSlug, controlType, isInHouseControl ? undefined : activeDatasetLotNumber),
-        getViolations(diseaseSlug, controlType, isInHouseControl ? undefined : activeDatasetLotNumber),
+        getEntries(diseaseSlug, controlType, activeDatasetLotNumber),
+        getViolations(diseaseSlug, controlType, activeDatasetLotNumber),
       ]);
 
       setEntries(refreshedEntries);
@@ -693,11 +722,35 @@ export default function QCDashboard({
     const trimmedLotNumber = newLotValues.lotNumber.trim();
 
     if (!trimmedLotNumber) {
-      error('Lot number is required.');
+      error(isInHouseControl ? 'In-house batch ID is required.' : 'Lot number is required.');
       return;
     }
 
     try {
+      if (isInHouseControl) {
+        await createInHouseBatch(diseaseSlug, {
+          batchId: trimmedLotNumber,
+          startDate: newLotValues.startDate,
+          endDate: null,
+          status: 'active',
+          notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
+        });
+
+        const updatedBatches = await getInHouseBatches(diseaseSlug);
+        const updatedEntries = await getEntries(diseaseSlug, controlType, trimmedLotNumber);
+
+        setInHouseBatches(updatedBatches);
+        setSelectedInHouseBatchId(trimmedLotNumber);
+        setEntries(updatedEntries);
+        setViolations([]);
+        setIsStartLotDialogOpen(false);
+        setNewLotValues(createDefaultLotForm());
+        setFormValues(createDefaultEntryForm());
+        success(`In-house batch ${trimmedLotNumber} is now active.`);
+        refreshViolationsEvent();
+        return;
+      }
+
       await createLot(diseaseSlug, controlType, {
         lotNumber: trimmedLotNumber,
         startDate: newLotValues.startDate,
@@ -718,7 +771,7 @@ export default function QCDashboard({
       setNewLotValues(createDefaultLotForm());
       success(`Lot ${trimmedLotNumber} is now active.`);
     } catch (caughtError) {
-      error(caughtError instanceof Error ? caughtError.message : 'Unable to start the new lot.');
+      error(caughtError instanceof Error ? caughtError.message : isInHouseControl ? 'Unable to start the new in-house batch.' : 'Unable to start the new lot.');
     }
   };
 
@@ -742,12 +795,27 @@ export default function QCDashboard({
         </div>
       </div>
 
-      {!isInHouseControl && (
-        <div className="qc-card mb-6 p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Active Lot</p>
-              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="qc-card mb-6 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+              {isInHouseControl ? 'Active In-house Batch' : 'Active Lot'}
+            </p>
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+              {isInHouseControl ? (
+                <Select value={selectedInHouseBatchId} onValueChange={setSelectedInHouseBatchId}>
+                  <SelectTrigger className="h-11 w-full max-w-md border-[#e5e7eb] bg-white">
+                    <SelectValue placeholder="Select in-house batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {inHouseBatches.map((batch) => (
+                      <SelectItem key={batch.batchId} value={batch.batchId}>
+                        {`${batch.batchId} - ${batch.status === 'active' ? 'Active' : 'Archived'} - ${formatDateLabel(batch.startDate)}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
                 <Select value={selectedLotNumber} onValueChange={setSelectedLotNumber}>
                   <SelectTrigger className="h-11 w-full max-w-md border-[#e5e7eb] bg-white">
                     <SelectValue placeholder="Select reagent lot" />
@@ -760,25 +828,34 @@ export default function QCDashboard({
                     ))}
                   </SelectContent>
                 </Select>
+              )}
 
-                {selectedLot && (
-                  <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                    <Badge className={selectedLot.status === 'active' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#f3f4f6] text-[#6b7280]'}>
-                      {selectedLot.status === 'active' ? 'Active' : 'Archived'}
-                    </Badge>
-                    <span>Started {formatDateLabel(selectedLot.startDate)}</span>
-                  </div>
-                )}
-              </div>
+              {isInHouseControl && selectedInHouseBatch && (
+                <div className="flex items-center gap-2 text-sm text-[#6b7280]">
+                  <Badge className={selectedInHouseBatch.status === 'active' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#f3f4f6] text-[#6b7280]'}>
+                    {selectedInHouseBatch.status === 'active' ? 'Active' : 'Archived'}
+                  </Badge>
+                  <span>Started {formatDateLabel(selectedInHouseBatch.startDate)}</span>
+                </div>
+              )}
+
+              {!isInHouseControl && selectedLot && (
+                <div className="flex items-center gap-2 text-sm text-[#6b7280]">
+                  <Badge className={selectedLot.status === 'active' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#f3f4f6] text-[#6b7280]'}>
+                    {selectedLot.status === 'active' ? 'Active' : 'Archived'}
+                  </Badge>
+                  <span>Started {formatDateLabel(selectedLot.startDate)}</span>
+                </div>
+              )}
             </div>
-
-            <Button type="button" variant="outline" className="h-11 border-[#dbe4ff] text-[#1a1aff]" onClick={() => setIsStartLotDialogOpen(true)}>
-              <PlusCircleIcon size={16} />
-              Start new lot
-            </Button>
           </div>
+
+          <Button type="button" variant="outline" className="h-11 border-[#dbe4ff] text-[#1a1aff]" onClick={() => setIsStartLotDialogOpen(true)}>
+            <PlusCircleIcon size={16} />
+            {isInHouseControl ? 'Start new in-house batch' : 'Start new lot'}
+          </Button>
         </div>
-      )}
+      </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="qc-card lg:col-span-2">
@@ -789,9 +866,11 @@ export default function QCDashboard({
             </div>
           </div>
 
-          {isArchivedLot && (
+          {isArchivedDataset && (
             <div className="mb-5 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-4 py-3 text-sm text-[#6b7280]">
-              This archived lot is read-only. Select an active lot or start a new lot to continue recording.
+              {isInHouseControl
+                ? 'This archived in-house batch is read-only. Select the active batch or start a new batch to continue recording.'
+                : 'This archived lot is read-only. Select an active lot or start a new lot to continue recording.'}
             </div>
           )}
 
@@ -808,7 +887,7 @@ export default function QCDashboard({
                 <IsoDatePicker
                   value={formValues.date}
                   onChange={(value) => handleFieldChange('date', value)}
-                  disabled={isArchivedLot}
+                  disabled={isArchivedDataset}
                   displayFormat={settings.dateFormat}
                   className="h-11 border-[#e5e7eb] bg-white text-[#111827] hover:bg-[#f8fafc]"
                 />
@@ -821,7 +900,7 @@ export default function QCDashboard({
                   step="0.0001"
                   placeholder="0.0000"
                   value={formValues.odValue}
-                  disabled={isArchivedLot}
+                  disabled={isArchivedDataset}
                   onChange={(event) => handleFieldChange('odValue', event.target.value)}
                   className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
                 />
@@ -837,7 +916,7 @@ export default function QCDashboard({
                 <Input
                   placeholder="Enter protocol number"
                   value={formValues.protocolNumber}
-                  disabled={isArchivedLot}
+                  disabled={isArchivedDataset}
                   onChange={(event) => handleFieldChange('protocolNumber', event.target.value)}
                   className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
                 />
@@ -850,7 +929,7 @@ export default function QCDashboard({
                 <Input
                   placeholder="Optional remarks"
                   value={formValues.remarks}
-                  disabled={isArchivedLot}
+                  disabled={isArchivedDataset}
                   maxLength={200}
                   onChange={(event) => handleFieldChange('remarks', event.target.value)}
                   className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
@@ -860,7 +939,7 @@ export default function QCDashboard({
               <div className="flex items-end">
                 <Button
                   type="submit"
-                  disabled={isArchivedLot || isSubmitting}
+                  disabled={isArchivedDataset || isSubmitting}
                   className="h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit Recording'}
@@ -952,7 +1031,7 @@ export default function QCDashboard({
                   size="sm"
                   className="border-[#dbe4ff] text-[#1f3d87]"
                   onClick={() => setIsEditSheetOpen(true)}
-                  disabled={isArchivedLot}
+                  disabled={isArchivedDataset}
                 >
                   <PencilIcon size={14} />
                   Edit entries
@@ -1108,7 +1187,7 @@ export default function QCDashboard({
                         <DropdownMenuItem onClick={() => setSelectedEntry(entry)}>View detail</DropdownMenuItem>
                         {canEditEntries && (
                           <DropdownMenuItem
-                            disabled={isArchivedLot || entry.signedBy !== null}
+                            disabled={isArchivedDataset || entry.signedBy !== null}
                             onClick={() => setIsEditSheetOpen(true)}
                           >
                             Edit entry
@@ -1140,15 +1219,19 @@ export default function QCDashboard({
       <Dialog open={isStartLotDialogOpen} onOpenChange={setIsStartLotDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Start new lot</DialogTitle>
+            <DialogTitle>{isInHouseControl ? 'Start new in-house batch' : 'Start new lot'}</DialogTitle>
             <DialogDescription>
-              The current active lot will be archived and the new lot will become the working dataset for this control.
+              {isInHouseControl
+                ? 'The current active in-house batch will be archived and a fresh graph will become the working dataset for this control.'
+                : 'The current active lot will be archived and the new lot will become the working dataset for this control.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">Lot Number</label>
+              <label className="text-sm font-medium text-[#1A1C1C]">
+                {isInHouseControl ? 'Batch ID' : 'Lot Number'}
+              </label>
               <Input
                 value={newLotValues.lotNumber}
                 onChange={(event) =>
@@ -1157,7 +1240,7 @@ export default function QCDashboard({
                     lotNumber: event.target.value,
                   }))
                 }
-                placeholder="Enter reagent lot number"
+                placeholder={isInHouseControl ? 'Enter in-house batch ID' : 'Enter reagent lot number'}
                 className="h-11 border-[#dce4f2] bg-white px-3"
               />
             </div>
@@ -1189,7 +1272,7 @@ export default function QCDashboard({
                 }
                 rows={3}
                 maxLength={200}
-                placeholder="Optional notes for this lot"
+                placeholder={isInHouseControl ? 'Optional notes for this in-house batch' : 'Optional notes for this lot'}
                 className="resize-none border-[#dce4f2] bg-white px-3 py-2"
               />
             </div>
@@ -1207,7 +1290,7 @@ export default function QCDashboard({
               Cancel
             </Button>
             <Button type="button" onClick={handleCreateLot}>
-              Start lot
+              {isInHouseControl ? 'Start batch' : 'Start lot'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1235,7 +1318,9 @@ export default function QCDashboard({
                 <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.protocolNumber}</p>
               </div>
               <div>
-                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Lot Number</p>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  {isInHouseControl ? 'In-house Batch' : 'Lot Number'}
+                </p>
                 <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.lotNumber}</p>
               </div>
               <div className="sm:col-span-2">
