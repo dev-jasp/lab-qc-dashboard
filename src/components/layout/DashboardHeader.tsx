@@ -79,6 +79,8 @@ export function DashboardHeader() {
   const navigate = useNavigate();
   const [openViolationCount, setOpenViolationCount] = React.useState(0);
   const segments = React.useMemo(() => buildSegments(location.pathname), [location.pathname]);
+  const currentSegment = segments[segments.length - 1];
+  const mobileParentSegment = segments.length > 2 ? segments[segments.length - 2] : null;
 
   React.useEffect(() => {
     let isCancelled = false;
@@ -110,11 +112,22 @@ export function DashboardHeader() {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-[#f0f0f0] bg-white px-6">
+    <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-[#f0f0f0] bg-white px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger className="lg:hidden" />
 
-        <Breadcrumb>
+        <div className="min-w-0 lg:hidden">
+          {mobileParentSegment !== null && (
+            <p className="truncate text-[11px] font-medium uppercase leading-4 tracking-[0.14em] text-[#6b7280]">
+              {mobileParentSegment.label}
+            </p>
+          )}
+          <p className="truncate text-[12px] font-semibold uppercase leading-4 tracking-[0.14em] text-[#1a1aff]">
+            {currentSegment.label}
+          </p>
+        </div>
+
+        <Breadcrumb className="hidden lg:block">
           <BreadcrumbList className="gap-2 text-xs font-semibold tracking-[0.12em]">
             {segments.map((segment, index) => {
               const isLastSegment = index === segments.length - 1;

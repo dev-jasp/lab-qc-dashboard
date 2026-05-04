@@ -1,13 +1,13 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
-import { Dialog as SheetPrimitive, Slot } from 'radix-ui';
-import { CaretLeftIcon } from '@phosphor-icons/react';
+import { Slot } from 'radix-ui';
+import { CaretLeftIcon, ListIcon, XIcon } from '@phosphor-icons/react';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/utils/cn';
 
 import { Button } from '@/components/ui/button';
-import { Sheet } from '@/components/ui/sheet';
 import { SidebarContext, useSidebar } from '@/components/ui/sidebar-context';
 
 const SIDEBAR_EXPANDED_WIDTH = 260;
@@ -17,9 +17,6 @@ const SIDEBAR_TRANSITION: Transition = {
   duration: 0.25,
   ease: [0.4, 0, 0.2, 1],
 };
-
-const MotionSheetOverlay = motion.create(SheetPrimitive.Overlay);
-const MotionSheetContent = motion.create(SheetPrimitive.Content);
 
 function SidebarProvider({
   defaultOpen = true,
@@ -41,6 +38,34 @@ function SidebarProvider({
 
     setOpen((currentOpen) => !currentOpen);
   }, [isMobile]);
+
+  React.useEffect(() => {
+    if (!isMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile]);
+
+  React.useEffect(() => {
+    if (!isMobile || !openMobile || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenMobile(false);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMobile, openMobile]);
 
   return (
     <SidebarContext.Provider
@@ -76,49 +101,58 @@ function Sidebar({
   const desktopWidth = open ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
 
   if (isMobile) {
-    return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <SheetPrimitive.Portal forceMount>
-          <AnimatePresence initial={false}>
-            {openMobile ? (
-              <>
-                <MotionSheetOverlay
-                  key="sidebar-backdrop"
-                  forceMount
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="fixed inset-0 z-40 bg-black/40"
-                  onClick={() => setOpenMobile(false)}
-                />
-                <MotionSheetContent
-                  key="mobile-sidebar"
-                  forceMount
-                  aria-label="Sidebar navigation"
-                  data-slot="sidebar"
-                  data-sidebar="sidebar"
-                  data-state="expanded"
-                  initial={{ x: -SIDEBAR_MOBILE_WIDTH }}
-                  animate={{ x: 0 }}
-                  exit={{ x: -SIDEBAR_MOBILE_WIDTH }}
-                  transition={SIDEBAR_TRANSITION}
-                  className={cn(
-                    'group/sidebar fixed inset-y-0 left-0 z-50 flex h-dvh min-h-dvh flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-background)] p-0 text-[var(--sidebar-foreground)] shadow-lg outline-none',
-                    className,
-                  )}
-                  style={{
-                    width: SIDEBAR_MOBILE_WIDTH,
-                    willChange: 'transform',
-                  }}
-                >
-                  {children}
-                </MotionSheetContent>
-              </>
-            ) : null}
-          </AnimatePresence>
-        </SheetPrimitive.Portal>
-      </Sheet>
+    if (typeof document === 'undefined') {
+      return null;
+    }
+
+    return createPortal(
+      <AnimatePresence initial={false}>
+        {openMobile ? (
+          <>
+            <motion.button
+              key="sidebar-backdrop"
+              type="button"
+              aria-label="Close sidebar"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 cursor-default bg-black/40"
+              onClick={() => setOpenMobile(false)}
+            />
+            <motion.aside
+              key="mobile-sidebar"
+              aria-label="Sidebar navigation"
+              data-slot="sidebar"
+              data-sidebar="sidebar"
+              data-state="expanded"
+              initial={{ x: -SIDEBAR_MOBILE_WIDTH }}
+              animate={{ x: 0 }}
+              exit={{ x: -SIDEBAR_MOBILE_WIDTH }}
+              transition={SIDEBAR_TRANSITION}
+              className={cn(
+                'group/sidebar fixed inset-y-0 left-0 z-[60] flex h-dvh min-h-dvh flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-background)] p-0 text-[var(--sidebar-foreground)] shadow-lg outline-none',
+                className,
+              )}
+              style={{
+                width: SIDEBAR_MOBILE_WIDTH,
+                willChange: 'transform',
+              }}
+            >
+              <button
+                type="button"
+                aria-label="Close sidebar"
+                onClick={() => setOpenMobile(false)}
+                className="absolute top-4 right-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+              >
+                <XIcon size={20} className="size-5" />
+              </button>
+              {children}
+            </motion.aside>
+          </>
+        ) : null}
+      </AnimatePresence>,
+      document.body,
     );
   }
 
@@ -131,7 +165,7 @@ function Sidebar({
       animate={{ width: desktopWidth }}
       transition={SIDEBAR_TRANSITION}
       className={cn(
-        'group/sidebar fixed inset-y-0 left-0 z-30 hidden h-dvh flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-background)] text-[var(--sidebar-foreground)] md:flex',
+        'group/sidebar fixed inset-y-0 left-0 z-30 hidden h-dvh flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-background)] text-[var(--sidebar-foreground)] lg:flex',
         className,
       )}
       style={{
@@ -390,22 +424,37 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
 }
 
 function SidebarTrigger({ className, ...props }: React.ComponentProps<typeof Button>) {
-  const { isMobile, open, openMobile, toggleSidebar } = useSidebar();
-  const isExpanded = isMobile ? openMobile : open;
+  const { isMobile, open, setOpenMobile, toggleSidebar } = useSidebar();
+  const isExpanded = !isMobile && open;
+
+  const handleTriggerClick = React.useCallback(() => {
+    if (isMobile) {
+      setOpenMobile(true);
+      return;
+    }
+
+    toggleSidebar();
+  }, [isMobile, setOpenMobile, toggleSidebar]);
 
   return (
     <Button
       type="button"
       variant="ghost"
-      size="icon-sm"
-      onClick={toggleSidebar}
+      size="icon-lg"
+      aria-label="Open sidebar"
+      aria-expanded={isMobile ? undefined : isExpanded}
+      onClick={handleTriggerClick}
       className={cn('text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#111827]', className)}
       {...props}
     >
-      <motion.div initial={false} animate={{ rotate: isExpanded ? 0 : 180 }} transition={SIDEBAR_TRANSITION}>
-        <CaretLeftIcon size={18} />
-      </motion.div>
-      <span className="sr-only">Toggle sidebar</span>
+      {isMobile ? (
+        <ListIcon size={20} className="size-5" />
+      ) : (
+        <motion.div initial={false} animate={{ rotate: isExpanded ? 0 : 180 }} transition={SIDEBAR_TRANSITION}>
+          <CaretLeftIcon size={18} />
+        </motion.div>
+      )}
+      <span className="sr-only">Open sidebar</span>
     </Button>
   );
 }
