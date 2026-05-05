@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'chart.js';
 import type { LeveyJenningsChartProps } from '../../types/qc.types';
+import { useIsMobile } from '../../hooks/use-mobile';
 import { createChartConfig } from '../../utils/chart-config';
 
 ChartJS.register(
@@ -37,7 +38,13 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<ChartJS | null>(null);
+  const isMobile = useIsMobile();
   const hasData = data.length > 0;
+  const mobileBadgeLabel = badgeLabel?.match(/^total runs:\s*(\d+)$/i)?.[1];
+  const resolvedBadgeLabel = isMobile
+    ? `${mobileBadgeLabel ?? data.length} runs`
+    : (badgeLabel ?? `${data.length} data points`);
+  const resolvedHeight = isMobile ? Math.max(height, 360) : height;
   const containerClassName =
     variant === 'plain'
       ? 'p-0'
@@ -68,9 +75,11 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
       return;
     }
 
-    const config = createChartConfig(data, mean, sd, showChartTitle);
+    const config = createChartConfig(data, mean, sd, showChartTitle, {
+      isMobile,
+    });
     chartRef.current = new ChartJS(canvasRef.current, config);
-  }, [data, hasData, statistics, parameters, showChartTitle]);
+  }, [data, hasData, statistics, parameters, showChartTitle, isMobile]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -84,16 +93,16 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
 
   return (
     <div className={containerClassName}>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="text-[16px] font-semibold text-[#111827]">{title}</h3>
+      <div className="mb-4 flex items-start justify-between gap-3 sm:items-center">
+        <h3 className="min-w-0 flex-1 text-[16px] font-semibold leading-snug text-[#111827]">{title}</h3>
         <div className="flex items-center gap-2">
           {headerActions}
-          <div className="rounded-full bg-[#f3f4f6] px-4 py-1.5 text-xs text-[#6b7280]">
-            {badgeLabel ?? `${data.length} data points`}
+          <div className="shrink-0 whitespace-nowrap rounded-full bg-[#f3f4f6] px-3 py-1 text-[11px] text-[#6b7280] sm:px-4 sm:py-1.5 sm:text-xs">
+            {resolvedBadgeLabel}
           </div>
         </div>
       </div>
-      <div style={{ height: `${height}px`, position: 'relative' }}>
+      <div style={{ height: `${resolvedHeight}px`, position: 'relative' }}>
         {hasData ? (
           <canvas 
             ref={canvasRef}
