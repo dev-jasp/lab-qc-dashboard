@@ -20,12 +20,6 @@ import type {
 } from "@/types/qc.types";
 import { calculateStatistics } from "@/utils/qc-calculations";
 
-const toneLabel = {
-  normal: "In control",
-  warning: "Watchlist",
-  critical: "Out of bounds",
-} as const;
-
 type OverviewControlSummary = ReturnType<typeof getDiseaseControls>[number] & {
   activeLotNumber: string | null;
   lotStartDate: string | null;
@@ -169,14 +163,6 @@ export function DiseaseOverview() {
         <div className="mt-5 flex flex-wrap gap-3">
           <div className="rounded-xl border border-[#F3F3F3] bg-white px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
-              Controls
-            </p>
-            <p className="mt-1 text-lg font-bold text-[#111827]">
-              {controls.length || 3} active
-            </p>
-          </div>
-          <div className="rounded-xl border border-[#F3F3F3] bg-white px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
               QC Status
             </p>
             <p
@@ -220,7 +206,6 @@ export function DiseaseOverview() {
                 parameters={control.parameters}
                 title={control.label}
                 height={280}
-                badgeLabel={toneLabel[control.tone]}
                 showChartTitle={false}
               />
 
