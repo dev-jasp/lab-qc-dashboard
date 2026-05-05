@@ -1,4 +1,5 @@
 import { ArrowRightIcon } from "@phosphor-icons/react";
+import { motion, type Variants } from "framer-motion";
 import { Link } from "react-router-dom";
 
 import { diseaseCardBackgrounds } from "@/constants/landing-images";
@@ -57,25 +58,89 @@ const diseaseBackgroundStyles: Partial<
   },
 };
 
+const motionEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+const headerVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+const textRevealVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 8,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.36,
+      ease: motionEase,
+    },
+  },
+};
+
+const cardGridVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      delayChildren: 0.16,
+      staggerChildren: 0.07,
+    },
+  },
+};
+
+const cardRevealVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    scale: 0.985,
+    y: 10,
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: {
+      duration: 0.34,
+      ease: motionEase,
+    },
+  },
+};
+
 export function DiseaseSelector() {
   return (
-    <section
+    <motion.section
+      initial="hidden"
+      animate="visible"
       style={{ backgroundColor: "#FFFFFF" }}
       className="rounded-[36px] p-6 md:p-8 lg:p-9"
     >
-      <div className="mb-10">
-        <p
+      <motion.div className="mb-10" variants={headerVariants}>
+        <motion.p
+          variants={textRevealVariants}
           className="mb-4 text-xs font-bold uppercase tracking-[0.35em]"
           style={{ color: "#0000FF" }}
         >
           Real-Time Quality Control
-        </p>
-        <h1 className="max-w-4xl text-4xl font-extrabold leading-[0.95] text-[#111827] sm:text-5xl lg:text-6xl">
-          Vaccine Preventable Disease Referral Laboratory
-        </h1>
-      </div>
+        </motion.p>
+        <div className="overflow-hidden pb-1">
+          <motion.h1
+            variants={textRevealVariants}
+            className="max-w-4xl text-4xl font-extrabold leading-[0.95] text-[#111827] sm:text-5xl lg:text-6xl"
+          >
+            Vaccine Preventable Disease Referral Laboratory
+          </motion.h1>
+        </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <motion.div
+        className="grid grid-cols-1 gap-6 md:grid-cols-2"
+        variants={cardGridVariants}
+      >
         {DISEASE_DEFINITIONS.map((disease) => {
           const backgroundImage = diseaseCardBackgrounds[disease.slug];
           const backgroundStyle = diseaseBackgroundStyles[disease.slug];
@@ -83,10 +148,13 @@ export function DiseaseSelector() {
             disease.slug === "dengue" ? "md:col-span-2" : "";
 
           return (
-            <div
+            <motion.div
               key={disease.slug}
+              variants={cardRevealVariants}
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.99 }}
               style={{ borderColor: "#F3F3F3", backgroundColor: "#FAFAFA" }}
-              className={`group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-[transform,box-shadow] duration-300 hover:z-10 hover:shadow-xl ${cardSpanClass}`}
+              className={`group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-shadow duration-300 hover:z-10 hover:shadow-xl ${cardSpanClass}`}
             >
               {backgroundImage && (
                 <img
@@ -166,10 +234,10 @@ export function DiseaseSelector() {
                   />
                 </Link>
               </div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
-    </section>
+      </motion.div>
+    </motion.section>
   );
 }
