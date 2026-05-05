@@ -1,31 +1,25 @@
 import {
-  ChartBarIcon,
   CheckIcon,
   ClockIcon,
   DotsThreeIcon,
   DownloadIcon,
   LockIcon,
   PencilIcon,
-  PercentIcon,
   PlusCircleIcon,
-  PlusIcon,
-  PulseIcon,
-  ShieldCheckIcon,
-  TargetIcon,
   TrendDownIcon,
   TrendUpIcon,
   WarningIcon,
   XIcon,
-} from '@phosphor-icons/react';
-import { format, parseISO } from 'date-fns';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+} from "@phosphor-icons/react";
+import { format, parseISO } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import LeveyJenningsChart from '@/components/chart/LeveyJenningsChart';
-import { EditEntriesSheet } from '@/components/panels/EditEntriesSheet';
-import { QCRulesReferenceCard } from '@/components/panels/QCRulesReferenceCard';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
+import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
+import { QCRulesReferenceCard } from "@/components/panels/QCRulesReferenceCard";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -33,17 +27,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { IsoDatePicker } from '@/components/ui/IsoDatePicker';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { IsoDatePicker } from "@/components/ui/IsoDatePicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -51,12 +51,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
-import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
-import { useQCLogic } from '@/hooks/useQCLogic';
-import { useToast } from '@/hooks/useToast';
-import { getUser, type AuthUser } from '@/lib/auth';
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { DISEASE_DEFINITIONS } from "@/constants/monitor-config";
+import { useQCLogic } from "@/hooks/useQCLogic";
+import { useToast } from "@/hooks/useToast";
+import { getUser, type AuthUser } from "@/lib/auth";
 import {
   buildRunStatisticsSummary,
   DEFAULT_IN_HOUSE_LOT_NUMBER,
@@ -64,7 +64,7 @@ import {
   entriesToChartData,
   getControlCode,
   getControlParameters,
-} from '@/lib/qcMonitor';
+} from "@/lib/qcMonitor";
 import {
   addEntry,
   addViolation,
@@ -76,7 +76,7 @@ import {
   getSettings,
   getViolations,
   updateEntry,
-} from '@/lib/qcStorage';
+} from "@/lib/qcStorage";
 import type {
   AuditEntry,
   ControlTypeSlug,
@@ -89,9 +89,13 @@ import type {
   QCRule,
   QCSettings,
   ViolationEntry,
-} from '@/types/qc.types';
-import { calculateStatistics, calculateZScore, evaluateQCRules } from '@/utils/qc-calculations';
-import { validateODValue } from '@/utils/export';
+} from "@/types/qc.types";
+import {
+  calculateStatistics,
+  calculateZScore,
+  evaluateQCRules,
+} from "@/utils/qc-calculations";
+import { validateODValue } from "@/utils/export";
 
 interface QCDashboardProps {
   diseaseSlug: DiseaseSlug;
@@ -107,29 +111,29 @@ type NewLotFormValues = {
   notes: string;
 };
 
-type MonitorStatus = 'stable' | 'normal' | 'watchlist' | 'out';
+type MonitorStatus = "stable" | "normal" | "watchlist" | "out";
 
 type RecentFlagItem = {
   id: string;
-  icon: 'warning' | 'flag';
+  icon: "warning" | "flag";
   label: string;
   secondary: string;
-  severity: 'warning' | 'rejection' | 'neutral';
+  severity: "warning" | "rejection" | "neutral";
   sortValue: string;
 };
 
 const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
-  labName: 'Zamboanga City Medical Center',
-  labSection: 'Vaccine Preventable Disease Referral Laboratory (VPDRL)',
-  labAddress: 'Dr. D. Evangelista St. Sta. Catalina, 7000 Zamboanga City',
-  defaultPreparedBy: '',
-  defaultValidatedBy: '',
+  labName: "Zamboanga City Medical Center",
+  labSection: "Vaccine Preventable Disease Referral Laboratory (VPDRL)",
+  labAddress: "Dr. D. Evangelista St. Sta. Catalina, 7000 Zamboanga City",
+  defaultPreparedBy: "",
+  defaultValidatedBy: "",
   cvAlertThreshold: 15,
   minDataPointsForWestgard: 10,
-  dateFormat: 'YYYY-MM-DD',
+  dateFormat: "YYYY-MM-DD",
   recentLogsCount: 10,
-  chartTheme: 'light',
-  defaultChartView: 'daily',
+  chartTheme: "light",
+  defaultChartView: "daily",
 };
 
 function getTodayIsoDate(): string {
@@ -139,21 +143,24 @@ function getTodayIsoDate(): string {
 function createDefaultEntryForm(): EntryFormValues {
   return {
     date: getTodayIsoDate(),
-    odValue: '',
-    protocolNumber: '',
-    remarks: '',
+    odValue: "",
+    protocolNumber: "",
+    remarks: "",
   };
 }
 
 function createDefaultLotForm(): NewLotFormValues {
   return {
-    lotNumber: '',
+    lotNumber: "",
     startDate: getTodayIsoDate(),
-    notes: '',
+    notes: "",
   };
 }
 
-function getSelectedLot(lots: LotMetadata[], selectedLotNumber: string): LotMetadata | null {
+function getSelectedLot(
+  lots: LotMetadata[],
+  selectedLotNumber: string,
+): LotMetadata | null {
   return lots.find((lot) => lot.lotNumber === selectedLotNumber) ?? null;
 }
 
@@ -165,7 +172,7 @@ function getSelectedInHouseBatch(
 }
 
 function isPrivilegedRole(user: AuthUser | null): boolean {
-  return user?.role === 'Supervisor' || user?.role === 'Admin';
+  return user?.role === "Supervisor" || user?.role === "Admin";
 }
 
 function canUsePrivilegedActions(user: AuthUser | null): boolean {
@@ -174,7 +181,7 @@ function canUsePrivilegedActions(user: AuthUser | null): boolean {
 
 function getAuditActorLabel(user: AuthUser | null): string {
   if (user === null) {
-    return 'Local QC User';
+    return "Local QC User";
   }
 
   return user.name;
@@ -182,19 +189,19 @@ function getAuditActorLabel(user: AuthUser | null): string {
 
 function formatDateLabel(value: string | null): string {
   if (!value) {
-    return 'Not set';
+    return "Not set";
   }
 
-  return format(parseISO(value), 'MMM dd, yyyy');
+  return format(parseISO(value), "MMM dd, yyyy");
 }
 
 function formatDateTimeLabel(value: string | null): string {
   if (!value) {
-    return 'Not available';
+    return "Not available";
   }
 
-  const resolvedValue = value.includes('T') ? value : `${value}T08:00:00`;
-  return format(new Date(resolvedValue), 'MMM dd, hh:mm a');
+  const resolvedValue = value.includes("T") ? value : `${value}T08:00:00`;
+  return format(new Date(resolvedValue), "MMM dd, hh:mm a");
 }
 
 function getEntryTimestamp(entry: QCEntry): string {
@@ -208,65 +215,69 @@ function getMonitorStatus(
   isHighCV: boolean,
   isRisingCV: boolean,
 ): MonitorStatus {
-  if (rules.some((rule) => rule.violated && rule.severity === 'rejection')) {
-    return 'out';
+  if (rules.some((rule) => rule.violated && rule.severity === "rejection")) {
+    return "out";
   }
 
-  if (rules.some((rule) => rule.violated && rule.severity === 'warning') || isHighCV || isRisingCV) {
-    return 'watchlist';
+  if (
+    rules.some((rule) => rule.violated && rule.severity === "warning") ||
+    isHighCV ||
+    isRisingCV
+  ) {
+    return "watchlist";
   }
 
   if (totalRuns >= minRunsForWestgard && totalRuns > 0) {
-    return 'stable';
+    return "stable";
   }
 
-  return 'normal';
+  return "normal";
 }
 
 function getMonitorStatusMeta(status: MonitorStatus) {
-  if (status === 'out') {
+  if (status === "out") {
     return {
-      badgeLabel: 'OUT OF CONTROL',
-      healthLabel: 'Out of Control',
-      badgeClassName: 'bg-[#fee2e2] text-[#dc2626]',
-      systemBadgeClassName: 'bg-[#fee2e2] text-[#dc2626]',
-      dotClassName: 'bg-[#dc2626]',
-      ringClassName: 'border-[#dc2626] text-[#dc2626]',
+      badgeLabel: "OUT OF CONTROL",
+      healthLabel: "Out of Control",
+      badgeClassName: "bg-[#fee2e2] text-[#dc2626]",
+      systemBadgeClassName: "bg-[#fee2e2] text-[#dc2626]",
+      dotClassName: "bg-[#dc2626]",
+      ringClassName: "border-[#dc2626] text-[#dc2626]",
       icon: XIcon,
     };
   }
 
-  if (status === 'watchlist') {
+  if (status === "watchlist") {
     return {
-      badgeLabel: 'WATCHLIST',
-      healthLabel: 'Watchlist',
-      badgeClassName: 'bg-[#fef3c7] text-[#d97706]',
-      systemBadgeClassName: 'bg-[#fef3c7] text-[#d97706]',
-      dotClassName: 'bg-[#d97706]',
-      ringClassName: 'border-[#d97706] text-[#d97706]',
+      badgeLabel: "WATCHLIST",
+      healthLabel: "Watchlist",
+      badgeClassName: "bg-[#fef3c7] text-[#d97706]",
+      systemBadgeClassName: "bg-[#fef3c7] text-[#d97706]",
+      dotClassName: "bg-[#d97706]",
+      ringClassName: "border-[#d97706] text-[#d97706]",
       icon: WarningIcon,
     };
   }
 
-  if (status === 'stable') {
+  if (status === "stable") {
     return {
-      badgeLabel: 'STABLE',
-      healthLabel: 'Normal',
-      badgeClassName: 'bg-[#dcfce7] text-[#16a34a]',
-      systemBadgeClassName: 'bg-[#ccfbf1] text-[#0f766e]',
-      dotClassName: 'bg-[#16a34a]',
-      ringClassName: 'border-[#16a34a] text-[#16a34a]',
+      badgeLabel: "STABLE",
+      healthLabel: "Normal",
+      badgeClassName: "bg-[#dcfce7] text-[#16a34a]",
+      systemBadgeClassName: "bg-[#ccfbf1] text-[#0f766e]",
+      dotClassName: "bg-[#16a34a]",
+      ringClassName: "border-[#16a34a] text-[#16a34a]",
       icon: CheckIcon,
     };
   }
 
   return {
-    badgeLabel: 'NORMAL',
-    healthLabel: 'Normal',
-    badgeClassName: 'bg-[#dcfce7] text-[#16a34a]',
-    systemBadgeClassName: 'bg-[#dcfce7] text-[#16a34a]',
-    dotClassName: 'bg-[#16a34a]',
-    ringClassName: 'border-[#16a34a] text-[#16a34a]',
+    badgeLabel: "NORMAL",
+    healthLabel: "Normal",
+    badgeClassName: "bg-[#dcfce7] text-[#16a34a]",
+    systemBadgeClassName: "bg-[#dcfce7] text-[#16a34a]",
+    dotClassName: "bg-[#16a34a]",
+    ringClassName: "border-[#16a34a] text-[#16a34a]",
     icon: CheckIcon,
   };
 }
@@ -276,57 +287,72 @@ function getZScoreTone(zScore: number) {
 
   if (absoluteValue > 3) {
     return {
-      text: '#dc2626',
-      tint: 'bg-[#fee2e2] text-[#dc2626]',
-      status: 'Alert',
-      dot: 'bg-[#dc2626]',
+      text: "#dc2626",
+      tint: "bg-[#fee2e2] text-[#dc2626]",
+      status: "Alert",
+      dot: "bg-[#dc2626]",
     };
   }
 
   if (absoluteValue > 2) {
     return {
-      text: '#d97706',
-      tint: 'bg-[#fef3c7] text-[#d97706]',
-      status: 'Watch',
-      dot: 'bg-[#d97706]',
+      text: "#d97706",
+      tint: "bg-[#fef3c7] text-[#d97706]",
+      status: "Watch",
+      dot: "bg-[#d97706]",
     };
   }
 
   if (absoluteValue > 1) {
     return {
-      text: '#16a34a',
-      tint: 'bg-[#dcfce7] text-[#16a34a]',
-      status: 'Valid',
-      dot: 'bg-[#16a34a]',
+      text: "#16a34a",
+      tint: "bg-[#dcfce7] text-[#16a34a]",
+      status: "Valid",
+      dot: "bg-[#16a34a]",
     };
   }
 
   return {
-    text: '#1a1aff',
-    tint: 'bg-[#eff6ff] text-[#1a1aff]',
-    status: 'Valid',
-    dot: 'bg-[#0f766e]',
+    text: "#1a1aff",
+    tint: "bg-[#eff6ff] text-[#1a1aff]",
+    status: "Valid",
+    dot: "bg-[#0f766e]",
   };
 }
 
 function getFlagLabel(flag: QCEntryFlag): string {
-  return flag.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+  return flag
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function buildViolationEntries(entries: QCEntry[], rules: QCRule[], lotNumber: string): ViolationEntry[] {
+function buildViolationEntries(
+  entries: QCEntry[],
+  rules: QCRule[],
+  lotNumber: string,
+): ViolationEntry[] {
   const timestamp = new Date().toISOString();
 
   return rules
-    .filter((rule) => rule.violated && rule.status === 'violated' && (rule.triggeringIndices?.length ?? 0) > 0)
+    .filter(
+      (rule) =>
+        rule.violated &&
+        rule.status === "violated" &&
+        (rule.triggeringIndices?.length ?? 0) > 0,
+    )
     .map((rule) => {
-      const triggeringEntries = (rule.triggeringIndices ?? []).map((index) => entries[index]).filter(Boolean);
+      const triggeringEntries = (rule.triggeringIndices ?? [])
+        .map((index) => entries[index])
+        .filter(Boolean);
 
       return {
         id: crypto.randomUUID(),
         timestamp,
         ruleName: rule.name,
-        severity: rule.severity ?? 'warning',
-        triggeringProtocols: triggeringEntries.map((entry) => entry.protocolNumber),
+        severity: rule.severity ?? "warning",
+        triggeringProtocols: triggeringEntries.map(
+          (entry) => entry.protocolNumber,
+        ),
         triggeringODValues: triggeringEntries.map((entry) => entry.odValue),
         lotNumber,
         acknowledged: false,
@@ -337,12 +363,15 @@ function buildViolationEntries(entries: QCEntry[], rules: QCRule[], lotNumber: s
     });
 }
 
-function buildRecentFlags(entries: QCEntry[], violations: ViolationEntry[]): RecentFlagItem[] {
+function buildRecentFlags(
+  entries: QCEntry[],
+  violations: ViolationEntry[],
+): RecentFlagItem[] {
   const violationItems: RecentFlagItem[] = violations.map((violation) => ({
     id: violation.id,
-    icon: 'warning',
-    label: `Rule ${violation.ruleName.replace('_', '-')}${violation.severity === 'warning' ? ' Warning' : ' Rejection'}`,
-    secondary: `${format(parseISO(violation.timestamp), 'MMM dd')} - ${violation.triggeringProtocols[0] ?? 'QC Run'}`,
+    icon: "warning",
+    label: `Rule ${violation.ruleName.replace("_", "-")}${violation.severity === "warning" ? " Warning" : " Rejection"}`,
+    secondary: `${format(parseISO(violation.timestamp), "MMM dd")} - ${violation.triggeringProtocols[0] ?? "QC Run"}`,
     severity: violation.severity,
     sortValue: violation.timestamp,
   }));
@@ -351,10 +380,10 @@ function buildRecentFlags(entries: QCEntry[], violations: ViolationEntry[]): Rec
     .filter((entry) => entry.flag !== null)
     .map((entry) => ({
       id: `${entry.id}-flag`,
-      icon: 'flag',
+      icon: "flag",
       label: getFlagLabel(entry.flag as QCEntryFlag),
       secondary: `${formatDateLabel(entry.date)} - ${entry.protocolNumber}`,
-      severity: 'neutral',
+      severity: "neutral",
       sortValue: getEntryTimestamp(entry),
     }));
 
@@ -365,9 +394,9 @@ function buildRecentFlags(entries: QCEntry[], violations: ViolationEntry[]): Rec
 
 function downloadEntry(entry: QCEntry) {
   const payload = JSON.stringify(entry, null, 2);
-  const blob = new Blob([payload], { type: 'application/json' });
+  const blob = new Blob([payload], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
+  const anchor = document.createElement("a");
 
   anchor.href = url;
   anchor.download = `${entry.protocolNumber || entry.id}.json`;
@@ -377,10 +406,12 @@ function downloadEntry(entry: QCEntry) {
 
 function buildSparklinePath(points: { x: number; y: number }[]): string {
   if (points.length === 0) {
-    return '';
+    return "";
   }
 
-  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  return points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
 }
 
 export default function QCDashboard({
@@ -391,17 +422,27 @@ export default function QCDashboard({
   assayTag,
 }: QCDashboardProps) {
   const navigate = useNavigate();
-  const isInHouseControl = controlType === 'in-house-control';
-  const parameters = useMemo(() => getControlParameters(diseaseSlug, controlType), [diseaseSlug, controlType]);
+  const isInHouseControl = controlType === "in-house-control";
+  const parameters = useMemo(
+    () => getControlParameters(diseaseSlug, controlType),
+    [diseaseSlug, controlType],
+  );
   const [entries, setEntries] = useState<QCEntry[]>([]);
   const [violations, setViolations] = useState<ViolationEntry[]>([]);
   const [lots, setLots] = useState<LotMetadata[]>([]);
-  const [inHouseBatches, setInHouseBatches] = useState<InHouseBatchMetadata[]>([]);
-  const [selectedLotNumber, setSelectedLotNumber] = useState('');
-  const [selectedInHouseBatchId, setSelectedInHouseBatchId] = useState('');
-  const [formValues, setFormValues] = useState<EntryFormValues>(createDefaultEntryForm);
-  const [newLotValues, setNewLotValues] = useState<NewLotFormValues>(createDefaultLotForm);
-  const [settings, setSettings] = useState<QCSettings>(DEFAULT_SETTINGS_FALLBACK);
+  const [inHouseBatches, setInHouseBatches] = useState<InHouseBatchMetadata[]>(
+    [],
+  );
+  const [selectedLotNumber, setSelectedLotNumber] = useState("");
+  const [selectedInHouseBatchId, setSelectedInHouseBatchId] = useState("");
+  const [formValues, setFormValues] = useState<EntryFormValues>(
+    createDefaultEntryForm,
+  );
+  const [newLotValues, setNewLotValues] =
+    useState<NewLotFormValues>(createDefaultLotForm);
+  const [settings, setSettings] = useState<QCSettings>(
+    DEFAULT_SETTINGS_FALLBACK,
+  );
   const [isStartLotDialogOpen, setIsStartLotDialogOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -412,26 +453,48 @@ export default function QCDashboard({
   const { success, error } = useToast();
 
   const baseChartData = useMemo(() => entriesToChartData(entries), [entries]);
-  const { statistics, qcRules, cvTrend } = useQCLogic(baseChartData, parameters);
+  const { statistics, qcRules, cvTrend } = useQCLogic(
+    baseChartData,
+    parameters,
+  );
   const violationIndices = useMemo(
-    () => new Set(qcRules.flatMap((rule) => (rule.violated ? rule.triggeringIndices ?? [] : []))),
+    () =>
+      new Set(
+        qcRules.flatMap((rule) =>
+          rule.violated ? (rule.triggeringIndices ?? []) : [],
+        ),
+      ),
     [qcRules],
   );
   const chartData = useMemo(
-    () => baseChartData.map((point, index) => ({ ...point, isViolation: violationIndices.has(index) })),
+    () =>
+      baseChartData.map((point, index) => ({
+        ...point,
+        isViolation: violationIndices.has(index),
+      })),
     [baseChartData, violationIndices],
   );
-  const runStatistics = useMemo(() => buildRunStatisticsSummary(baseChartData, statistics), [baseChartData, statistics]);
-  const selectedLot = useMemo(() => getSelectedLot(lots, selectedLotNumber), [lots, selectedLotNumber]);
+  const runStatistics = useMemo(
+    () => buildRunStatisticsSummary(baseChartData, statistics),
+    [baseChartData, statistics],
+  );
+  const selectedLot = useMemo(
+    () => getSelectedLot(lots, selectedLotNumber),
+    [lots, selectedLotNumber],
+  );
   const selectedInHouseBatch = useMemo(
     () => getSelectedInHouseBatch(inHouseBatches, selectedInHouseBatchId),
     [inHouseBatches, selectedInHouseBatchId],
   );
-  const isArchivedDataset = isInHouseControl ? selectedInHouseBatch?.status === 'archived' : selectedLot?.status === 'archived';
+  const isArchivedDataset = isInHouseControl
+    ? selectedInHouseBatch?.status === "archived"
+    : selectedLot?.status === "archived";
   const canEditEntries = canUsePrivilegedActions(currentUser);
-  const activeDatasetLotNumber = isInHouseControl ? selectedInHouseBatchId : selectedLotNumber;
+  const activeDatasetLotNumber = isInHouseControl
+    ? selectedInHouseBatchId
+    : selectedLotNumber;
   const currentCV = cvTrend.currentCV ?? 0;
-  const chartSubtitle = `${controlName.toUpperCase()} - ${diseaseName.toUpperCase()}${assayTag ? ` - ${assayTag}` : ''}`;
+  const chartSubtitle = `${controlName.toUpperCase()} - ${diseaseName.toUpperCase()}${assayTag ? ` - ${assayTag}` : ""}`;
   const minRunsForWestgard = settings.minDataPointsForWestgard;
   const monitorStatus = getMonitorStatus(
     qcRules,
@@ -444,21 +507,32 @@ export default function QCDashboard({
   const MonitorStatusIcon = monitorStatusMeta.icon;
   const liveODNumber = Number.parseFloat(formValues.odValue);
   const liveZScore =
-    Number.isFinite(liveODNumber) && statistics.sampleCount >= 2 && statistics.sd > 0
+    Number.isFinite(liveODNumber) &&
+    statistics.sampleCount >= 2 &&
+    statistics.sd > 0
       ? calculateZScore(liveODNumber, statistics.mean, statistics.sd)
       : null;
-  const recentFlags = useMemo(() => buildRecentFlags(entries, violations), [entries, violations]);
+  const recentFlags = useMemo(
+    () => buildRecentFlags(entries, violations),
+    [entries, violations],
+  );
   const sortedRecentEntries = useMemo(
     () =>
       [...entries]
-        .sort((left, right) => getEntryTimestamp(right).localeCompare(getEntryTimestamp(left)))
+        .sort((left, right) =>
+          getEntryTimestamp(right).localeCompare(getEntryTimestamp(left)),
+        )
         .slice(0, settings.recentLogsCount),
     [entries, settings.recentLogsCount],
   );
 
   const nextDisease = useMemo(() => {
-    const diseaseIndex = DISEASE_DEFINITIONS.findIndex((disease) => disease.slug === diseaseSlug);
-    return diseaseIndex >= 0 ? DISEASE_DEFINITIONS[diseaseIndex + 1] ?? null : null;
+    const diseaseIndex = DISEASE_DEFINITIONS.findIndex(
+      (disease) => disease.slug === diseaseSlug,
+    );
+    return diseaseIndex >= 0
+      ? (DISEASE_DEFINITIONS[diseaseIndex + 1] ?? null)
+      : null;
   }, [diseaseSlug]);
 
   useEffect(() => {
@@ -469,7 +543,10 @@ export default function QCDashboard({
 
       try {
         await ensureControlDatasetInitialized(diseaseSlug, controlType);
-        const [authUser, appSettings] = await Promise.all([getUser(), getSettings()]);
+        const [authUser, appSettings] = await Promise.all([
+          getUser(),
+          getSettings(),
+        ]);
 
         if (isCancelled) {
           return;
@@ -481,8 +558,10 @@ export default function QCDashboard({
         if (isInHouseControl) {
           const storedBatches = await getInHouseBatches(diseaseSlug);
           const nextSelectedBatchId =
-            storedBatches.find((batch) => batch.batchId === selectedInHouseBatchId)?.batchId ??
-            storedBatches.find((batch) => batch.status === 'active')?.batchId ??
+            storedBatches.find(
+              (batch) => batch.batchId === selectedInHouseBatchId,
+            )?.batchId ??
+            storedBatches.find((batch) => batch.status === "active")?.batchId ??
             storedBatches[0]?.batchId ??
             DEFAULT_IN_HOUSE_LOT_NUMBER;
 
@@ -497,7 +576,7 @@ export default function QCDashboard({
             setInHouseBatches(storedBatches);
             setSelectedInHouseBatchId(nextSelectedBatchId);
             setLots([]);
-            setSelectedLotNumber('');
+            setSelectedLotNumber("");
           }
 
           return;
@@ -505,10 +584,11 @@ export default function QCDashboard({
 
         const storedLots = await getLots(diseaseSlug, controlType);
         const nextSelectedLotNumber =
-          storedLots.find((lot) => lot.lotNumber === selectedLotNumber)?.lotNumber ??
-          storedLots.find((lot) => lot.status === 'active')?.lotNumber ??
+          storedLots.find((lot) => lot.lotNumber === selectedLotNumber)
+            ?.lotNumber ??
+          storedLots.find((lot) => lot.status === "active")?.lotNumber ??
           storedLots[0]?.lotNumber ??
-          '';
+          "";
 
         const [selectedEntries, selectedViolations] =
           nextSelectedLotNumber.length > 0
@@ -521,14 +601,18 @@ export default function QCDashboard({
         if (!isCancelled) {
           setLots(storedLots);
           setInHouseBatches([]);
-          setSelectedInHouseBatchId('');
+          setSelectedInHouseBatchId("");
           setSelectedLotNumber(nextSelectedLotNumber);
           setEntries(selectedEntries);
           setViolations(selectedViolations);
         }
       } catch (caughtError) {
         if (!isCancelled) {
-          error(caughtError instanceof Error ? caughtError.message : 'Unable to load QC monitor data.');
+          error(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Unable to load QC monitor data.",
+          );
         }
       } finally {
         if (!isCancelled) {
@@ -542,10 +626,17 @@ export default function QCDashboard({
     return () => {
       isCancelled = true;
     };
-  }, [controlType, diseaseSlug, error, isInHouseControl, selectedInHouseBatchId, selectedLotNumber]);
+  }, [
+    controlType,
+    diseaseSlug,
+    error,
+    isInHouseControl,
+    selectedInHouseBatchId,
+    selectedLotNumber,
+  ]);
 
   const refreshViolationsEvent = () => {
-    window.dispatchEvent(new CustomEvent('qc-violations-changed'));
+    window.dispatchEvent(new CustomEvent("qc-violations-changed"));
   };
 
   const handleFieldChange = (field: keyof EntryFormValues, value: string) => {
@@ -559,24 +650,28 @@ export default function QCDashboard({
     const datasetLotNumber = activeDatasetLotNumber;
 
     if (!formValues.date) {
-      error('Date is required.');
+      error("Date is required.");
       return;
     }
 
     if (!formValues.protocolNumber.trim()) {
-      error('Protocol number is required.');
+      error("Protocol number is required.");
       return;
     }
 
     if (!datasetLotNumber) {
-      error(isInHouseControl ? 'Select an active in-house batch before adding entries.' : 'Select an active lot before adding entries.');
+      error(
+        isInHouseControl
+          ? "Select an active in-house batch before adding entries."
+          : "Select an active lot before adding entries.",
+      );
       return;
     }
 
     const odValidation = validateODValue(formValues.odValue);
 
     if (!odValidation.isValid) {
-      error(odValidation.error ?? 'Please enter a valid OD value.');
+      error(odValidation.error ?? "Please enter a valid OD value.");
       return;
     }
 
@@ -587,8 +682,8 @@ export default function QCDashboard({
       odValue: Number.parseFloat(formValues.odValue),
       lotNumber: datasetLotNumber,
       controlCode: getControlCode(controlType),
-      runNumber: String(entries.length + 1).padStart(2, '0'),
-      vialNumber: `V${String(entries.length + 1).padStart(2, '0')}`,
+      runNumber: String(entries.length + 1).padStart(2, "0"),
+      vialNumber: `V${String(entries.length + 1).padStart(2, "0")}`,
       flag: null,
       notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
       editedAt: null,
@@ -609,8 +704,16 @@ export default function QCDashboard({
       );
       const recalculatedChartData = entriesToChartData(updatedEntries);
       const recalculatedStatistics = calculateStatistics(recalculatedChartData);
-      const recalculatedRules = evaluateQCRules(recalculatedChartData, recalculatedStatistics, parameters);
-      const potentialViolations = buildViolationEntries(updatedEntries, recalculatedRules, nextEntry.lotNumber);
+      const recalculatedRules = evaluateQCRules(
+        recalculatedChartData,
+        recalculatedStatistics,
+        parameters,
+      );
+      const potentialViolations = buildViolationEntries(
+        updatedEntries,
+        recalculatedRules,
+        nextEntry.lotNumber,
+      );
 
       for (const violation of potentialViolations) {
         await addViolation(
@@ -631,26 +734,34 @@ export default function QCDashboard({
       setViolations(updatedViolations);
       setFormValues(createDefaultEntryForm());
       setHasSubmitted(true);
-      success('Entry recorded successfully');
+      success("Entry recorded successfully");
       refreshViolationsEvent();
     } catch (caughtError) {
-      error(caughtError instanceof Error ? caughtError.message : 'Unable to save the QC entry.');
+      error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to save the QC entry.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSaveEditedEntry = async (entry: QCEntry, odValue: number, reason: string) => {
+  const handleSaveEditedEntry = async (
+    entry: QCEntry,
+    odValue: number,
+    reason: string,
+  ) => {
     if (!canEditEntries) {
-      const message = 'Only Supervisor and Admin roles can edit QC entries.';
+      const message = "Only Supervisor and Admin roles can edit QC entries.";
       error(message);
       throw new Error(message);
     }
 
     if (isArchivedDataset) {
       const message = isInHouseControl
-        ? 'Archived in-house batches are read-only and cannot be edited.'
-        : 'Archived lots are read-only and cannot be edited.';
+        ? "Archived in-house batches are read-only and cannot be edited."
+        : "Archived lots are read-only and cannot be edited.";
       error(message);
       throw new Error(message);
     }
@@ -671,7 +782,7 @@ export default function QCDashboard({
     const auditEntry: AuditEntry = {
       id: crypto.randomUUID(),
       timestamp,
-      action: 'EDIT',
+      action: "EDIT",
       performedBy: getAuditActorLabel(currentUser),
       originalValues: entry,
       newValues: updatedEntry,
@@ -687,11 +798,21 @@ export default function QCDashboard({
         activeDatasetLotNumber,
       );
 
-      const updatedEntries = entries.map((currentEntry) => (currentEntry.id === entry.id ? updatedEntry : currentEntry));
+      const updatedEntries = entries.map((currentEntry) =>
+        currentEntry.id === entry.id ? updatedEntry : currentEntry,
+      );
       const recalculatedChartData = entriesToChartData(updatedEntries);
       const recalculatedStatistics = calculateStatistics(recalculatedChartData);
-      const recalculatedRules = evaluateQCRules(recalculatedChartData, recalculatedStatistics, parameters);
-      const potentialViolations = buildViolationEntries(updatedEntries, recalculatedRules, updatedEntry.lotNumber);
+      const recalculatedRules = evaluateQCRules(
+        recalculatedChartData,
+        recalculatedStatistics,
+        parameters,
+      );
+      const potentialViolations = buildViolationEntries(
+        updatedEntries,
+        recalculatedRules,
+        updatedEntry.lotNumber,
+      );
 
       for (const violation of potentialViolations) {
         await addViolation(
@@ -709,10 +830,15 @@ export default function QCDashboard({
 
       setEntries(refreshedEntries);
       setViolations(refreshedViolations);
-      success(`Entry ${entry.protocolNumber} updated and logged in the audit trail.`);
+      success(
+        `Entry ${entry.protocolNumber} updated and logged in the audit trail.`,
+      );
       refreshViolationsEvent();
     } catch (caughtError) {
-      const message = caughtError instanceof Error ? caughtError.message : 'Unable to update the QC entry.';
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to update the QC entry.";
       error(message);
       throw new Error(message);
     }
@@ -722,7 +848,11 @@ export default function QCDashboard({
     const trimmedLotNumber = newLotValues.lotNumber.trim();
 
     if (!trimmedLotNumber) {
-      error(isInHouseControl ? 'In-house batch ID is required.' : 'Lot number is required.');
+      error(
+        isInHouseControl
+          ? "In-house batch ID is required."
+          : "Lot number is required.",
+      );
       return;
     }
 
@@ -732,12 +862,16 @@ export default function QCDashboard({
           batchId: trimmedLotNumber,
           startDate: newLotValues.startDate,
           endDate: null,
-          status: 'active',
+          status: "active",
           notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
         });
 
         const updatedBatches = await getInHouseBatches(diseaseSlug);
-        const updatedEntries = await getEntries(diseaseSlug, controlType, trimmedLotNumber);
+        const updatedEntries = await getEntries(
+          diseaseSlug,
+          controlType,
+          trimmedLotNumber,
+        );
 
         setInHouseBatches(updatedBatches);
         setSelectedInHouseBatchId(trimmedLotNumber);
@@ -756,12 +890,16 @@ export default function QCDashboard({
         startDate: newLotValues.startDate,
         endDate: null,
         expiryDate: null,
-        status: 'active',
+        status: "active",
         notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
       });
 
       const updatedLots = await getLots(diseaseSlug, controlType);
-      const updatedEntries = await getEntries(diseaseSlug, controlType, trimmedLotNumber);
+      const updatedEntries = await getEntries(
+        diseaseSlug,
+        controlType,
+        trimmedLotNumber,
+      );
 
       setLots(updatedLots);
       setSelectedLotNumber(trimmedLotNumber);
@@ -771,26 +909,35 @@ export default function QCDashboard({
       setNewLotValues(createDefaultLotForm());
       success(`Lot ${trimmedLotNumber} is now active.`);
     } catch (caughtError) {
-      error(caughtError instanceof Error ? caughtError.message : isInHouseControl ? 'Unable to start the new in-house batch.' : 'Unable to start the new lot.');
+      error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : isInHouseControl
+            ? "Unable to start the new in-house batch."
+            : "Unable to start the new lot.",
+      );
     }
   };
 
   const chartTrendDelta =
     cvTrend.rollingCV.length >= 2
-      ? cvTrend.rollingCV[cvTrend.rollingCV.length - 1].value - cvTrend.rollingCV[cvTrend.rollingCV.length - 2].value
+      ? cvTrend.rollingCV[cvTrend.rollingCV.length - 1].value -
+        cvTrend.rollingCV[cvTrend.rollingCV.length - 2].value
       : 0;
-  const trendDirection = chartTrendDelta <= 0 ? 'down' : 'up';
+  const trendDirection = chartTrendDelta <= 0 ? "down" : "up";
   const trendPath = buildSparklinePath(cvTrend.sparklinePoints);
   const trendAreaPath =
     cvTrend.sparklinePoints.length > 0
       ? `${trendPath} L ${cvTrend.sparklinePoints[cvTrend.sparklinePoints.length - 1].x} 80 L ${cvTrend.sparklinePoints[0].x} 80 Z`
-      : '';
+      : "";
 
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">{chartSubtitle}</p>
+          <p className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">
+            {chartSubtitle}
+          </p>
           <h1 className="mt-2 text-[28px] font-bold text-[#111827]">{`${diseaseName} ${controlName}`}</h1>
         </div>
       </div>
@@ -799,31 +946,37 @@ export default function QCDashboard({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
-              {isInHouseControl ? 'Active In-house Batch' : 'Active Lot'}
+              {isInHouseControl ? "Active In-house Batch" : "Active Lot"}
             </p>
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
               {isInHouseControl ? (
-                <Select value={selectedInHouseBatchId} onValueChange={setSelectedInHouseBatchId}>
+                <Select
+                  value={selectedInHouseBatchId}
+                  onValueChange={setSelectedInHouseBatchId}
+                >
                   <SelectTrigger className="h-11 w-full max-w-md border-[#e5e7eb] bg-white">
                     <SelectValue placeholder="Select in-house batch" />
                   </SelectTrigger>
                   <SelectContent>
                     {inHouseBatches.map((batch) => (
                       <SelectItem key={batch.batchId} value={batch.batchId}>
-                        {`${batch.batchId} - ${batch.status === 'active' ? 'Active' : 'Archived'} - ${formatDateLabel(batch.startDate)}`}
+                        {`${batch.batchId} - ${batch.status === "active" ? "Active" : "Archived"} - ${formatDateLabel(batch.startDate)}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               ) : (
-                <Select value={selectedLotNumber} onValueChange={setSelectedLotNumber}>
+                <Select
+                  value={selectedLotNumber}
+                  onValueChange={setSelectedLotNumber}
+                >
                   <SelectTrigger className="h-11 w-full max-w-md border-[#e5e7eb] bg-white">
                     <SelectValue placeholder="Select reagent lot" />
                   </SelectTrigger>
                   <SelectContent>
                     {lots.map((lot) => (
                       <SelectItem key={lot.lotNumber} value={lot.lotNumber}>
-                        {`${lot.lotNumber} - ${lot.status === 'active' ? 'Active' : 'Archived'} - ${formatDateLabel(lot.startDate)}`}
+                        {`${lot.lotNumber} - ${lot.status === "active" ? "Active" : "Archived"} - ${formatDateLabel(lot.startDate)}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -832,17 +985,33 @@ export default function QCDashboard({
 
               {isInHouseControl && selectedInHouseBatch && (
                 <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                  <Badge className={selectedInHouseBatch.status === 'active' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#f3f4f6] text-[#6b7280]'}>
-                    {selectedInHouseBatch.status === 'active' ? 'Active' : 'Archived'}
+                  <Badge
+                    className={
+                      selectedInHouseBatch.status === "active"
+                        ? "bg-[#dcfce7] text-[#16a34a]"
+                        : "bg-[#f3f4f6] text-[#6b7280]"
+                    }
+                  >
+                    {selectedInHouseBatch.status === "active"
+                      ? "Active"
+                      : "Archived"}
                   </Badge>
-                  <span>Started {formatDateLabel(selectedInHouseBatch.startDate)}</span>
+                  <span>
+                    Started {formatDateLabel(selectedInHouseBatch.startDate)}
+                  </span>
                 </div>
               )}
 
               {!isInHouseControl && selectedLot && (
                 <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                  <Badge className={selectedLot.status === 'active' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#f3f4f6] text-[#6b7280]'}>
-                    {selectedLot.status === 'active' ? 'Active' : 'Archived'}
+                  <Badge
+                    className={
+                      selectedLot.status === "active"
+                        ? "bg-[#dcfce7] text-[#16a34a]"
+                        : "bg-[#f3f4f6] text-[#6b7280]"
+                    }
+                  >
+                    {selectedLot.status === "active" ? "Active" : "Archived"}
                   </Badge>
                   <span>Started {formatDateLabel(selectedLot.startDate)}</span>
                 </div>
@@ -850,9 +1019,14 @@ export default function QCDashboard({
             </div>
           </div>
 
-          <Button type="button" variant="outline" className="h-11 border-[#dbe4ff] text-[#1a1aff]" onClick={() => setIsStartLotDialogOpen(true)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 border-[#dbe4ff] text-[#1a1aff]"
+            onClick={() => setIsStartLotDialogOpen(true)}
+          >
             <PlusCircleIcon size={16} />
-            {isInHouseControl ? 'Start new in-house batch' : 'Start new lot'}
+            {isInHouseControl ? "Start new in-house batch" : "Start new lot"}
           </Button>
         </div>
       </div>
@@ -861,16 +1035,20 @@ export default function QCDashboard({
         <div className="qc-card lg:col-span-2">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#9ca3af]">NEW QC ENTRY</p>
-              <h2 className="mt-3 text-[18px] font-semibold text-[#111827]">Record run details for this dataset</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#9ca3af]">
+                NEW QC ENTRY
+              </p>
+              <h2 className="mt-3 text-[18px] font-semibold text-[#111827]">
+                Record run details for this dataset
+              </h2>
             </div>
           </div>
 
           {isArchivedDataset && (
             <div className="mb-5 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-4 py-3 text-sm text-[#6b7280]">
               {isInHouseControl
-                ? 'This archived in-house batch is read-only. Select the active batch or start a new batch to continue recording.'
-                : 'This archived lot is read-only. Select an active lot or start a new lot to continue recording.'}
+                ? "This archived in-house batch is read-only. Select the active batch or start a new batch to continue recording."
+                : "This archived lot is read-only. Select an active lot or start a new lot to continue recording."}
             </div>
           )}
 
@@ -883,10 +1061,12 @@ export default function QCDashboard({
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Date</label>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                  Date
+                </label>
                 <IsoDatePicker
                   value={formValues.date}
-                  onChange={(value) => handleFieldChange('date', value)}
+                  onChange={(value) => handleFieldChange("date", value)}
                   disabled={isArchivedDataset}
                   displayFormat={settings.dateFormat}
                   className="h-11 border-[#e5e7eb] bg-white text-[#111827] hover:bg-[#f8fafc]"
@@ -894,30 +1074,41 @@ export default function QCDashboard({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">OD Value (ABS)</label>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                  OD Value (ABS)
+                </label>
                 <Input
                   type="number"
                   step="0.0001"
                   placeholder="0.0000"
                   value={formValues.odValue}
                   disabled={isArchivedDataset}
-                  onChange={(event) => handleFieldChange('odValue', event.target.value)}
+                  onChange={(event) =>
+                    handleFieldChange("odValue", event.target.value)
+                  }
                   className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
                 />
                 {liveZScore !== null && (
-                  <p className="text-[11px] font-medium" style={{ color: getZScoreTone(liveZScore).text }}>
-                    {`Z: ${liveZScore >= 0 ? '+' : ''}${liveZScore.toFixed(2)}`}
+                  <p
+                    className="text-[11px] font-medium"
+                    style={{ color: getZScoreTone(liveZScore).text }}
+                  >
+                    {`Z: ${liveZScore >= 0 ? "+" : ""}${liveZScore.toFixed(2)}`}
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Protocol No.</label>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                  Protocol No.
+                </label>
                 <Input
                   placeholder="Enter protocol number"
                   value={formValues.protocolNumber}
                   disabled={isArchivedDataset}
-                  onChange={(event) => handleFieldChange('protocolNumber', event.target.value)}
+                  onChange={(event) =>
+                    handleFieldChange("protocolNumber", event.target.value)
+                  }
                   className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
                 />
               </div>
@@ -925,13 +1116,17 @@ export default function QCDashboard({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
               <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">Remarks</label>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                  Remarks
+                </label>
                 <Input
                   placeholder="Optional remarks"
                   value={formValues.remarks}
                   disabled={isArchivedDataset}
                   maxLength={200}
-                  onChange={(event) => handleFieldChange('remarks', event.target.value)}
+                  onChange={(event) =>
+                    handleFieldChange("remarks", event.target.value)
+                  }
                   className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
                 />
               </div>
@@ -942,7 +1137,7 @@ export default function QCDashboard({
                   disabled={isArchivedDataset || isSubmitting}
                   className="h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit Recording'}
+                  {isSubmitting ? "Submitting..." : "Submit Recording"}
                 </Button>
               </div>
             </div>
@@ -954,7 +1149,9 @@ export default function QCDashboard({
                     type="button"
                     variant="outline"
                     className="h-11 w-full border-[#dbe4ff] text-[#1a1aff]"
-                    onClick={() => navigate(`/monitor/${nextDisease.slug}/${controlType}`)}
+                    onClick={() =>
+                      navigate(`/monitor/${nextDisease.slug}/${controlType}`)
+                    }
                   >
                     {`Next disease -> ${nextDisease.name}`}
                   </Button>
@@ -970,18 +1167,24 @@ export default function QCDashboard({
 
         <div className="qc-card flex flex-col">
           <div className="mb-8 flex items-start justify-between gap-4">
-            <h2 className="text-[16px] font-semibold text-[#111827]">System Health</h2>
+            <h2 className="text-[16px] font-semibold text-[#111827]">
+              System Health
+            </h2>
           </div>
 
           <div className="flex flex-1 items-center justify-center">
             <div className="flex flex-col items-center gap-4">
-              <div className={`flex h-16 w-16 items-center justify-center rounded-full border-4 ${monitorStatusMeta.ringClassName}`}>
+              <div
+                className={`flex h-16 w-16 items-center justify-center rounded-full border-4 ${monitorStatusMeta.ringClassName}`}
+              >
                 <MonitorStatusIcon size={26} />
               </div>
               <div className="text-center">
-                <p className="text-[28px] font-bold text-[#111827]">{monitorStatusMeta.healthLabel}</p>
+                <p className="text-[28px] font-bold text-[#111827]">
+                  {monitorStatusMeta.healthLabel}
+                </p>
                 <p className="text-[13px] text-[#6b7280]">
-                  {`Last entry validated: ${entries.length > 0 ? formatDateTimeLabel(getEntryTimestamp(entries[entries.length - 1])) : 'No entries yet'}`}
+                  {`Last entry validated: ${entries.length > 0 ? formatDateTimeLabel(getEntryTimestamp(entries[entries.length - 1])) : "No entries yet"}`}
                 </p>
               </div>
             </div>
@@ -991,28 +1194,49 @@ export default function QCDashboard({
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
         {[
-          { label: 'MEAN', value: runStatistics.mean.toFixed(3), color: '#111827', icon: TargetIcon, iconColor: '#7c3aed' },
-          { label: 'SD', value: runStatistics.sd.toFixed(3), color: '#111827', icon: TrendUpIcon, iconColor: '#0891b2' },
-          { label: 'SUM', value: runStatistics.sum.toFixed(3), color: '#111827', icon: PlusIcon, iconColor: '#6b7280' },
-          { label: 'CV %', value: `${runStatistics.cv.toFixed(2)}%`, color: '#1a1aff', icon: PercentIcon, iconColor: '#d97706' },
-          { label: 'LAST OD', value: runStatistics.lastOD === null ? '-' : runStatistics.lastOD.toFixed(4), color: '#1a1aff', icon: PulseIcon, iconColor: '#1a1aff' },
-          { label: 'TOTAL RUNS', value: `${runStatistics.totalRuns}`, color: '#111827', icon: ChartBarIcon, iconColor: '#7c3aed' },
-          { label: 'CONFIDENCE', value: `${runStatistics.confidence.toFixed(0)}%`, color: '#111827', icon: ShieldCheckIcon, iconColor: '#16a34a' },
-        ].map((stat) => {
-          const StatIcon = stat.icon;
-
-          return (
-            <div key={stat.label} className="rounded-[12px] border border-[#f0f0f0] bg-white px-5 py-4 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+          {
+            label: "MEAN",
+            value: runStatistics.mean.toFixed(3),
+          },
+          { label: "SD", value: runStatistics.sd.toFixed(3) },
+          {
+            label: "SUM",
+            value: runStatistics.sum.toFixed(3),
+          },
+          {
+            label: "CV %",
+            value: `${runStatistics.cv.toFixed(2)}%`,
+          },
+          {
+            label: "LAST OD",
+            value:
+              runStatistics.lastOD === null
+                ? "-"
+                : runStatistics.lastOD.toFixed(4),
+          },
+          {
+            label: "TOTAL RUNS",
+            value: `${runStatistics.totalRuns}`,
+          },
+          {
+            label: "CONFIDENCE",
+            value: `${runStatistics.confidence.toFixed(0)}%`,
+          },
+        ].map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-[12px] border border-[#f0f0f0] bg-white px-5 py-4 shadow-[0_4px_12px_rgba(15,23,42,0.04)]"
+            >
               <div className="flex items-start justify-between gap-3">
-                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">{stat.label}</p>
-                <StatIcon size={18} style={{ color: stat.iconColor }} />
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  {stat.label}
+                </p>
               </div>
-              <p className="mt-5 text-[22px] font-bold" style={{ color: stat.color }}>
+              <p className="mt-5 text-[22px] font-bold text-[#111827]">
                 {stat.value}
               </p>
             </div>
-          );
-        })}
+          ))}
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1046,18 +1270,37 @@ export default function QCDashboard({
         <div className="flex flex-col gap-6 lg:col-span-1">
           <div className="qc-card">
             <div className="mb-4 flex items-start justify-between gap-3">
-              <h3 className="text-[15px] font-semibold text-[#111827]">CV Trend</h3>
-              <div className={`flex items-center gap-1 text-[13px] font-semibold ${trendDirection === 'down' ? 'text-[#0f766e]' : 'text-[#d97706]'}`}>
+              <h3 className="text-[15px] font-semibold text-[#111827]">
+                CV Trend
+              </h3>
+              <div
+                className={`flex items-center gap-1 text-[13px] font-semibold ${trendDirection === "down" ? "text-[#0f766e]" : "text-[#d97706]"}`}
+              >
                 <span>{`${Math.abs(chartTrendDelta).toFixed(1)}%`}</span>
-                {trendDirection === 'down' ? <TrendDownIcon size={14} /> : <TrendUpIcon size={14} />}
+                {trendDirection === "down" ? (
+                  <TrendDownIcon size={14} />
+                ) : (
+                  <TrendUpIcon size={14} />
+                )}
               </div>
             </div>
 
             <div className="mb-4 h-20 rounded-xl bg-[linear-gradient(180deg,rgba(13,148,136,0.04)_0%,rgba(13,148,136,0.01)_100%)] p-1">
               {cvTrend.sparklinePoints.length > 0 ? (
-                <svg viewBox="0 0 160 80" className="h-full w-full" role="img" aria-label="CV trend sparkline">
+                <svg
+                  viewBox="0 0 160 80"
+                  className="h-full w-full"
+                  role="img"
+                  aria-label="CV trend sparkline"
+                >
                   <path d={trendAreaPath} fill="rgba(13,148,136,0.10)" />
-                  <path d={trendPath} fill="none" stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" />
+                  <path
+                    d={trendPath}
+                    fill="none"
+                    stroke="#0d9488"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
                 </svg>
               ) : (
                 <div className="flex h-full items-center justify-center text-center text-[13px] text-[#9ca3af]">
@@ -1079,44 +1322,63 @@ export default function QCDashboard({
 
             <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-[#e5e7eb]">
               <div
-                className={`h-full rounded-full ${currentCV > settings.cvAlertThreshold ? 'bg-[#dc2626]' : 'bg-[#0d9488]'}`}
-                style={{ width: `${Math.min((currentCV / settings.cvAlertThreshold) * 100, 100)}%` }}
+                className={`h-full rounded-full ${currentCV > settings.cvAlertThreshold ? "bg-[#dc2626]" : "bg-[#0d9488]"}`}
+                style={{
+                  width: `${Math.min((currentCV / settings.cvAlertThreshold) * 100, 100)}%`,
+                }}
               />
             </div>
           </div>
 
           <div className="flex flex-col qc-card flex-1">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[15px] font-semibold text-[#111827]">Recent Flags</h3>
+              <h3 className="text-[15px] font-semibold text-[#111827]">
+                Recent Flags
+              </h3>
             </div>
 
             {recentFlags.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center py-4 text-center text-[13px] text-[#9ca3af]">No recent flags</div>
+              <div className="flex flex-1 items-center justify-center py-4 text-center text-[13px] text-[#9ca3af]">
+                No recent flags
+              </div>
             ) : (
               <div className="flex flex-1 flex-col space-y-4">
                 {recentFlags.map((item) => (
                   <div key={item.id} className="flex items-start gap-3">
                     <div
                       className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                        item.icon === 'warning'
-                          ? item.severity === 'rejection'
-                            ? 'bg-[#fee2e2] text-[#dc2626]'
-                            : 'bg-[#fef3c7] text-[#d97706]'
-                          : 'bg-[#f3f4f6] text-[#6b7280]'
+                        item.icon === "warning"
+                          ? item.severity === "rejection"
+                            ? "bg-[#fee2e2] text-[#dc2626]"
+                            : "bg-[#fef3c7] text-[#d97706]"
+                          : "bg-[#f3f4f6] text-[#6b7280]"
                       }`}
                     >
-                      {item.icon === 'warning' ? <WarningIcon size={16} /> : <ClockIcon size={16} />}
+                      {item.icon === "warning" ? (
+                        <WarningIcon size={16} />
+                      ) : (
+                        <ClockIcon size={16} />
+                      )}
                     </div>
                     <div>
-                      <p className="text-[14px] font-medium text-[#111827]">{item.label}</p>
-                      <p className="text-[12px] text-[#6b7280]">{item.secondary}</p>
+                      <p className="text-[14px] font-medium text-[#111827]">
+                        {item.label}
+                      </p>
+                      <p className="text-[12px] text-[#6b7280]">
+                        {item.secondary}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            <Button type="button" variant="outline" className="mt-auto h-10 w-full border-[#dbe4ff] text-[#1a1aff]" onClick={() => navigate('/violations')}>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-auto h-10 w-full border-[#dbe4ff] text-[#1a1aff]"
+              onClick={() => navigate("/violations")}
+            >
               View Rule Logs
             </Button>
           </div>
@@ -1125,69 +1387,116 @@ export default function QCDashboard({
 
       <div className="qc-card">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-[16px] font-semibold text-[#111827]">Recent Control Runs</h2>
+          <h2 className="text-[16px] font-semibold text-[#111827]">
+            Recent Control Runs
+          </h2>
           <p className="text-[13px] text-[#6b7280]">{`Showing last ${sortedRecentEntries.length} of ${entries.length} runs`}</p>
         </div>
 
         <Table>
           <TableHeader>
             <TableRow className="border-[#eef2f7] hover:bg-transparent">
-              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">Date &amp; Time</TableHead>
               <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
-                {isInHouseControl ? 'Protocol No.' : 'Lot Number'}
+                Date &amp; Time
               </TableHead>
-              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">OD Reading</TableHead>
-              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">SD Deviation</TableHead>
-              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">Status</TableHead>
-              <TableHead className="h-12 text-right text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">Action</TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                {isInHouseControl ? "Protocol No." : "Lot Number"}
+              </TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                OD Reading
+              </TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                SD Deviation
+              </TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                Status
+              </TableHead>
+              <TableHead className="h-12 text-right text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                Action
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedRecentEntries.map((entry) => {
-              const zScore = statistics.sampleCount >= 2 && statistics.sd > 0
-                ? calculateZScore(entry.odValue, statistics.mean, statistics.sd)
-                : 0;
+              const zScore =
+                statistics.sampleCount >= 2 && statistics.sd > 0
+                  ? calculateZScore(
+                      entry.odValue,
+                      statistics.mean,
+                      statistics.sd,
+                    )
+                  : 0;
               const zScoreMeta = getZScoreTone(zScore);
 
               return (
-                <TableRow key={entry.id} className="border-[#eef2f7] bg-white hover:bg-[#f8fafc]">
-                  <TableCell className="py-4 text-[14px] text-[#111827]">{formatDateTimeLabel(getEntryTimestamp(entry))}</TableCell>
+                <TableRow
+                  key={entry.id}
+                  className="border-[#eef2f7] bg-white hover:bg-[#f8fafc]"
+                >
+                  <TableCell className="py-4 text-[14px] text-[#111827]">
+                    {formatDateTimeLabel(getEntryTimestamp(entry))}
+                  </TableCell>
                   <TableCell className="py-4 text-[14px] text-[#374151]">
                     <div className="flex items-center gap-2">
-                      <span className={isInHouseControl ? 'font-mono' : ''}>{isInHouseControl ? entry.protocolNumber : entry.lotNumber}</span>
-                      {entry.signedBy && <LockIcon size={14} className="text-[#9ca3af]" />}
+                      <span className={isInHouseControl ? "font-mono" : ""}>
+                        {isInHouseControl
+                          ? entry.protocolNumber
+                          : entry.lotNumber}
+                      </span>
+                      {entry.signedBy && (
+                        <LockIcon size={14} className="text-[#9ca3af]" />
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="py-4 text-[14px] font-medium text-[#111827]">
                     <div className="flex items-center gap-2">
                       <span>{entry.odValue.toFixed(4)}</span>
-                      {entry.editedAt && <Badge className="bg-[#fef3c7] text-[#d97706]">Edited</Badge>}
+                      {entry.editedAt && (
+                        <Badge className="bg-[#fef3c7] text-[#d97706]">
+                          Edited
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="py-4">
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold ${zScoreMeta.tint}`}>
-                      {`${zScore >= 0 ? '+' : ''}${zScore.toFixed(1)} SD`}
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold ${zScoreMeta.tint}`}
+                    >
+                      {`${zScore >= 0 ? "+" : ""}${zScore.toFixed(1)} SD`}
                     </span>
                   </TableCell>
                   <TableCell className="py-4">
                     <div className="flex items-center gap-2 text-[14px] text-[#111827]">
-                      <span className={`h-2.5 w-2.5 rounded-full ${zScoreMeta.dot}`} />
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${zScoreMeta.dot}`}
+                      />
                       {zScoreMeta.status}
                     </div>
                   </TableCell>
                   <TableCell className="py-4 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" size="icon-sm" className="text-[#94a3b8]">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-[#94a3b8]"
+                        >
                           <DotsThreeIcon size={16} />
                           <span className="sr-only">Open entry actions</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onClick={() => setSelectedEntry(entry)}>View detail</DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setSelectedEntry(entry)}
+                        >
+                          View detail
+                        </DropdownMenuItem>
                         {canEditEntries && (
                           <DropdownMenuItem
-                            disabled={isArchivedDataset || entry.signedBy !== null}
+                            disabled={
+                              isArchivedDataset || entry.signedBy !== null
+                            }
                             onClick={() => setIsEditSheetOpen(true)}
                           >
                             Edit entry
@@ -1208,29 +1517,41 @@ export default function QCDashboard({
         </Table>
 
         <div className="mt-5 text-center">
-          <button type="button" onClick={() => navigate('/history')} className="text-[14px] font-semibold text-[#1a1aff]">
+          <button
+            type="button"
+            onClick={() => navigate("/history")}
+            className="text-[14px] font-semibold text-[#1a1aff]"
+          >
             View All Analysis History
           </button>
         </div>
       </div>
 
-      <QCRulesReferenceCard className="mt-6" minRunsForWestgard={minRunsForWestgard} />
+      <QCRulesReferenceCard
+        className="mt-6"
+        minRunsForWestgard={minRunsForWestgard}
+      />
 
-      <Dialog open={isStartLotDialogOpen} onOpenChange={setIsStartLotDialogOpen}>
+      <Dialog
+        open={isStartLotDialogOpen}
+        onOpenChange={setIsStartLotDialogOpen}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{isInHouseControl ? 'Start new in-house batch' : 'Start new lot'}</DialogTitle>
+            <DialogTitle>
+              {isInHouseControl ? "Start new in-house batch" : "Start new lot"}
+            </DialogTitle>
             <DialogDescription>
               {isInHouseControl
-                ? 'The current active in-house batch will be archived and a fresh graph will become the working dataset for this control.'
-                : 'The current active lot will be archived and the new lot will become the working dataset for this control.'}
+                ? "The current active in-house batch will be archived and a fresh graph will become the working dataset for this control."
+                : "The current active lot will be archived and the new lot will become the working dataset for this control."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#1A1C1C]">
-                {isInHouseControl ? 'Batch ID' : 'Lot Number'}
+                {isInHouseControl ? "Batch ID" : "Lot Number"}
               </label>
               <Input
                 value={newLotValues.lotNumber}
@@ -1240,13 +1561,19 @@ export default function QCDashboard({
                     lotNumber: event.target.value,
                   }))
                 }
-                placeholder={isInHouseControl ? 'Enter in-house batch ID' : 'Enter reagent lot number'}
+                placeholder={
+                  isInHouseControl
+                    ? "Enter in-house batch ID"
+                    : "Enter reagent lot number"
+                }
                 className="h-11 border-[#dce4f2] bg-white px-3"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">Start Date</label>
+              <label className="text-sm font-medium text-[#1A1C1C]">
+                Start Date
+              </label>
               <IsoDatePicker
                 value={newLotValues.startDate}
                 onChange={(value) =>
@@ -1261,7 +1588,9 @@ export default function QCDashboard({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">Notes</label>
+              <label className="text-sm font-medium text-[#1A1C1C]">
+                Notes
+              </label>
               <Textarea
                 value={newLotValues.notes}
                 onChange={(event) =>
@@ -1272,7 +1601,11 @@ export default function QCDashboard({
                 }
                 rows={3}
                 maxLength={200}
-                placeholder={isInHouseControl ? 'Optional notes for this in-house batch' : 'Optional notes for this lot'}
+                placeholder={
+                  isInHouseControl
+                    ? "Optional notes for this in-house batch"
+                    : "Optional notes for this lot"
+                }
                 className="resize-none border-[#dce4f2] bg-white px-3 py-2"
               />
             </div>
@@ -1290,42 +1623,67 @@ export default function QCDashboard({
               Cancel
             </Button>
             <Button type="button" onClick={handleCreateLot}>
-              {isInHouseControl ? 'Start batch' : 'Start lot'}
+              {isInHouseControl ? "Start batch" : "Start lot"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={selectedEntry !== null} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+      <Dialog
+        open={selectedEntry !== null}
+        onOpenChange={(open) => !open && setSelectedEntry(null)}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{selectedEntry?.protocolNumber ?? 'Entry detail'}</DialogTitle>
-            <DialogDescription>Review the selected QC entry details.</DialogDescription>
+            <DialogTitle>
+              {selectedEntry?.protocolNumber ?? "Entry detail"}
+            </DialogTitle>
+            <DialogDescription>
+              Review the selected QC entry details.
+            </DialogDescription>
           </DialogHeader>
 
           {selectedEntry && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Date</p>
-                <p className="mt-1 text-sm font-medium text-[#111827]">{formatDateLabel(selectedEntry.date)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">OD Reading</p>
-                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.odValue.toFixed(4)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Protocol No.</p>
-                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.protocolNumber}</p>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  Date
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">
+                  {formatDateLabel(selectedEntry.date)}
+                </p>
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
-                  {isInHouseControl ? 'In-house Batch' : 'Lot Number'}
+                  OD Reading
                 </p>
-                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.lotNumber}</p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">
+                  {selectedEntry.odValue.toFixed(4)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  Protocol No.
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">
+                  {selectedEntry.protocolNumber}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  {isInHouseControl ? "In-house Batch" : "Lot Number"}
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">
+                  {selectedEntry.lotNumber}
+                </p>
               </div>
               <div className="sm:col-span-2">
-                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">Remarks</p>
-                <p className="mt-1 text-sm font-medium text-[#111827]">{selectedEntry.notes ?? 'No remarks recorded.'}</p>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  Remarks
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">
+                  {selectedEntry.notes ?? "No remarks recorded."}
+                </p>
               </div>
             </div>
           )}
