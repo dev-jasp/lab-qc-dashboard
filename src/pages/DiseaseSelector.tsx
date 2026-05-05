@@ -58,6 +58,24 @@ const diseaseBackgroundStyles: Partial<
   },
 };
 
+const institutionalLogos = [
+  {
+    src: "/images/vpdrl-logo.png",
+    alt: "VPDRL logo",
+    imageClassName: "scale-110",
+  },
+  {
+    src: "/images/zcmc-patho-logo.jpg",
+    alt: "ZCMC Pathology logo",
+    imageClassName: "",
+  },
+  {
+    src: "/images/doh-logo.png",
+    alt: "Department of Health logo",
+    imageClassName: "",
+  },
+];
+
 const motionEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const headerVariants: Variants = {
@@ -79,6 +97,31 @@ const textRevealVariants: Variants = {
     y: 0,
     transition: {
       duration: 0.36,
+      ease: motionEase,
+    },
+  },
+};
+
+const logoGroupVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      delayChildren: 0.2,
+      staggerChildren: 0.06,
+    },
+  },
+};
+
+const logoRevealVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 6,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3,
       ease: motionEase,
     },
   },
@@ -120,20 +163,51 @@ export function DiseaseSelector() {
       className="rounded-[36px] p-6 md:p-8 lg:p-9"
     >
       <motion.div className="mb-10" variants={headerVariants}>
-        <motion.p
-          variants={textRevealVariants}
-          className="mb-4 text-xs font-bold uppercase tracking-[0.35em]"
-          style={{ color: "#0000FF" }}
-        >
-          Real-Time Quality Control
-        </motion.p>
-        <div className="overflow-hidden pb-1">
-          <motion.h1
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <motion.p
+              variants={textRevealVariants}
+              className="mb-4 text-xs font-bold uppercase tracking-[0.35em]"
+              style={{ color: "#0000FF" }}
+            >
+              Real-Time Quality Control
+            </motion.p>
+            <div className="overflow-hidden pb-1">
+              <motion.h1
+                variants={textRevealVariants}
+                className="max-w-4xl text-4xl font-extrabold leading-[0.98] text-[#111827] sm:text-5xl lg:max-w-[820px] lg:text-[44px] xl:max-w-[980px] xl:text-[52px]"
+              >
+                Vaccine Preventable Disease Referral Laboratory
+              </motion.h1>
+            </div>
+          </div>
+
+          <motion.div
             variants={textRevealVariants}
-            className="max-w-4xl text-4xl font-extrabold leading-[0.95] text-[#111827] sm:text-5xl lg:text-6xl"
+            className="hidden shrink-0 lg:block"
           >
-            Vaccine Preventable Disease Referral Laboratory
-          </motion.h1>
+            <motion.div
+              aria-label="Institutional logos"
+              className="flex items-center justify-center gap-4 xl:gap-5"
+              variants={logoGroupVariants}
+            >
+              {institutionalLogos.map((logo) => (
+                <motion.div
+                  key={logo.src}
+                  variants={logoRevealVariants}
+                  className="flex h-20 w-20 items-center justify-center rounded-full border border-[#e5e7eb] bg-white p-2 shadow-[0_8px_18px_rgba(15,23,42,0.06)] xl:h-24 xl:w-24"
+                >
+                  <img
+                    src={logo.src}
+                    alt={logo.alt}
+                    className={`h-full w-full object-contain ${logo.imageClassName}`}
+                    loading="eager"
+                    decoding="async"
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
         </div>
       </motion.div>
 
