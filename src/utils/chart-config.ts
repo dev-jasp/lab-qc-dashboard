@@ -4,6 +4,10 @@ import { calculateZScore } from './qc-calculations';
 
 const OD_BLUE = '#1A1AFF';
 
+type ChartDisplayOptions = {
+  isMobile?: boolean;
+};
+
 function formatTooltipDate(value: string): string {
   const parsedValue = new Date(value.includes('T') ? value : `${value}T08:00:00`);
 
@@ -36,7 +40,9 @@ export const createChartConfig = (
   mean: number,
   sd: number,
   showChartTitle: boolean = true,
+  options: ChartDisplayOptions = {},
 ): ChartConfiguration<'line'> => {
+  const isMobile = options.isMobile === true;
   const pointBackgroundColors = data.map((point) => {
     if (point.isViolation) {
       return OD_BLUE;
@@ -83,7 +89,7 @@ export const createChartConfig = (
       labels: data.map((d) => d.sample),
       datasets: [
         {
-          label: 'OD MEAN',
+          label: isMobile ? 'Mean' : 'OD MEAN',
           data: Array(data.length).fill(mean),
           borderColor: '#8A8F98',
           borderWidth: 1.5,
@@ -109,7 +115,7 @@ export const createChartConfig = (
           borderDash: [6, 6],
         },
         {
-          label: '+2 SD',
+          label: isMobile ? '+2SD' : '+2 SD',
           data: Array(data.length).fill(mean + 2 * sd),
           borderColor: '#F59E0B',
           borderWidth: 1.25,
@@ -118,7 +124,7 @@ export const createChartConfig = (
           borderDash: [4, 5],
         },
         {
-          label: '-2 SD',
+          label: isMobile ? '-2SD' : '-2 SD',
           data: Array(data.length).fill(mean - 2 * sd),
           borderColor: '#F59E0B',
           borderWidth: 1.25,
@@ -127,7 +133,7 @@ export const createChartConfig = (
           borderDash: [4, 5],
         },
         {
-          label: '+3 SD',
+          label: isMobile ? '+3SD' : '+3 SD',
           data: Array(data.length).fill(mean + 3 * sd),
           borderColor: '#EF4444',
           borderWidth: 1.5,
@@ -135,7 +141,7 @@ export const createChartConfig = (
           fill: false,
         },
         {
-          label: '-3 SD',
+          label: isMobile ? '-3SD' : '-3 SD',
           data: Array(data.length).fill(mean - 3 * sd),
           borderColor: '#EF4444',
           borderWidth: 1.5,
@@ -169,9 +175,9 @@ export const createChartConfig = (
       layout: {
         padding: {
           top: 12,
-          right: 18,
+          right: isMobile ? 8 : 18,
           bottom: 4,
-          left: 10,
+          left: isMobile ? 0 : 10,
         },
       },
       interaction: {
@@ -189,11 +195,11 @@ export const createChartConfig = (
         legend: {
           position: 'top' as const,
           labels: {
-            boxWidth: 28,
+            boxWidth: isMobile ? 22 : 28,
             boxHeight: 2,
             borderRadius: 0,
-            padding: 20,
-            font: { size: 12, family: "'Manrope', sans-serif" },
+            padding: isMobile ? 10 : 20,
+            font: { size: isMobile ? 10 : 12, weight: 'normal' as const, family: "'Manrope', sans-serif" },
             usePointStyle: false,
             color: '#64748B',
             filter: (legendItem: LegendItem) => !['+1SD', '-1SD'].includes(legendItem.text)
@@ -255,7 +261,7 @@ export const createChartConfig = (
         },
         y: {
           title: {
-            display: true,
+            display: !isMobile,
             text: 'OD Value',
             font: { size: 14, weight: 600, family: "'Manrope', sans-serif" },
             color: '#64748B',
@@ -277,10 +283,10 @@ export const createChartConfig = (
             color: '#E5EAF2',
           },
           ticks: {
-            font: { size: 12, family: "'Manrope', sans-serif" },
+            font: { size: isMobile ? 10 : 12, family: "'Manrope', sans-serif" },
             color: '#64748B',
             stepSize: sd,
-            padding: 12,
+            padding: isMobile ? 6 : 12,
             callback: (value) => getSDTickLabel(Number(value), mean, sd)
           }
         },
