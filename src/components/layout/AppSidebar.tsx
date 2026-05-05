@@ -437,7 +437,7 @@ export function AppSidebar() {
       align={isCollapsedDesktop ? 'start' : 'end'}
       side={isCollapsedDesktop ? 'right' : 'top'}
       sideOffset={8}
-      className="w-64 rounded-[1.15rem] border border-[#e5e7eb] bg-white p-1.5 shadow-[0_16px_38px_rgba(15,23,42,0.12)]"
+      className="z-[70] w-64 rounded-[1.15rem] border border-[#e5e7eb] bg-white p-1.5 shadow-[0_16px_38px_rgba(15,23,42,0.12)]"
     >
       <div className="rounded-[0.95rem] bg-[#f8fafc] px-2.5 py-2.5">
         <div className="flex items-center gap-2.5">
