@@ -188,7 +188,7 @@ than cosmetic speed.
 - **Westgard Rules**: QC interpretation rules used to identify warning and reject
   conditions.
 - **Control Types**: each disease has 3 control streams:
-  - In-house Control — lab-made, continuous, never resets regardless of reagent
+  - In-house Control — lab-made, continuous, never resets regardless of reagent unless the supervisor decided to create a new batch of in-house controls
     lot changes. One single dataset per disease/control pair, ever-growing.
   - Positive Control — from commercial reagent kit. Scoped per reagent lot number.
     A new lot starts a completely new dataset. Old lots are archived (read-only).
