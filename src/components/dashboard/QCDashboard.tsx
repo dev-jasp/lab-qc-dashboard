@@ -1192,7 +1192,7 @@ export default function QCDashboard({
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         {[
           {
             label: "MEAN",
@@ -1208,19 +1208,15 @@ export default function QCDashboard({
             value: `${runStatistics.cv.toFixed(2)}%`,
           },
           {
+            label: "CONFIDENCE",
+            value: `${runStatistics.confidence.toFixed(0)}%`,
+          },
+          {
             label: "LAST OD",
             value:
               runStatistics.lastOD === null
                 ? "-"
                 : runStatistics.lastOD.toFixed(4),
-          },
-          {
-            label: "TOTAL RUNS",
-            value: `${runStatistics.totalRuns}`,
-          },
-          {
-            label: "CONFIDENCE",
-            value: `${runStatistics.confidence.toFixed(0)}%`,
           },
         ].map((stat) => (
             <div
@@ -1262,7 +1258,7 @@ export default function QCDashboard({
                 </Button>
               ) : null
             }
-            badgeLabel={`${chartData.length} runs`}
+            badgeLabel={`total runs: ${runStatistics.totalRuns}`}
             showChartTitle={false}
           />
         </div>
