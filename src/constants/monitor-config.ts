@@ -39,6 +39,7 @@ type DiseaseDefinition = {
 type MonitorSeed = {
   parameters: QCParameters;
   data: ChartDataPoint[];
+  seedVersion?: string;
   lotNumber?: string;
   lotStartDate?: string;
 };
@@ -120,11 +121,43 @@ const buildSeries = (prefix: string, values: number[], dayOffset: number): Chart
     timestamp: `2026-03-${String(dayOffset + index).padStart(2, '0')}`,
   }));
 
+const buildNumberedSeries = (values: number[], dayOffset: number): ChartDataPoint[] =>
+  values.map((value, index) => ({
+    sample: `${index + 1}`,
+    value,
+    timestamp: `2026-03-${String(dayOffset + index).padStart(2, '0')}`,
+  }));
+
 const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
   measles: {
     'in-house-control': {
       parameters: { targetMean: 2.15, targetSD: 0.05 },
-      data: buildSeries('MEA-IH', [2.12, 2.16, 2.09, 2.18, 2.24, 2.14, 2.12, 2.17, 2.21, 2.19], 1),
+      seedVersion: 'measles-in-house-actual-20-v1',
+      data: buildNumberedSeries(
+        [
+          1.0525,
+          1.0225,
+          1.0192,
+          1.1734,
+          1.0419,
+          1.273,
+          1.247,
+          1.281,
+          1.36,
+          1.364,
+          1.093,
+          1.085,
+          1.052,
+          1.092,
+          1.013,
+          1.152,
+          1.213,
+          0.964,
+          1.097,
+          1.092,
+        ],
+        1,
+      ),
     },
     'positive-control': {
       parameters: { targetMean: 2.35, targetSD: 0.06 },

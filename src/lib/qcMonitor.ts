@@ -87,10 +87,11 @@ export async function ensureControlDatasetInitialized(
   disease: DiseaseSlug,
   controlType: ControlTypeSlug,
 ): Promise<void> {
+  const monitorSeed = getControlMonitorSeed(disease, controlType);
   const seedEntries = buildSeedEntries(disease, controlType);
 
   if (controlType === 'in-house-control') {
-    await initializeEntries(disease, controlType, seedEntries, DEFAULT_IN_HOUSE_LOT_NUMBER);
+    await initializeEntries(disease, controlType, seedEntries, DEFAULT_IN_HOUSE_LOT_NUMBER, monitorSeed.seedVersion);
     return;
   }
 
@@ -98,7 +99,7 @@ export async function ensureControlDatasetInitialized(
   const seedLotNumber = seedLots[0]?.lotNumber;
 
   await initializeLots(disease, controlType, seedLots);
-  await initializeEntries(disease, controlType, seedEntries, seedLotNumber);
+  await initializeEntries(disease, controlType, seedEntries, seedLotNumber, monitorSeed.seedVersion);
 }
 
 export function entriesToChartData(entries: QCEntry[]): ChartDataPoint[] {

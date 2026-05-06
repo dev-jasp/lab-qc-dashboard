@@ -528,6 +528,19 @@ function buildAuditKey(disease: string, controlType: string, lotNumber?: string)
   return `qc_audit_${safeDisease}_${safeControlType}_${requireLotNumber(safeControlType, lotNumber)}`;
 }
 
+function buildEntrySeedVersionKey(disease: string, controlType: string, lotNumber?: string): string {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  const safeControlType = requireNonEmptyString(controlType, 'Control type');
+
+  if (isInHouseControl(safeControlType)) {
+    const batchId = lotNumber === undefined ? getActiveInHouseBatchId(safeDisease) : requireNonEmptyString(lotNumber, 'In-house batch ID');
+    ensureInHouseBatchRegistry(safeDisease);
+    return `${STORAGE_PREFIX}seed_version_${safeDisease}_${safeControlType}_${batchId}`;
+  }
+
+  return `${STORAGE_PREFIX}seed_version_${safeDisease}_${safeControlType}_${requireLotNumber(safeControlType, lotNumber)}`;
+}
+
 function readManagedKeys(): string[] {
   const keys = getKey<string[]>(STORAGE_INDEX_KEY);
   return keys === null ? [] : keys.filter((key) => key.startsWith(STORAGE_PREFIX));
@@ -852,6 +865,7 @@ export async function addEntry(
  * @param controlType Control slug for the dataset.
  * @param entries Initial QC entries to persist.
  * @param lotNumber Reagent lot number for positive/negative controls. Omit for in-house control.
+ * @param seedVersion Optional mock seed version. When changed, replaces the stored mock entries for this dataset.
  * @throws {Error} When the payload is malformed or contains duplicate protocol numbers.
  */
 export async function initializeEntries(
@@ -859,19 +873,42 @@ export async function initializeEntries(
   controlType: string,
   entries: QCEntry[],
   lotNumber?: string,
+  seedVersion?: string,
 ): Promise<void> {
   if (!isArrayOf(entries, isQCEntry)) {
     throw new Error('Cannot initialize QC entries because the payload is malformed.');
   }
 
   const key = buildEntriesKey(disease, controlType, lotNumber);
+  const safeSeedVersion = seedVersion === undefined ? null : requireNonEmptyString(seedVersion, 'Seed version');
+  const seedVersionKey =
+    safeSeedVersion === null ? null : buildEntrySeedVersionKey(disease, controlType, lotNumber);
 
   if (hasStoredKey(key)) {
+    if (safeSeedVersion !== null && seedVersionKey !== null && getKey<unknown>(seedVersionKey) !== safeSeedVersion) {
+      validateEntryArray(entries);
+      applyMutationsAtomically(
+        [
+          { key, value: sortEntriesAscending(entries) },
+          { key: seedVersionKey, value: safeSeedVersion },
+          { key: buildViolationsKey(disease, controlType, lotNumber), value: undefined },
+          { key: buildAuditKey(disease, controlType, lotNumber), value: undefined },
+        ],
+        `refresh seeded QC entries for "${key}"`,
+      );
+    }
+
     return;
   }
 
   validateEntryArray(entries);
-  setKey(key, sortEntriesAscending(entries));
+  const mutations: StorageMutation[] = [{ key, value: sortEntriesAscending(entries) }];
+
+  if (safeSeedVersion !== null && seedVersionKey !== null) {
+    mutations.push({ key: seedVersionKey, value: safeSeedVersion });
+  }
+
+  applyMutationsAtomically(mutations, `initialize QC entries for "${key}"`);
 }
 
 /**
