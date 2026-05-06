@@ -750,6 +750,7 @@ export default function QCDashboard({
   const handleSaveEditedEntry = async (
     entry: QCEntry,
     odValue: number,
+    protocolNumber: string,
     reason: string,
   ) => {
     if (!canEditEntries) {
@@ -775,6 +776,7 @@ export default function QCDashboard({
     const timestamp = new Date().toISOString();
     const updatedEntry: QCEntry = {
       ...entry,
+      protocolNumber,
       odValue,
       editedAt: timestamp,
       editReason: reason,
@@ -831,7 +833,7 @@ export default function QCDashboard({
       setEntries(refreshedEntries);
       setViolations(refreshedViolations);
       success(
-        `Entry ${entry.protocolNumber} updated and logged in the audit trail.`,
+        `Entry ${updatedEntry.protocolNumber} updated and logged in the audit trail.`,
       );
       refreshViolationsEvent();
     } catch (caughtError) {
