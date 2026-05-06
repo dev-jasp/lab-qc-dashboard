@@ -637,7 +637,11 @@ function sortEntriesAscending(entries: QCEntry[]): QCEntry[] {
   });
 }
 
-function validateEntryArray(entries: QCEntry[]): void {
+function validateEntryArray(entries: QCEntry[], controlType: string): void {
+  if (isInHouseControl(controlType)) {
+    return;
+  }
+
   const protocolNumbers = new Set<string>();
 
   for (const entry of entries) {
@@ -833,13 +837,13 @@ export async function getEntries(disease: string, controlType: string, lotNumber
 }
 
 /**
- * Appends a QC entry to a dataset after preventing duplicate protocol numbers.
+ * Appends a QC entry to a dataset after enforcing unique protocol numbers for lot-scoped controls.
  *
  * @param disease Disease slug that owns the dataset.
  * @param controlType Control slug for the dataset.
  * @param entry Fully constructed QC entry to store.
  * @param lotNumber Reagent lot number for positive/negative controls. Omit for in-house control.
- * @throws {Error} When the entry is malformed, the key is invalid, or the protocol number already exists.
+ * @throws {Error} When the entry is malformed, the key is invalid, or the protocol number already exists in a lot-scoped dataset.
  */
 export async function addEntry(
   disease: string,
@@ -854,7 +858,10 @@ export async function addEntry(
   const key = buildEntriesKey(disease, controlType, lotNumber);
   const entries = readEntries(key);
 
-  validateProtocolUniqueness(entries, entry.protocolNumber);
+  if (!isInHouseControl(controlType)) {
+    validateProtocolUniqueness(entries, entry.protocolNumber);
+  }
+
   setKey(key, [...entries, entry]);
 }
 
@@ -866,7 +873,7 @@ export async function addEntry(
  * @param entries Initial QC entries to persist.
  * @param lotNumber Reagent lot number for positive/negative controls. Omit for in-house control.
  * @param seedVersion Optional mock seed version. When changed, replaces the stored mock entries for this dataset.
- * @throws {Error} When the payload is malformed or contains duplicate protocol numbers.
+ * @throws {Error} When the payload is malformed or contains duplicate protocol numbers in a lot-scoped dataset.
  */
 export async function initializeEntries(
   disease: string,
@@ -886,7 +893,7 @@ export async function initializeEntries(
 
   if (hasStoredKey(key)) {
     if (safeSeedVersion !== null && seedVersionKey !== null && getKey<unknown>(seedVersionKey) !== safeSeedVersion) {
-      validateEntryArray(entries);
+      validateEntryArray(entries, controlType);
       applyMutationsAtomically(
         [
           { key, value: sortEntriesAscending(entries) },
@@ -901,7 +908,7 @@ export async function initializeEntries(
     return;
   }
 
-  validateEntryArray(entries);
+  validateEntryArray(entries, controlType);
   const mutations: StorageMutation[] = [{ key, value: sortEntriesAscending(entries) }];
 
   if (safeSeedVersion !== null && seedVersionKey !== null) {
@@ -949,7 +956,9 @@ export async function updateEntry(
     throw new Error(`QC entry "${updatedEntry.id}" is signed and cannot be edited.`);
   }
 
-  validateProtocolUniqueness(entries, updatedEntry.protocolNumber, updatedEntry.id);
+  if (!isInHouseControl(controlType)) {
+    validateProtocolUniqueness(entries, updatedEntry.protocolNumber, updatedEntry.id);
+  }
 
   const nextEntries = [...entries];
   nextEntries[entryIndex] = updatedEntry;
