@@ -14,6 +14,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type BreadcrumbSegment = {
   href?: string;
@@ -35,6 +36,10 @@ function buildSegments(pathname: string): BreadcrumbSegment[] {
 
   if (pathname === '/violations') {
     return [{ label: 'VIOLATIONS' }];
+  }
+
+  if (pathname === '/help') {
+    return [{ label: 'HELP' }];
   }
 
   if (pathname === '/settings') {
@@ -160,23 +165,40 @@ export function DashboardHeader() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => navigate('/violations')}
-          className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
-        >
-          <BellIcon size={20} />
-          {openViolationCount > 0 && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[#dc2626]" />}
-          <span className="sr-only">Open violations</span>
-        </button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => navigate('/violations')}
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+              >
+                <BellIcon size={20} />
+                {openViolationCount > 0 && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[#dc2626]" />}
+                <span className="sr-only">Open violations</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              Open violations
+            </TooltipContent>
+          </Tooltip>
 
-        <button
-          type="button"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
-        >
-          <QuestionIcon size={20} />
-          <span className="sr-only">Help</span>
-        </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => navigate('/help')}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+              >
+                <QuestionIcon size={20} />
+                <span className="sr-only">Help and glossary</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              Help & glossary
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </header>
   );
