@@ -1,4 +1,4 @@
-import { GearIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 
 export function Settings() {
