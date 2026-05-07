@@ -108,6 +108,7 @@ interface QCDashboardProps {
 type NewLotFormValues = {
   lotNumber: string;
   startDate: string;
+  expiryDate: string;
   notes: string;
 };
 
@@ -153,6 +154,7 @@ function createDefaultLotForm(): NewLotFormValues {
   return {
     lotNumber: "",
     startDate: getTodayIsoDate(),
+    expiryDate: "",
     notes: "",
   };
 }
@@ -858,6 +860,19 @@ export default function QCDashboard({
       return;
     }
 
+    if (!isInHouseControl && !newLotValues.expiryDate) {
+      error("Expiry date is required for reagent lots.");
+      return;
+    }
+
+    if (
+      !isInHouseControl &&
+      newLotValues.expiryDate < newLotValues.startDate
+    ) {
+      error("Expiry date cannot be earlier than the start date.");
+      return;
+    }
+
     try {
       if (isInHouseControl) {
         await createInHouseBatch(diseaseSlug, {
@@ -891,7 +906,7 @@ export default function QCDashboard({
         lotNumber: trimmedLotNumber,
         startDate: newLotValues.startDate,
         endDate: null,
-        expiryDate: null,
+        expiryDate: newLotValues.expiryDate,
         status: "active",
         notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
       });
@@ -1568,21 +1583,42 @@ export default function QCDashboard({
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">
-                Start Date
-              </label>
-              <IsoDatePicker
-                value={newLotValues.startDate}
-                onChange={(value) =>
-                  setNewLotValues((currentValues) => ({
-                    ...currentValues,
-                    startDate: value,
-                  }))
-                }
-                displayFormat={settings.dateFormat}
-                className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
-              />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[#1A1C1C]">
+                  Start Date
+                </label>
+                <IsoDatePicker
+                  value={newLotValues.startDate}
+                  onChange={(value) =>
+                    setNewLotValues((currentValues) => ({
+                      ...currentValues,
+                      startDate: value,
+                    }))
+                  }
+                  displayFormat={settings.dateFormat}
+                  className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
+                />
+              </div>
+
+              {!isInHouseControl && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-[#1A1C1C]">
+                    Expiry Date
+                  </label>
+                  <IsoDatePicker
+                    value={newLotValues.expiryDate}
+                    onChange={(value) =>
+                      setNewLotValues((currentValues) => ({
+                        ...currentValues,
+                        expiryDate: value,
+                      }))
+                    }
+                    displayFormat={settings.dateFormat}
+                    className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

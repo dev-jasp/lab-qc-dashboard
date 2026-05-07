@@ -1,4 +1,4 @@
-import { ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react";
+import { WarningIcon } from "@phosphor-icons/react";
 
 import { DEFAULT_QC_RULES } from "@/constants/qc-rules";
 
