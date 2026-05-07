@@ -1583,7 +1583,13 @@ export default function QCDashboard({
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div
+              className={
+                isInHouseControl
+                  ? "grid grid-cols-1 gap-4"
+                  : "grid grid-cols-1 gap-4 lg:grid-cols-2"
+              }
+            >
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[#1A1C1C]">
                   Start Date
