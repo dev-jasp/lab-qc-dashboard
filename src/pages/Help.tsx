@@ -1,17 +1,24 @@
-import { QuestionIcon } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { QuestionIcon } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
 
-import { GlossarySearch } from '@/components/help/GlossarySearch';
-import { GlossaryTermList } from '@/components/help/GlossaryTermList';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GLOSSARY_CATEGORIES, GLOSSARY_ENTRIES, getGlossaryCategory } from '@/constants/glossary';
-import type { GlossaryCategoryId } from '@/constants/glossary';
+import { GlossarySearch } from "@/components/help/GlossarySearch";
+import { GlossaryTermList } from "@/components/help/GlossaryTermList";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  GLOSSARY_CATEGORIES,
+  GLOSSARY_ENTRIES,
+  getGlossaryCategory,
+} from "@/constants/glossary";
+import type { GlossaryCategoryId } from "@/constants/glossary";
 
-type GlossaryTabValue = 'all' | GlossaryCategoryId;
+type GlossaryTabValue = "all" | GlossaryCategoryId;
 
 function isGlossaryTabValue(value: string): value is GlossaryTabValue {
-  return value === 'all' || GLOSSARY_CATEGORIES.some((category) => category.id === value);
+  return (
+    value === "all" ||
+    GLOSSARY_CATEGORIES.some((category) => category.id === value)
+  );
 }
 
 function entryMatchesSearch(entryId: string, query: string): boolean {
@@ -26,20 +33,29 @@ function entryMatchesSearch(entryId: string, query: string): boolean {
   }
 
   const category = getGlossaryCategory(entry.categoryId);
-  const haystack = [entry.term, ...entry.aliases, category.label, entry.definition].join(' ').toLowerCase();
+  const haystack = [
+    entry.term,
+    ...entry.aliases,
+    category.label,
+    entry.definition,
+  ]
+    .join(" ")
+    .toLowerCase();
 
   return haystack.includes(query);
 }
 
 export function Help() {
-  const [query, setQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<GlossaryTabValue>('all');
+  const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] =
+    useState<GlossaryTabValue>("all");
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredEntries = useMemo(
     () =>
       GLOSSARY_ENTRIES.filter((entry) => {
-        const categoryMatches = selectedCategory === 'all' || entry.categoryId === selectedCategory;
+        const categoryMatches =
+          selectedCategory === "all" || entry.categoryId === selectedCategory;
 
         return categoryMatches && entryMatchesSearch(entry.id, normalizedQuery);
       }),
@@ -47,7 +63,10 @@ export function Help() {
   );
 
   const searchMatchedEntries = useMemo(
-    () => GLOSSARY_ENTRIES.filter((entry) => entryMatchesSearch(entry.id, normalizedQuery)),
+    () =>
+      GLOSSARY_ENTRIES.filter((entry) =>
+        entryMatchesSearch(entry.id, normalizedQuery),
+      ),
     [normalizedQuery],
   );
 
@@ -66,9 +85,12 @@ export function Help() {
               <QuestionIcon size={15} />
               Help & Glossary
             </div>
-            <h1 className="text-3xl font-bold text-[#111827]">QC terminology reference</h1>
+            <h1 className="text-3xl font-bold text-[#111827]">
+              QC terminology reference
+            </h1>
             <p className="mt-3 text-sm leading-7 text-[#6b7280]">
-              Quick definitions for the chart, Westgard rules, control types, flags, CV monitoring, and lot management terms used across QC Pulse.
+              Quick definitions for the chart, Westgard rules, control types,
+              flags, CV monitoring, and lot management terms.
             </p>
           </div>
 
@@ -78,19 +100,28 @@ export function Help() {
         </div>
       </section>
 
-      <Tabs value={selectedCategory} onValueChange={handleTabChange} className="space-y-5">
+      <Tabs
+        value={selectedCategory}
+        onValueChange={handleTabChange}
+        className="space-y-5"
+      >
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
           <TabsTrigger
             value="all"
             className="h-9 flex-none rounded-full border-[#dbe3ef] bg-white px-4 text-[#374151] data-active:border-[#1a1aff] data-active:bg-[#eef2ff] data-active:text-[#1a1aff]"
           >
             All
-            <Badge variant="outline" className="ml-1 border-transparent bg-[#f3f4f6] text-[#6b7280]">
+            <Badge
+              variant="outline"
+              className="ml-1 border-transparent bg-[#f3f4f6] text-[#6b7280]"
+            >
               {searchMatchedEntries.length}
             </Badge>
           </TabsTrigger>
           {GLOSSARY_CATEGORIES.map((category) => {
-            const categoryCount = searchMatchedEntries.filter((entry) => entry.categoryId === category.id).length;
+            const categoryCount = searchMatchedEntries.filter(
+              (entry) => entry.categoryId === category.id,
+            ).length;
 
             return (
               <TabsTrigger
@@ -99,7 +130,10 @@ export function Help() {
                 className="h-9 flex-none rounded-full border-[#dbe3ef] bg-white px-4 text-[#374151] data-active:border-[#1a1aff] data-active:bg-[#eef2ff] data-active:text-[#1a1aff]"
               >
                 {category.label}
-                <Badge variant="outline" className="ml-1 border-transparent bg-[#f3f4f6] text-[#6b7280]">
+                <Badge
+                  variant="outline"
+                  className="ml-1 border-transparent bg-[#f3f4f6] text-[#6b7280]"
+                >
                   {categoryCount}
                 </Badge>
               </TabsTrigger>
@@ -108,7 +142,10 @@ export function Help() {
         </TabsList>
 
         <TabsContent value={selectedCategory}>
-          <GlossaryTermList entries={filteredEntries} allEntries={GLOSSARY_ENTRIES} />
+          <GlossaryTermList
+            entries={filteredEntries}
+            allEntries={GLOSSARY_ENTRIES}
+          />
         </TabsContent>
       </Tabs>
     </div>
