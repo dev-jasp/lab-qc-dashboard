@@ -12,6 +12,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { format, parseISO } from "date-fns";
+import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -136,6 +137,8 @@ const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
   chartTheme: "light",
   defaultChartView: "daily",
 };
+
+const MONITOR_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
 
 function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -424,6 +427,7 @@ export default function QCDashboard({
   assayTag,
 }: QCDashboardProps) {
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
   const isInHouseControl = controlType === "in-house-control";
   const parameters = useMemo(
     () => getControlParameters(diseaseSlug, controlType),
@@ -947,19 +951,37 @@ export default function QCDashboard({
     cvTrend.sparklinePoints.length > 0
       ? `${trendPath} L ${cvTrend.sparklinePoints[cvTrend.sparklinePoints.length - 1].x} 80 L ${cvTrend.sparklinePoints[0].x} 80 Z`
       : "";
+  const getRevealProps = (order: number) => ({
+    initial: {
+      opacity: 0,
+      y: prefersReducedMotion ? 0 : 10,
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+    },
+    transition: {
+      delay: prefersReducedMotion ? 0 : order * 0.06,
+      duration: prefersReducedMotion ? 0.01 : 0.32,
+      ease: MONITOR_REVEAL_EASE,
+    },
+  });
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <motion.div
+        {...getRevealProps(0)}
+        className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+      >
         <div>
           <p className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">
             {chartSubtitle}
           </p>
           <h1 className="mt-2 text-[28px] font-bold text-[#111827]">{`${diseaseName} ${controlName}`}</h1>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="qc-card mb-6 p-5">
+      <motion.div {...getRevealProps(1)} className="qc-card mb-6 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
@@ -1046,9 +1068,12 @@ export default function QCDashboard({
             {isInHouseControl ? "Start new in-house batch" : "Start new lot"}
           </Button>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <motion.div
+        {...getRevealProps(2)}
+        className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3"
+      >
         <div className="qc-card lg:col-span-2">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -1207,9 +1232,12 @@ export default function QCDashboard({
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <motion.div
+        {...getRevealProps(3)}
+        className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6"
+      >
         {[
           {
             label: "MEAN",
@@ -1250,9 +1278,12 @@ export default function QCDashboard({
               </p>
             </div>
           ))}
-      </div>
+      </motion.div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <motion.div
+        {...getRevealProps(4)}
+        className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3"
+      >
         <div className="lg:col-span-2">
           <LeveyJenningsChart
             data={chartData}
@@ -1396,9 +1427,9 @@ export default function QCDashboard({
             </Button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="qc-card">
+      <motion.div {...getRevealProps(5)} className="qc-card">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-[16px] font-semibold text-[#111827]">
             Recent Control Runs
@@ -1538,7 +1569,7 @@ export default function QCDashboard({
             View All Analysis History
           </button>
         </div>
-      </div>
+      </motion.div>
 
       <QCRulesReferenceCard
         className="mt-6"
