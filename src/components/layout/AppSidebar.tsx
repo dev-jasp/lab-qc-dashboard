@@ -8,17 +8,17 @@ import {
   SignOutIcon,
   VirusIcon,
   WarningIcon,
-} from '@phosphor-icons/react';
-import { AnimatePresence, motion, type Transition } from 'framer-motion';
-import * as React from 'react';
-import { createPortal } from 'react-dom';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+} from "@phosphor-icons/react";
+import { AnimatePresence, motion, type Transition } from "framer-motion";
+import * as React from "react";
+import { createPortal } from "react-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { DISEASE_DEFINITIONS } from '@/constants/monitor-config';
-import { useAuth } from '@/hooks/useAuth';
-import { getAllViolations } from '@/lib/qcStorage';
-import type { ControlTypeSlug, DiseaseSlug } from '@/types/qc.types';
-import { cn } from '@/utils/cn';
+import { DISEASE_DEFINITIONS } from "@/constants/monitor-config";
+import { useAuth } from "@/hooks/useAuth";
+import { getAllViolations } from "@/lib/qcStorage";
+import type { ControlTypeSlug, DiseaseSlug } from "@/types/qc.types";
+import { cn } from "@/utils/cn";
 
 import {
   DropdownMenu,
@@ -26,8 +26,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
   SidebarContent,
@@ -43,9 +43,14 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
-} from '@/components/ui/sidebar';
-import { useSidebar } from '@/components/ui/sidebar-context';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+} from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar-context";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type SystemRoute = {
   href: string;
@@ -60,39 +65,43 @@ type DiseaseRouteConfig = {
 };
 
 const DISEASE_ROUTE_CONFIG: DiseaseRouteConfig[] = [
-  { slug: 'measles', name: 'Measles', icon: VirusIcon },
-  { slug: 'rubella', name: 'Rubella', icon: VirusIcon },
-  { slug: 'rotavirus', name: 'Rotavirus', icon: VirusIcon },
-  { slug: 'japanese-encephalitis', name: 'Japanese Encephalitis', icon: VirusIcon },
-  { slug: 'dengue', name: 'Dengue', icon: VirusIcon },
+  { slug: "measles", name: "Measles", icon: VirusIcon },
+  { slug: "rubella", name: "Rubella", icon: VirusIcon },
+  { slug: "rotavirus", name: "Rotavirus", icon: VirusIcon },
+  {
+    slug: "japanese-encephalitis",
+    name: "Japanese Encephalitis",
+    icon: VirusIcon,
+  },
+  { slug: "dengue", name: "Dengue", icon: VirusIcon },
 ];
 
 const CONTROL_LINKS: { slug: ControlTypeSlug; label: string }[] = [
-  { slug: 'in-house-control', label: 'In-house' },
-  { slug: 'positive-control', label: 'Positive' },
-  { slug: 'negative-control', label: 'Negative' },
+  { slug: "in-house-control", label: "In-house" },
+  { slug: "positive-control", label: "Positive" },
+  { slug: "negative-control", label: "Negative" },
 ];
 
 const SYSTEM_ROUTES: SystemRoute[] = [
-  { href: '/history', icon: ClockIcon, label: 'History' },
-  { href: '/violations', icon: WarningIcon, label: 'Violations' },
-  { href: '/settings', icon: GearIcon, label: 'Settings' },
+  { href: "/history", icon: ClockIcon, label: "History" },
+  { href: "/violations", icon: WarningIcon, label: "Violations" },
+  { href: "/settings", icon: GearIcon, label: "Settings" },
 ];
 
 const DISEASE_ACCENTS: Record<DiseaseSlug, string> = {
-  measles: '#2563eb',
-  rubella: '#db2777',
-  rotavirus: '#ea580c',
-  'japanese-encephalitis': '#7c3aed',
-  dengue: '#0891b2',
+  measles: "#2563eb",
+  rubella: "#db2777",
+  rotavirus: "#ea580c",
+  "japanese-encephalitis": "#7c3aed",
+  dengue: "#0891b2",
 };
 
 const DISEASE_BADGES: Record<DiseaseSlug, string> = {
-  measles: 'MEA',
-  rubella: 'RUB',
-  rotavirus: 'ROT',
-  'japanese-encephalitis': 'JE',
-  dengue: 'DEN',
+  measles: "MEA",
+  rubella: "RUB",
+  rotavirus: "ROT",
+  "japanese-encephalitis": "JE",
+  dengue: "DEN",
 };
 
 const SIDEBAR_TRANSITION: Transition = {
@@ -122,7 +131,9 @@ function getActiveDisease(pathname: string): DiseaseSlug | null {
   }
 
   const slug = match[1] as DiseaseSlug;
-  return DISEASE_ROUTE_CONFIG.some((disease) => disease.slug === slug) ? slug : null;
+  return DISEASE_ROUTE_CONFIG.some((disease) => disease.slug === slug)
+    ? slug
+    : null;
 }
 
 function getActiveControl(pathname: string): ControlTypeSlug | null {
@@ -186,7 +197,7 @@ function SidebarAnimatedLabel({
           animate={{
             opacity: 1,
             flexGrow: 1,
-            width: 'auto',
+            width: "auto",
             transition: {
               opacity: { duration: 0.15, delay: 0.1 },
               width: SIDEBAR_TRANSITION,
@@ -205,10 +216,10 @@ function SidebarAnimatedLabel({
           }}
           className={className}
           style={{
-            display: 'flex',
-            flexBasis: 'auto',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
+            display: "flex",
+            flexBasis: "auto",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
           }}
         >
           {children}
@@ -234,8 +245,10 @@ export function AppSidebar() {
   const [openViolationCount, setOpenViolationCount] = React.useState(0);
   const activeDisease = getActiveDisease(location.pathname);
   const activeControl = getActiveControl(location.pathname);
-  const [expandedDisease, setExpandedDisease] = React.useState<DiseaseSlug | null>(activeDisease);
-  const [floatingDisease, setFloatingDisease] = React.useState<FloatingDiseaseState | null>(null);
+  const [expandedDisease, setExpandedDisease] =
+    React.useState<DiseaseSlug | null>(activeDisease);
+  const [floatingDisease, setFloatingDisease] =
+    React.useState<FloatingDiseaseState | null>(null);
   const showFlyoutTimer = React.useRef<number | null>(null);
   const hideFlyoutTimer = React.useRef<number | null>(null);
 
@@ -258,7 +271,10 @@ export function AppSidebar() {
       }
 
       setOpenViolationCount(
-        allViolations.filter((violation) => !violation.acknowledged && violation.severity === 'rejection').length,
+        allViolations.filter(
+          (violation) =>
+            !violation.acknowledged && violation.severity === "rejection",
+        ).length,
       );
     };
 
@@ -268,11 +284,14 @@ export function AppSidebar() {
       void loadSidebarMeta();
     };
 
-    window.addEventListener('qc-violations-changed', handleViolationRefresh);
+    window.addEventListener("qc-violations-changed", handleViolationRefresh);
 
     return () => {
       isCancelled = true;
-      window.removeEventListener('qc-violations-changed', handleViolationRefresh);
+      window.removeEventListener(
+        "qc-violations-changed",
+        handleViolationRefresh,
+      );
     };
   }, [location.pathname]);
 
@@ -350,7 +369,9 @@ export function AppSidebar() {
   };
 
   const handleDiseaseToggle = (disease: DiseaseSlug) => {
-    setExpandedDisease((currentDisease) => (currentDisease === disease ? null : disease));
+    setExpandedDisease((currentDisease) =>
+      currentDisease === disease ? null : disease,
+    );
   };
 
   const handleDiseaseButtonClick = (
@@ -381,13 +402,13 @@ export function AppSidebar() {
       setOpenMobile(false);
     }
 
-    navigate('/login');
+    navigate("/login");
   };
 
-  const currentUserName = user?.name ?? 'QC Pulse User';
-  const currentUserEmail = user?.email ?? 'demoaccount@gmail.com';
-  const currentRole = user?.role ?? 'Analyst';
-  const currentUserInitials = user?.initials ?? 'QC';
+  const currentUserName = user?.name ?? "QC Pulse User";
+  const currentUserEmail = user?.email ?? "demoaccount@gmail.com";
+  const currentRole = user?.role ?? "Analyst";
+  const currentUserInitials = user?.initials ?? "QC";
   const isCollapsedDesktop = !open && !isMobile;
   const floatingDiseaseSlug = floatingDisease?.disease.slug ?? null;
 
@@ -399,31 +420,31 @@ export function AppSidebar() {
     disabled?: boolean;
   }> = [
     {
-      label: 'Reports',
+      label: "Reports",
       icon: ChartBarIcon,
-      badge: 'New',
+      badge: "New",
       disabled: true,
     },
     {
-      label: 'History / Audit Log',
+      label: "History / Audit Log",
       icon: ClockIcon,
-      href: '/history',
+      href: "/history",
     },
     {
-      label: 'Violations',
+      label: "Violations",
       icon: WarningIcon,
-      href: '/violations',
+      href: "/violations",
     },
     {
-      label: 'Notifications',
+      label: "Notifications",
       icon: BellIcon,
-      badge: 'New',
+      badge: "New",
       disabled: true,
     },
     {
-      label: 'Settings',
+      label: "Settings",
       icon: GearIcon,
-      href: '/settings',
+      href: "/settings",
     },
   ];
 
@@ -435,8 +456,8 @@ export function AppSidebar() {
 
   const accountMenuContent = (
     <DropdownMenuContent
-      align={isCollapsedDesktop ? 'start' : 'end'}
-      side={isCollapsedDesktop ? 'right' : 'top'}
+      align={isCollapsedDesktop ? "start" : "end"}
+      side={isCollapsedDesktop ? "right" : "top"}
       sideOffset={8}
       className="z-[70] w-64 rounded-[1.15rem] border border-[#e5e7eb] bg-white p-1.5 shadow-[0_16px_38px_rgba(15,23,42,0.12)]"
     >
@@ -446,7 +467,9 @@ export function AppSidebar() {
             {currentUserInitials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
+            <p className="truncate text-[13px] font-semibold text-[#111827]">
+              {currentUserName}
+            </p>
             <Badge
               variant="secondary"
               className="mt-1 h-4 rounded-full border-[#dbeafe] bg-[#eff6ff] px-1.5 text-[9px] font-semibold text-[var(--brand-blue)]"
@@ -498,13 +521,17 @@ export function AppSidebar() {
 
   return (
     <TooltipProvider>
-      <Sidebar variant="sidebar" collapsible="icon" className={cn(!mounted && 'no-transition')}>
+      <Sidebar
+        variant="sidebar"
+        collapsible="icon"
+        className={cn(!mounted && "no-transition")}
+      >
         <SidebarHeader className="pr-12">
           {(open || isMobile) && (
             <SidebarTooltip label="QC Pulse">
               <button
                 type="button"
-                onClick={() => handleSidebarNavigate('/monitor')}
+                onClick={() => handleSidebarNavigate("/monitor")}
                 className="flex w-full items-center justify-start rounded-xl px-2 py-2 transition"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-[#e5e7eb]">
@@ -516,10 +543,10 @@ export function AppSidebar() {
                     decoding="async"
                   />
                 </div>
-                <SidebarAnimatedLabel
-                  className="ml-3 flex min-w-0 flex-col overflow-hidden whitespace-nowrap text-left [--sidebar-label-width:11rem]"
-                >
-                  <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">QC PULSE</p>
+                <SidebarAnimatedLabel className="ml-3 flex min-w-0 flex-col overflow-hidden whitespace-nowrap text-left [--sidebar-label-width:11rem]">
+                  <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">
+                    QC PULSE
+                  </p>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9ca3af]">
                     Laboratory System
                   </p>
@@ -539,18 +566,34 @@ export function AppSidebar() {
                   const isCurrentDisease = activeDisease === disease.slug;
                   const isOpen = expandedDisease === disease.slug;
                   const diseaseDisplayName =
-                    DISEASE_DEFINITIONS.find((item) => item.slug === disease.slug)?.name ?? disease.name;
+                    DISEASE_DEFINITIONS.find(
+                      (item) => item.slug === disease.slug,
+                    )?.name ?? disease.name;
                   const diseaseAccent = DISEASE_ACCENTS[disease.slug];
                   const diseaseMenuButton = (
                     <SidebarMenuButton
                       type="button"
                       isActive={isCurrentDisease && !isCollapsedDesktop}
                       title={diseaseDisplayName}
-                      aria-expanded={isCollapsedDesktop ? floatingDiseaseSlug === disease.slug : isOpen}
-                      onClick={(event) => handleDiseaseButtonClick(disease, diseaseDisplayName, event)}
+                      aria-expanded={
+                        isCollapsedDesktop
+                          ? floatingDiseaseSlug === disease.slug
+                          : isOpen
+                      }
+                      onClick={(event) =>
+                        handleDiseaseButtonClick(
+                          disease,
+                          diseaseDisplayName,
+                          event,
+                        )
+                      }
                       onMouseEnter={(event) => {
                         if (isCollapsedDesktop) {
-                          openFloatingDisease(disease, diseaseDisplayName, event.currentTarget);
+                          openFloatingDisease(
+                            disease,
+                            diseaseDisplayName,
+                            event.currentTarget,
+                          );
                         }
                       }}
                       onMouseLeave={() => {
@@ -559,11 +602,12 @@ export function AppSidebar() {
                         }
                       }}
                       className={cn(
-                        isCollapsedDesktop && 'mx-auto h-10 w-10 rounded-lg p-0',
+                        isCollapsedDesktop &&
+                          "mx-auto h-10 w-10 rounded-lg p-0",
                         isCollapsedDesktop &&
                           isCurrentDisease &&
-                          'bg-[#eff6ff] text-[var(--sidebar-accent-foreground)] hover:bg-[#eff6ff]',
-                        !isCollapsedDesktop && 'justify-between',
+                          "bg-[#eff6ff] text-[var(--sidebar-accent-foreground)] hover:bg-[#eff6ff]",
+                        !isCollapsedDesktop && "justify-between",
                       )}
                     >
                       {isCollapsedDesktop ? (
@@ -575,7 +619,7 @@ export function AppSidebar() {
                                   color: diseaseAccent,
                                   boxShadow: `0 0 0 2px #ffffff, 0 0 0 3px ${diseaseAccent}`,
                                 }
-                              : { color: '#334155' }
+                              : { color: "#334155" }
                           }
                         >
                           <Icon size={17} />
@@ -583,10 +627,10 @@ export function AppSidebar() {
                       ) : (
                         <span className="flex min-w-0 flex-1 items-center">
                           <Icon size={17} className="shrink-0" />
-                          <SidebarAnimatedLabel
-                            className="ml-2 flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]"
-                          >
-                            <span className="truncate">{diseaseDisplayName}</span>
+                          <SidebarAnimatedLabel className="ml-2 flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap [--sidebar-label-width:11rem]">
+                            <span className="truncate">
+                              {diseaseDisplayName}
+                            </span>
                           </SidebarAnimatedLabel>
                         </span>
                       )}
@@ -595,8 +639,8 @@ export function AppSidebar() {
                           <CaretDownIcon
                             size={16}
                             className={cn(
-                              'h-4 w-4 flex-none origin-center transition-transform duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]',
-                              isOpen && 'rotate-180',
+                              "h-4 w-4 flex-none origin-center transition-transform duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                              isOpen && "rotate-180",
                             )}
                           />
                         </span>
@@ -606,8 +650,12 @@ export function AppSidebar() {
 
                   return (
                     <SidebarMenuItem key={disease.slug}>
-                      {isCollapsedDesktop ? diseaseMenuButton : (
-                        <SidebarTooltip label={diseaseDisplayName}>{diseaseMenuButton}</SidebarTooltip>
+                      {isCollapsedDesktop ? (
+                        diseaseMenuButton
+                      ) : (
+                        <SidebarTooltip label={diseaseDisplayName}>
+                          {diseaseMenuButton}
+                        </SidebarTooltip>
                       )}
 
                       <AnimatePresence initial={false}>
@@ -616,7 +664,7 @@ export function AppSidebar() {
                             key="submenu"
                             initial={{ height: 0, opacity: 0 }}
                             animate={{
-                              height: 'auto',
+                              height: "auto",
                               opacity: 1,
                               transition: {
                                 height: SIDEBAR_TRANSITION,
@@ -627,21 +675,34 @@ export function AppSidebar() {
                               height: 0,
                               opacity: 0,
                               transition: {
-                                height: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
+                                height: {
+                                  duration: 0.2,
+                                  ease: [0.4, 0, 0.2, 1],
+                                },
                                 opacity: { duration: 0.1 },
                               },
                             }}
-                            style={{ overflow: 'hidden' }}
+                            style={{ overflow: "hidden" }}
                           >
                             <SidebarMenuSub>
                               {CONTROL_LINKS.map((control) => {
                                 const href = `/monitor/${disease.slug}/${control.slug}`;
-                                const isActive = isCurrentDisease && activeControl === control.slug;
+                                const isActive =
+                                  isCurrentDisease &&
+                                  activeControl === control.slug;
 
                                 return (
                                   <SidebarMenuSubItem key={control.slug}>
-                                    <SidebarMenuSubButton asChild isActive={isActive}>
-                                      <Link to={href} onClick={() => isMobile && setOpenMobile(false)}>
+                                    <SidebarMenuSubButton
+                                      asChild
+                                      isActive={isActive}
+                                    >
+                                      <Link
+                                        to={href}
+                                        onClick={() =>
+                                          isMobile && setOpenMobile(false)
+                                        }
+                                      >
                                         {control.label}
                                       </Link>
                                     </SidebarMenuSubButton>
@@ -671,7 +732,7 @@ export function AppSidebar() {
                     <SidebarMenuItem key={route.href}>
                       <SidebarTooltip
                         label={
-                          route.label === 'Violations' && openViolationCount > 0
+                          route.label === "Violations" && openViolationCount > 0
                             ? `${route.label} (${openViolationCount})`
                             : route.label
                         }
@@ -681,14 +742,17 @@ export function AppSidebar() {
                           isActive={isActive}
                           onClick={() => handleSidebarNavigate(route.href)}
                           title={route.label}
-                          className={!open && !isMobile ? 'mx-auto h-10 w-10 rounded-2xl p-0' : undefined}
+                          className={
+                            !open && !isMobile
+                              ? "mx-auto h-10 w-10 rounded-2xl p-0"
+                              : undefined
+                          }
                         >
                           <Icon size={17} className="shrink-0" />
-                          <SidebarAnimatedLabel
-                            className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:8.5rem]"
-                          >
+                          <SidebarAnimatedLabel className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:8.5rem]">
                             <span className="truncate">{route.label}</span>
-                            {route.label === 'Violations' && openViolationCount > 0 ? (
+                            {route.label === "Violations" &&
+                            openViolationCount > 0 ? (
                               <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#dc2626] px-1.5 py-0.5 text-[11px] font-semibold text-white">
                                 {openViolationCount}
                               </span>
@@ -710,7 +774,9 @@ export function AppSidebar() {
           {!open && !isMobile ? (
             <div className="flex justify-center">
               <DropdownMenu modal={false}>
-                <SidebarTooltip label={`${currentUserName} - ${currentUserEmail}`}>
+                <SidebarTooltip
+                  label={`${currentUserName} - ${currentUserEmail}`}
+                >
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
@@ -734,8 +800,12 @@ export function AppSidebar() {
                     {currentUserInitials}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
-                    <p className="mt-0.5 truncate text-[11px] font-medium text-[#64748b]">{currentUserEmail}</p>
+                    <p className="truncate text-[13px] font-semibold text-[#111827]">
+                      {currentUserName}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] font-medium text-[#64748b]">
+                      {currentUserEmail}
+                    </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
@@ -747,7 +817,7 @@ export function AppSidebar() {
         <SidebarRail />
       </Sidebar>
 
-      {typeof document === 'undefined'
+      {typeof document === "undefined"
         ? null
         : createPortal(
             <AnimatePresence initial={false}>
@@ -776,7 +846,7 @@ export function AppSidebar() {
                       left: FLYOUT_LEFT,
                       top: floatingDisease.top,
                       width: FLYOUT_WIDTH,
-                      transformOrigin: 'left center',
+                      transformOrigin: "left center",
                     }}
                     onMouseEnter={clearFlyoutTimers}
                     onMouseLeave={scheduleFloatingDiseaseClose}
@@ -784,7 +854,10 @@ export function AppSidebar() {
                     <div className="flex items-center gap-3 px-3 py-2.5">
                       <span
                         className="inline-flex h-7 min-w-10 items-center justify-center rounded-lg px-2 text-[11px] font-bold tracking-[0.08em] text-white"
-                        style={{ backgroundColor: DISEASE_ACCENTS[floatingDisease.disease.slug] }}
+                        style={{
+                          backgroundColor:
+                            DISEASE_ACCENTS[floatingDisease.disease.slug],
+                        }}
                       >
                         {DISEASE_BADGES[floatingDisease.disease.slug]}
                       </span>
@@ -797,7 +870,8 @@ export function AppSidebar() {
                       {CONTROL_LINKS.map((control) => {
                         const href = `/monitor/${floatingDisease.disease.slug}/${control.slug}`;
                         const isActiveControl =
-                          activeDisease === floatingDisease.disease.slug && activeControl === control.slug;
+                          activeDisease === floatingDisease.disease.slug &&
+                          activeControl === control.slug;
 
                         return (
                           <button
@@ -808,10 +882,10 @@ export function AppSidebar() {
                               closeFloatingDisease();
                             }}
                             className={cn(
-                              'group/flyout flex h-10 w-full items-center justify-between rounded-xl px-3 text-left text-sm font-medium transition-colors',
+                              "group/flyout flex h-10 w-full items-center justify-between rounded-xl px-3 text-left text-sm font-medium transition-colors",
                               isActiveControl
-                                ? 'bg-[#eff6ff] text-[var(--brand-blue)]'
-                                : 'text-[#475569] hover:bg-[#f8fafc] hover:text-[var(--brand-blue)]',
+                                ? "bg-[#eff6ff] text-[var(--brand-blue)]"
+                                : "text-[#475569] hover:bg-[#f8fafc] hover:text-[var(--brand-blue)]",
                             )}
                           >
                             <span>{control.label} Control</span>
