@@ -38,11 +38,11 @@ const QUICK_LOGINS = [
     email: "supervisor@vpdrl.com",
     password: "Super@2025",
   },
-  { label: "Analyst", email: "analyst@vpdrl.com", password: "Analyst@2025" },
+  { label: "Analyst", email: "demoaccount@gmail.com", password: "Analyst@2025" },
 ];
 
 const DEFAULT_DEMO_LOGIN = {
-  email: "analyst@vpdrl.com",
+  email: "demoaccount@gmail.com",
   password: "Analyst@2025",
 };
 
