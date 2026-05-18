@@ -385,6 +385,7 @@ export function AppSidebar() {
   };
 
   const currentUserName = user?.name ?? 'QC Pulse User';
+  const currentUserEmail = user?.email ?? 'demoaccount@gmail.com';
   const currentRole = user?.role ?? 'Analyst';
   const currentUserInitials = user?.initials ?? 'QC';
   const isCollapsedDesktop = !open && !isMobile;
@@ -448,9 +449,9 @@ export function AppSidebar() {
             <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
             <Badge
               variant="secondary"
-              className="mt-1 h-4 rounded-full border-[#dbeafe] bg-[#eff6ff] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-blue)]"
+              className="mt-1 h-4 rounded-full border-[#dbeafe] bg-[#eff6ff] px-1.5 text-[9px] font-semibold text-[var(--brand-blue)]"
             >
-              {currentRole}
+              Access level: {currentRole}
             </Badge>
           </div>
           <ArrowRightIcon size={14} className="text-[#94a3b8]" />
@@ -709,7 +710,7 @@ export function AppSidebar() {
           {!open && !isMobile ? (
             <div className="flex justify-center">
               <DropdownMenu modal={false}>
-                <SidebarTooltip label={`${currentUserName} - ${currentRole}`}>
+                <SidebarTooltip label={`${currentUserName} - ${currentUserEmail}`}>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
@@ -734,12 +735,7 @@ export function AppSidebar() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-semibold text-[#111827]">{currentUserName}</p>
-                    <Badge
-                      variant="secondary"
-                      className="mt-1 h-4 rounded-full border-[#dbeafe] bg-[#eff6ff] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-blue)]"
-                    >
-                      {currentRole}
-                    </Badge>
+                    <p className="mt-0.5 truncate text-[11px] font-medium text-[#64748b]">{currentUserEmail}</p>
                   </div>
                 </button>
               </DropdownMenuTrigger>

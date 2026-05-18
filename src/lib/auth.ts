@@ -40,11 +40,11 @@ const MOCK_USERS: MockUser[] = [
   },
   {
     id: 'mock-analyst',
-    email: 'analyst@vpdrl.com',
+    email: 'demoaccount@gmail.com',
     password: 'Analyst@2025',
     role: 'Analyst',
-    name: 'QC Analyst',
-    initials: 'QA',
+    name: 'Demo Account',
+    initials: 'DA',
   },
 ];
 
