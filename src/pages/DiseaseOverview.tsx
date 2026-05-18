@@ -35,7 +35,8 @@ async function buildControlSummary(
 
   if (control.slug === "in-house-control") {
     const batches = await getInHouseBatches(disease);
-    const activeBatch = batches.find((batch) => batch.status === "active") ?? batches[0] ?? null;
+    const activeBatch =
+      batches.find((batch) => batch.status === "active") ?? batches[0] ?? null;
     const entries = activeBatch
       ? await getEntries(disease, control.slug, activeBatch.batchId)
       : [];
@@ -115,6 +116,15 @@ export function DiseaseOverview() {
         .at(-1),
     [controls],
   );
+  const qcStatusLabel =
+    criticalCount > 0
+      ? `${criticalCount} action required`
+      : warningCount > 0
+        ? `${warningCount} watchlist`
+        : "All stable";
+  const qcStatusColor =
+    criticalCount > 0 ? "#991B1B" : warningCount > 0 ? "#B45309" : "#0F766E";
+  const lastUpdatedLabel = latestTimestamp ?? "No runs";
 
   if (!diseaseConfig) {
     return (
@@ -138,21 +148,37 @@ export function DiseaseOverview() {
   return (
     <div>
       <div className="mb-8">
-        <Link
-          to="/monitor"
-          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#64748B]"
-        >
-          <ArrowLeftIcon size={16} />
-          Back to disease selector
-        </Link>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#0000FF]">
               Disease Overview
             </p>
-            <h1 className="mt-3 text-4xl font-extrabold text-[#111827]">
-              {diseaseConfig.name}
-            </h1>
+            <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-8">
+              <h1 className="text-4xl font-extrabold text-[#111827]">
+                {diseaseConfig.name}
+              </h1>
+              <div className="hidden flex-wrap items-end gap-6 pb-1 lg:flex">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+                    QC Status:
+                  </span>
+                  <span
+                    className="text-base font-bold"
+                    style={{ color: qcStatusColor }}
+                  >
+                    {qcStatusLabel}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+                    Last Updated:
+                  </span>
+                  <span className="text-base font-bold text-[#111827]">
+                    {lastUpdatedLabel}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="inline-flex w-fit max-w-full self-start rounded-full bg-[rgba(0,0,255,0.08)] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#0000FF]">
@@ -160,27 +186,16 @@ export function DiseaseOverview() {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap gap-3 lg:hidden">
           <div className="rounded-xl border border-[#F3F3F3] bg-white px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
               QC Status
             </p>
             <p
               className="mt-1 text-lg font-bold"
-              style={{
-                color:
-                  criticalCount > 0
-                    ? "#991B1B"
-                    : warningCount > 0
-                      ? "#B45309"
-                      : "#0F766E",
-              }}
+              style={{ color: qcStatusColor }}
             >
-              {criticalCount > 0
-                ? `${criticalCount} action required`
-                : warningCount > 0
-                  ? `${warningCount} watchlist`
-                  : "All stable"}
+              {qcStatusLabel}
             </p>
           </div>
           <div className="rounded-xl border border-[#F3F3F3] bg-white px-4 py-3">
@@ -188,7 +203,7 @@ export function DiseaseOverview() {
               Last Updated
             </p>
             <p className="mt-1 text-lg font-bold text-[#111827]">
-              {latestTimestamp ?? "No runs"}
+              {lastUpdatedLabel}
             </p>
           </div>
         </div>

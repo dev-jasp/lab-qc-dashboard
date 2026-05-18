@@ -971,13 +971,13 @@ export default function QCDashboard({
                   value={selectedInHouseBatchId}
                   onValueChange={setSelectedInHouseBatchId}
                 >
-                  <SelectTrigger className="h-11 w-full max-w-md border-[#e5e7eb] bg-white">
+                  <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white sm:w-80">
                     <SelectValue placeholder="Select in-house batch" />
                   </SelectTrigger>
                   <SelectContent>
                     {inHouseBatches.map((batch) => (
                       <SelectItem key={batch.batchId} value={batch.batchId}>
-                        {`${batch.batchId} - ${batch.status === "active" ? "Active" : "Archived"} - ${formatDateLabel(batch.startDate)}`}
+                        {batch.batchId}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -987,13 +987,13 @@ export default function QCDashboard({
                   value={selectedLotNumber}
                   onValueChange={setSelectedLotNumber}
                 >
-                  <SelectTrigger className="h-11 w-full max-w-md border-[#e5e7eb] bg-white">
+                  <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white sm:w-80">
                     <SelectValue placeholder="Select reagent lot" />
                   </SelectTrigger>
                   <SelectContent>
                     {lots.map((lot) => (
                       <SelectItem key={lot.lotNumber} value={lot.lotNumber}>
-                        {`${lot.lotNumber} - ${lot.status === "active" ? "Active" : "Archived"} - ${formatDateLabel(lot.startDate)}`}
+                        {lot.lotNumber}
                       </SelectItem>
                     ))}
                   </SelectContent>
