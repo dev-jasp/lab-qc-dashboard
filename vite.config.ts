@@ -10,4 +10,11 @@ export default defineConfig({
       '@': path.resolve(process.cwd(), 'src'),
     },
   },
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    watch: {
+      usePolling: true,
+    },
+  },
 })
