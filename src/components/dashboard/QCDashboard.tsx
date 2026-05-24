@@ -58,6 +58,7 @@ import { DISEASE_DEFINITIONS } from "@/constants/monitor-config";
 import { useQCLogic } from "@/hooks/useQCLogic";
 import { useToast } from "@/hooks/useToast";
 import { getUser, type AuthUser } from "@/lib/auth";
+import type { ControlTabSlug } from "@/constants/monitor-config";
 import {
   buildRunStatisticsSummary,
   DEFAULT_IN_HOUSE_LOT_NUMBER,
@@ -101,9 +102,7 @@ import { validateODValue } from "@/utils/export";
 interface QCDashboardProps {
   diseaseSlug: DiseaseSlug;
   controlType: ControlTypeSlug;
-  diseaseName: string;
-  controlName: string;
-  assayTag?: string;
+  controlTabSlug: ControlTabSlug;
 }
 
 type NewLotFormValues = {
@@ -422,9 +421,7 @@ function buildSparklinePath(points: { x: number; y: number }[]): string {
 export default function QCDashboard({
   diseaseSlug,
   controlType,
-  diseaseName,
-  controlName,
-  assayTag,
+  controlTabSlug,
 }: QCDashboardProps) {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
@@ -500,7 +497,6 @@ export default function QCDashboard({
     ? selectedInHouseBatchId
     : selectedLotNumber;
   const currentCV = cvTrend.currentCV ?? 0;
-  const chartSubtitle = `${controlName.toUpperCase()} - ${diseaseName.toUpperCase()}${assayTag ? ` - ${assayTag}` : ""}`;
   const minRunsForWestgard = settings.minDataPointsForWestgard;
   const monitorStatus = getMonitorStatus(
     qcRules,
@@ -969,19 +965,7 @@ export default function QCDashboard({
 
   return (
     <div>
-      <motion.div
-        {...getRevealProps(0)}
-        className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
-      >
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">
-            {chartSubtitle}
-          </p>
-          <h1 className="mt-2 text-[28px] font-bold text-[#111827]">{`${diseaseName} ${controlName}`}</h1>
-        </div>
-      </motion.div>
-
-      <motion.div {...getRevealProps(1)} className="qc-card mb-6 p-5">
+      <motion.div {...getRevealProps(0)} className="qc-card mb-6 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
@@ -1071,19 +1055,14 @@ export default function QCDashboard({
       </motion.div>
 
       <motion.div
-        {...getRevealProps(2)}
+        {...getRevealProps(1)}
         className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3"
       >
         <div className="qc-card lg:col-span-2">
           <div className="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#9ca3af]">
-                NEW QC ENTRY
-              </p>
-              <h2 className="mt-3 text-[18px] font-semibold text-[#111827]">
-                Record run details for this dataset
-              </h2>
-            </div>
+            <h2 className="text-[16px] font-semibold text-[#111827]">
+              New QC Entry
+            </h2>
           </div>
 
           {isArchivedDataset && (
@@ -1192,7 +1171,7 @@ export default function QCDashboard({
                     variant="outline"
                     className="h-11 w-full border-[#dbe4ff] text-[#1a1aff]"
                     onClick={() =>
-                      navigate(`/monitor/${nextDisease.slug}/${controlType}`)
+                      navigate(`/monitor/${nextDisease.slug}/${controlTabSlug}`)
                     }
                   >
                     {`Next disease -> ${nextDisease.name}`}
@@ -1235,7 +1214,7 @@ export default function QCDashboard({
       </motion.div>
 
       <motion.div
-        {...getRevealProps(3)}
+        {...getRevealProps(2)}
         className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6"
       >
         {[
@@ -1281,7 +1260,7 @@ export default function QCDashboard({
       </motion.div>
 
       <motion.div
-        {...getRevealProps(4)}
+        {...getRevealProps(3)}
         className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3"
       >
         <div className="lg:col-span-2">
@@ -1429,7 +1408,7 @@ export default function QCDashboard({
         </div>
       </motion.div>
 
-      <motion.div {...getRevealProps(5)} className="qc-card">
+      <motion.div {...getRevealProps(4)} className="qc-card">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-[16px] font-semibold text-[#111827]">
             Recent Control Runs

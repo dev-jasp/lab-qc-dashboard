@@ -12,6 +12,7 @@ import {
   entriesToChartData,
   getControlParameters,
 } from "@/lib/qcMonitor";
+import { controlTypeToTabSlug } from "@/constants/monitor-config";
 import { getEntries, getInHouseBatches, getLots } from "@/lib/qcStorage";
 import type {
   ChartDataPoint,
@@ -225,7 +226,7 @@ export function DiseaseOverview() {
               />
 
               <Link
-                to={`/monitor/${diseaseConfig.slug}/${control.slug}`}
+                to={`/monitor/${diseaseConfig.slug}/${controlTypeToTabSlug(control.slug)}`}
                 className="inline-flex items-center gap-2 text-sm font-bold text-[#0000FF]"
               >
                 Open control monitor
