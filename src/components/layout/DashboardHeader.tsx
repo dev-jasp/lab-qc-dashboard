@@ -2,7 +2,11 @@ import { BellIcon, QuestionIcon } from '@phosphor-icons/react';
 import * as React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { getControlDefinition, getDiseaseDefinition } from '@/constants/monitor-config';
+import {
+  controlTabSlugToType,
+  getControlDefinition,
+  getDiseaseDefinition,
+} from '@/constants/monitor-config';
 import { getAllViolations } from '@/lib/qcStorage';
 
 import {
@@ -25,8 +29,10 @@ function formatControlLabel(slug: string | undefined): string | null {
   if (slug === undefined) {
     return null;
   }
-
-  return getControlDefinition(slug)?.label.toUpperCase() ?? null;
+  const controlTypeSlug = controlTabSlugToType(slug);
+  return controlTypeSlug
+    ? (getControlDefinition(controlTypeSlug)?.label.toUpperCase() ?? null)
+    : null;
 }
 
 function buildSegments(pathname: string): BreadcrumbSegment[] {

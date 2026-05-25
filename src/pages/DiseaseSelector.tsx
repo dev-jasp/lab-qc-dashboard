@@ -165,13 +165,6 @@ export function DiseaseSelector() {
       <motion.div className="mb-10" variants={headerVariants}>
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <motion.p
-              variants={textRevealVariants}
-              className="mb-4 text-xs font-bold uppercase tracking-[0.35em]"
-              style={{ color: "#0000FF" }}
-            >
-              Real-Time Quality Control
-            </motion.p>
             <div className="overflow-hidden pb-1">
               <motion.h1
                 variants={textRevealVariants}

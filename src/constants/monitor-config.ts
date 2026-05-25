@@ -246,6 +246,28 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
   },
 };
 
+export type ControlTabSlug = 'in-house' | 'positive' | 'negative';
+
+const CONTROL_TAB_TO_TYPE: Record<ControlTabSlug, ControlSlug> = {
+  'in-house': 'in-house-control',
+  positive: 'positive-control',
+  negative: 'negative-control',
+};
+
+const CONTROL_TYPE_TO_TAB: Record<ControlSlug, ControlTabSlug> = {
+  'in-house-control': 'in-house',
+  'positive-control': 'positive',
+  'negative-control': 'negative',
+};
+
+export function controlTabSlugToType(slug: string): ControlSlug | null {
+  return (CONTROL_TAB_TO_TYPE as Record<string, ControlSlug>)[slug] ?? null;
+}
+
+export function controlTypeToTabSlug(slug: ControlSlug): ControlTabSlug {
+  return CONTROL_TYPE_TO_TAB[slug];
+}
+
 export const getDiseaseDefinition = (slug: string | undefined): DiseaseDefinition | undefined =>
   DISEASE_DEFINITIONS.find((disease) => disease.slug === slug);
 
