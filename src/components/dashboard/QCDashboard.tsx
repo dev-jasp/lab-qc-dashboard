@@ -3,6 +3,7 @@ import {
   ClockIcon,
   DotsThreeIcon,
   DownloadIcon,
+  DownloadSimpleIcon,
   LockIcon,
   PencilIcon,
   PlusCircleIcon,
@@ -17,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
+import { ExportModal } from "@/components/export/ExportModal";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
 import { QCRulesReferenceCard } from "@/components/panels/QCRulesReferenceCard";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +56,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { DISEASE_DEFINITIONS } from "@/constants/monitor-config";
+import {
+  CONTROL_DEFINITIONS,
+  DISEASE_DEFINITIONS,
+} from "@/constants/monitor-config";
 import { useQCLogic } from "@/hooks/useQCLogic";
 import { useToast } from "@/hooks/useToast";
 import { getUser, type AuthUser } from "@/lib/auth";
@@ -79,6 +84,7 @@ import {
   getViolations,
   updateEntry,
 } from "@/lib/qcStorage";
+import type { PrintableChartDataPoint } from "@/types/export";
 import type {
   AuditEntry,
   ControlTypeSlug,
@@ -457,6 +463,7 @@ export default function QCDashboard({
   );
   const [isStartLotDialogOpen, setIsStartLotDialogOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -545,6 +552,34 @@ export default function QCDashboard({
       ? (DISEASE_DEFINITIONS[diseaseIndex + 1] ?? null)
       : null;
   }, [diseaseSlug]);
+
+  const diseaseDefinition = useMemo(
+    () => DISEASE_DEFINITIONS.find((disease) => disease.slug === diseaseSlug),
+    [diseaseSlug],
+  );
+  const controlDefinition = useMemo(
+    () => CONTROL_DEFINITIONS.find((control) => control.slug === controlType),
+    [controlType],
+  );
+  const printableChartData = useMemo<PrintableChartDataPoint[]>(
+    () =>
+      entries.map((entry, index) => ({
+        date: entry.date,
+        odValue: entry.odValue,
+        protocolNumber: entry.protocolNumber,
+        runIndex: index + 1,
+      })),
+    [entries],
+  );
+  const exportDiseaseLabel = (
+    diseaseDefinition?.name ?? diseaseSlug
+  ).toUpperCase();
+  const exportControlTypeLabel = (
+    controlDefinition?.label ?? controlType
+  ).toUpperCase();
+  const exportControlLabel = getControlCode(controlType);
+  const exportLotNumber = isInHouseControl ? undefined : selectedLotNumber;
+  const exportYear = new Date().getFullYear();
 
   useEffect(() => {
     let isCancelled = false;
@@ -1325,21 +1360,34 @@ export default function QCDashboard({
             title="Levey-Jennings Quality Control Chart"
             height={440}
             headerActions={
-              canEditEntries ? (
+              <div className="flex items-center gap-2">
+                {canEditEntries && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-[#dbe4ff] text-[#1f3d87]"
+                    onClick={() => setIsEditSheetOpen(true)}
+                    disabled={isArchivedDataset}
+                  >
+                    <PencilIcon size={14} />
+                    Edit entries
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="border-[#dbe4ff] text-[#1f3d87]"
-                  onClick={() => setIsEditSheetOpen(true)}
-                  disabled={isArchivedDataset}
+                  onClick={() => setIsExportModalOpen(true)}
+                  disabled={entries.length === 0}
                 >
-                  <PencilIcon size={14} />
-                  Edit entries
+                  <DownloadSimpleIcon size={15} />
+                  Export / Print
                 </Button>
-              ) : null
+              </div>
             }
-            badgeLabel={`total runs: ${runStatistics.totalRuns}`}
+            showBadge={false}
             showChartTitle={false}
           />
         </div>
@@ -1818,6 +1866,21 @@ export default function QCDashboard({
           onSave={handleSaveEditedEntry}
         />
       )}
+
+      <ExportModal
+        open={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        disease={exportDiseaseLabel}
+        controlType={exportControlTypeLabel}
+        controlLabel={exportControlLabel}
+        year={exportYear}
+        mean={runStatistics.mean}
+        sd={runStatistics.sd}
+        cv={runStatistics.cv}
+        totalRuns={runStatistics.totalRuns}
+        lotNumber={exportLotNumber}
+        chartData={printableChartData}
+      />
 
       {isLoading && (
         <div className="mt-4 text-sm text-[#6b7280]">Refreshing dataset...</div>

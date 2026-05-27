@@ -195,6 +195,7 @@ export interface LeveyJenningsChartProps {
   title?: string;
   height?: number;
   badgeLabel?: string;
+  showBadge?: boolean;
   headerActions?: React.ReactNode;
   showChartTitle?: boolean;
   variant?: 'card' | 'plain';
