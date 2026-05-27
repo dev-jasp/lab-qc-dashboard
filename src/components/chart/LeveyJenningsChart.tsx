@@ -25,13 +25,14 @@ ChartJS.register(
   Legend
 );
 
-const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({ 
-  data, 
-  statistics, 
+const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
+  data,
+  statistics,
   parameters,
   title = 'Levey-Jennings Quality Control Chart',
   height = 550,
   badgeLabel,
+  showBadge = true,
   headerActions,
   showChartTitle = true,
   variant = 'card',
@@ -97,9 +98,11 @@ const LeveyJenningsChart: React.FC<LeveyJenningsChartProps> = ({
         <h3 className="min-w-0 flex-1 text-[16px] font-semibold leading-snug text-[#111827]">{title}</h3>
         <div className="flex items-center gap-2">
           {headerActions}
-          <div className="shrink-0 whitespace-nowrap rounded-full bg-[#f3f4f6] px-3 py-1 text-[11px] text-[#6b7280] sm:px-4 sm:py-1.5 sm:text-xs">
-            {resolvedBadgeLabel}
-          </div>
+          {showBadge && (
+            <div className="shrink-0 whitespace-nowrap rounded-full bg-[#f3f4f6] px-3 py-1 text-[11px] text-[#6b7280] sm:px-4 sm:py-1.5 sm:text-xs">
+              {resolvedBadgeLabel}
+            </div>
+          )}
         </div>
       </div>
       <div style={{ height: `${resolvedHeight}px`, position: 'relative' }}>
