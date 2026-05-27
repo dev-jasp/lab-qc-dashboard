@@ -105,7 +105,7 @@ export function Help() {
         onValueChange={handleTabChange}
         className="space-y-5"
       >
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 border-0 bg-transparent p-0 shadow-none">
           <TabsTrigger
             value="all"
             className="h-9 flex-none rounded-full border-[#dbe3ef] bg-white px-4 text-[#374151] data-active:border-[#1a1aff] data-active:bg-[#eef2ff] data-active:text-[#1a1aff]"

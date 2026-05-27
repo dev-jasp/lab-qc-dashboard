@@ -55,6 +55,7 @@ export function buildSeedEntries(disease: DiseaseSlug, controlType: ControlTypeS
     controlCode,
     runNumber: String(index + 1).padStart(2, '0'),
     vialNumber: `V${String(index + 1).padStart(2, '0')}`,
+    performedBy: null,
     flag: null,
     notes: null,
     editedAt: null,

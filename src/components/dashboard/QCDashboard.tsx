@@ -138,6 +138,10 @@ const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
 };
 
 const MONITOR_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
+const ENTRY_FIELD_CLASS_NAME =
+  "h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]";
+const DATE_FIELD_CLASS_NAME =
+  "h-11 border-[#e5e7eb] bg-white text-[#111827] hover:bg-[#f8fafc]";
 
 function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -149,6 +153,7 @@ function createDefaultEntryForm(): EntryFormValues {
     odValue: "",
     protocolNumber: "",
     remarks: "",
+    performedBy: "",
   };
 }
 
@@ -206,6 +211,10 @@ function formatDateTimeLabel(value: string | null): string {
 
   const resolvedValue = value.includes("T") ? value : `${value}T08:00:00`;
   return format(new Date(resolvedValue), "MMM dd, hh:mm a");
+}
+
+function formatPerformedBy(value: string | null): string {
+  return value?.trim() ? value : "Not recorded";
 }
 
 function getEntryTimestamp(entry: QCEntry): string {
@@ -661,6 +670,11 @@ export default function QCDashboard({
       return;
     }
 
+    if (!formValues.performedBy.trim()) {
+      error("Performed by is required.");
+      return;
+    }
+
     if (!datasetLotNumber) {
       error(
         isInHouseControl
@@ -686,6 +700,7 @@ export default function QCDashboard({
       controlCode: getControlCode(controlType),
       runNumber: String(entries.length + 1).padStart(2, "0"),
       vialNumber: `V${String(entries.length + 1).padStart(2, "0")}`,
+      performedBy: formValues.performedBy.trim(),
       flag: null,
       notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
       editedAt: null,
@@ -978,7 +993,22 @@ export default function QCDashboard({
                   onValueChange={setSelectedInHouseBatchId}
                 >
                   <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white sm:w-80">
-                    <SelectValue placeholder="Select in-house batch" />
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <SelectValue placeholder="Select in-house batch" />
+                      {selectedInHouseBatch && (
+                        <Badge
+                          className={
+                            selectedInHouseBatch.status === "active"
+                              ? "h-6 bg-[#dcfce7] px-2.5 text-[#16a34a]"
+                              : "h-6 bg-[#f3f4f6] px-2.5 text-[#6b7280]"
+                          }
+                        >
+                          {selectedInHouseBatch.status === "active"
+                            ? "Active"
+                            : "Archived"}
+                        </Badge>
+                      )}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {inHouseBatches.map((batch) => (
@@ -994,7 +1024,22 @@ export default function QCDashboard({
                   onValueChange={setSelectedLotNumber}
                 >
                   <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white sm:w-80">
-                    <SelectValue placeholder="Select reagent lot" />
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <SelectValue placeholder="Select reagent lot" />
+                      {selectedLot && (
+                        <Badge
+                          className={
+                            selectedLot.status === "active"
+                              ? "h-6 bg-[#dcfce7] px-2.5 text-[#16a34a]"
+                              : "h-6 bg-[#f3f4f6] px-2.5 text-[#6b7280]"
+                          }
+                        >
+                          {selectedLot.status === "active"
+                            ? "Active"
+                            : "Archived"}
+                        </Badge>
+                      )}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {lots.map((lot) => (
@@ -1007,18 +1052,7 @@ export default function QCDashboard({
               )}
 
               {isInHouseControl && selectedInHouseBatch && (
-                <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                  <Badge
-                    className={
-                      selectedInHouseBatch.status === "active"
-                        ? "bg-[#dcfce7] text-[#16a34a]"
-                        : "bg-[#f3f4f6] text-[#6b7280]"
-                    }
-                  >
-                    {selectedInHouseBatch.status === "active"
-                      ? "Active"
-                      : "Archived"}
-                  </Badge>
+                <div className="text-sm text-[#6b7280]">
                   <span>
                     Started {formatDateLabel(selectedInHouseBatch.startDate)}
                   </span>
@@ -1026,16 +1060,7 @@ export default function QCDashboard({
               )}
 
               {!isInHouseControl && selectedLot && (
-                <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                  <Badge
-                    className={
-                      selectedLot.status === "active"
-                        ? "bg-[#dcfce7] text-[#16a34a]"
-                        : "bg-[#f3f4f6] text-[#6b7280]"
-                    }
-                  >
-                    {selectedLot.status === "active" ? "Active" : "Archived"}
-                  </Badge>
+                <div className="text-sm text-[#6b7280]">
                   <span>Started {formatDateLabel(selectedLot.startDate)}</span>
                 </div>
               )}
@@ -1090,7 +1115,7 @@ export default function QCDashboard({
                   onChange={(value) => handleFieldChange("date", value)}
                   disabled={isArchivedDataset}
                   displayFormat={settings.dateFormat}
-                  className="h-11 border-[#e5e7eb] bg-white text-[#111827] hover:bg-[#f8fafc]"
+                  className={DATE_FIELD_CLASS_NAME}
                 />
               </div>
 
@@ -1107,7 +1132,7 @@ export default function QCDashboard({
                   onChange={(event) =>
                     handleFieldChange("odValue", event.target.value)
                   }
-                  className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
+                  className={ENTRY_FIELD_CLASS_NAME}
                 />
                 {liveZScore !== null && (
                   <p
@@ -1130,12 +1155,12 @@ export default function QCDashboard({
                   onChange={(event) =>
                     handleFieldChange("protocolNumber", event.target.value)
                   }
-                  className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
+                  className={ENTRY_FIELD_CLASS_NAME}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)]">
               <div className="space-y-2">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   Remarks
@@ -1148,7 +1173,22 @@ export default function QCDashboard({
                   onChange={(event) =>
                     handleFieldChange("remarks", event.target.value)
                   }
-                  className="h-11 border-[#e5e7eb] bg-white px-3 text-[#111827]"
+                  className={ENTRY_FIELD_CLASS_NAME}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                  PERFORMED BY
+                </label>
+                <Input
+                  placeholder="e.g. J. Santos"
+                  value={formValues.performedBy}
+                  disabled={isArchivedDataset}
+                  onChange={(event) =>
+                    handleFieldChange("performedBy", event.target.value)
+                  }
+                  className={ENTRY_FIELD_CLASS_NAME}
                 />
               </div>
 
@@ -1215,48 +1255,62 @@ export default function QCDashboard({
 
       <motion.div
         {...getRevealProps(2)}
-        className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6"
+        className="qc-card mb-6 px-5 py-4"
       >
-        {[
-          {
-            label: "MEAN",
-            value: runStatistics.mean.toFixed(3),
-          },
-          { label: "SD", value: runStatistics.sd.toFixed(3) },
-          {
-            label: "SUM",
-            value: runStatistics.sum.toFixed(3),
-          },
-          {
-            label: "CV %",
-            value: `${runStatistics.cv.toFixed(2)}%`,
-          },
-          {
-            label: "CONFIDENCE",
-            value: `${runStatistics.confidence.toFixed(0)}%`,
-          },
-          {
-            label: "LAST OD",
-            value:
-              runStatistics.lastOD === null
-                ? "-"
-                : runStatistics.lastOD.toFixed(4),
-          },
-        ].map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-[12px] border border-[#f0f0f0] bg-white px-5 py-4 shadow-[0_4px_12px_rgba(15,23,42,0.04)]"
-            >
-              <div className="flex items-start justify-between gap-3">
+        <div className="mb-3">
+          <h2 className="text-[16px] font-semibold text-[#111827]">
+            Run Statistics
+          </h2>
+        </div>
+
+        <div className="overflow-hidden rounded-lg bg-white">
+          <div className="grid w-full grid-cols-2 justify-items-center md:grid-cols-3 xl:grid-cols-6">
+            {[
+              {
+                label: "MEAN",
+                value: runStatistics.mean.toFixed(3),
+              },
+              { label: "SD", value: runStatistics.sd.toFixed(3) },
+              {
+                label: "SUM",
+                value: runStatistics.sum.toFixed(3),
+              },
+              {
+                label: "CONFIDENCE",
+                value: `${runStatistics.confidence.toFixed(0)}%`,
+              },
+              {
+                label: "CV %",
+                value: `${runStatistics.cv.toFixed(2)}%`,
+                isEmphasized: true,
+              },
+              {
+                label: "LAST OD",
+                value:
+                  runStatistics.lastOD === null
+                    ? "-"
+                    : runStatistics.lastOD.toFixed(4),
+                isEmphasized: true,
+              },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="min-w-0 py-1 text-left"
+              >
                 <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
                   {stat.label}
                 </p>
+                <p
+                  className={`mt-2 text-[22px] font-bold leading-none ${
+                    stat.isEmphasized ? "text-[#1a1aff]" : "text-[#111827]"
+                  }`}
+                >
+                  {stat.value}
+                </p>
               </div>
-              <p className="mt-5 text-[22px] font-bold text-[#111827]">
-                {stat.value}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
       </motion.div>
 
       <motion.div
@@ -1434,6 +1488,9 @@ export default function QCDashboard({
               <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
                 Status
               </TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                Performed By
+              </TableHead>
               <TableHead className="h-12 text-right text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
                 Action
               </TableHead>
@@ -1495,6 +1552,9 @@ export default function QCDashboard({
                       />
                       {zScoreMeta.status}
                     </div>
+                  </TableCell>
+                  <TableCell className="py-4 text-[14px] text-[#374151]">
+                    {formatPerformedBy(entry.performedBy)}
                   </TableCell>
                   <TableCell className="py-4 text-right">
                     <DropdownMenu>
@@ -1717,6 +1777,14 @@ export default function QCDashboard({
                 </p>
                 <p className="mt-1 text-sm font-medium text-[#111827]">
                   {selectedEntry.protocolNumber}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  Performed By
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#111827]">
+                  {formatPerformedBy(selectedEntry.performedBy)}
                 </p>
               </div>
               <div>

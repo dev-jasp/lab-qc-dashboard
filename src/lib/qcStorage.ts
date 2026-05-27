@@ -114,6 +114,7 @@ function isQCEntry(value: unknown): value is QCEntry {
     isString(value.controlCode) &&
     isString(value.runNumber) &&
     isString(value.vialNumber) &&
+    (!('performedBy' in value) || isNullableString(value.performedBy)) &&
     (value.flag === null || (isString(value.flag) && ENTRY_FLAGS.has(value.flag))) &&
     isNullableString(value.notes) &&
     isNullableString(value.editedAt) &&
@@ -121,6 +122,13 @@ function isQCEntry(value: unknown): value is QCEntry {
     isNullableString(value.signedBy) &&
     isNullableString(value.signedAt)
   );
+}
+
+function normalizeQCEntry(entry: QCEntry): QCEntry {
+  return {
+    ...entry,
+    performedBy: entry.performedBy ?? null,
+  };
 }
 
 function isLotMetadata(value: unknown): value is LotMetadata {
@@ -557,7 +565,7 @@ function readEntries(key: string): QCEntry[] {
     throw new Error(`Stored entries for "${key}" are malformed.`);
   }
 
-  return entries;
+  return entries.map(normalizeQCEntry);
 }
 
 function readLots(key: string): LotMetadata[] {
