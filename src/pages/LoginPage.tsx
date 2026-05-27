@@ -190,7 +190,7 @@ export default function LoginPage() {
             initial={{ opacity: 0, x: -24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.55, ease: MOTION_EASE }}
-            className="mx-auto w-full max-w-[500px] rounded-2xl border border-sky-200/80 bg-white px-6 py-7 shadow-[0_24px_70px_rgba(14,165,233,0.11)] sm:px-7 lg:px-8"
+            className="mx-auto w-full max-w-[500px] rounded-2xl border border-sky-200/80 bg-white px-6 py-7  sm:px-7 lg:px-8"
           >
             <motion.div
               initial={{ opacity: 0, y: 12 }}

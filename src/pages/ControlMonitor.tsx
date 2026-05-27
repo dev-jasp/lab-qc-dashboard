@@ -35,17 +35,18 @@ export function ControlMonitor() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[28px] font-bold text-[#111827]">
+            {`${diseaseConfig.name} ${controlConfig.label}`}
+          </h1>
           <p className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">
             {chartSubtitle}
           </p>
-          <h1 className="mt-2 text-[28px] font-bold text-[#111827]">
-            {`${diseaseConfig.name} ${controlConfig.label}`}
-          </h1>
         </div>
 
         <Tabs
           value={tabSlug}
+          className="lg:items-end"
           onValueChange={(value) =>
             navigate(`/monitor/${diseaseConfig.slug}/${value}`)
           }

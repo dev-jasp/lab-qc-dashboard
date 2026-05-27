@@ -91,6 +91,7 @@ export type QCEntry = {
   controlCode: string;
   runNumber: string;
   vialNumber: string;
+  performedBy: string | null;
   flag: QCEntryFlag | null;
   notes: string | null;
   editedAt: string | null;
@@ -104,6 +105,7 @@ export type EntryFormValues = {
   odValue: string;
   protocolNumber: string;
   remarks: string;
+  performedBy: string;
 };
 
 export type LotMetadata = {
