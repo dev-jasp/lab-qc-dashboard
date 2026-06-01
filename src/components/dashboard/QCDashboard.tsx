@@ -1034,8 +1034,8 @@ export default function QCDashboard({
                         <Badge
                           className={
                             selectedInHouseBatch.status === "active"
-                              ? "h-6 bg-[#dcfce7] px-2.5 text-[#16a34a]"
-                              : "h-6 bg-[#f3f4f6] px-2.5 text-[#6b7280]"
+                              ? "h-5 bg-[#dcfce7] px-2.5 text-[#16a34a]"
+                              : "h-5 bg-[#f3f4f6] px-2.5 text-[#6b7280]"
                           }
                         >
                           {selectedInHouseBatch.status === "active"
@@ -1065,8 +1065,8 @@ export default function QCDashboard({
                         <Badge
                           className={
                             selectedLot.status === "active"
-                              ? "h-6 bg-[#dcfce7] px-2.5 text-[#16a34a]"
-                              : "h-6 bg-[#f3f4f6] px-2.5 text-[#6b7280]"
+                              ? "h-5 bg-[#dcfce7] px-2.5 text-[#16a34a]"
+                              : "h-5 bg-[#f3f4f6] px-2.5 text-[#6b7280]"
                           }
                         >
                           {selectedLot.status === "active"
@@ -1195,7 +1195,7 @@ export default function QCDashboard({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)]">
               <div className="space-y-2">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   Remarks
@@ -1227,7 +1227,7 @@ export default function QCDashboard({
                 />
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end md:col-span-2 xl:col-span-1">
                 <Button
                   type="submit"
                   disabled={isArchivedDataset || isSubmitting}

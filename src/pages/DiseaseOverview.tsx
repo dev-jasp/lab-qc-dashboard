@@ -151,7 +151,7 @@ export function DiseaseOverview() {
       <div className="mb-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#0000FF]">
+            <p className="text-xs font-bold uppercase tracking-[0.20em] text-[#0000FF]">
               Disease Overview
             </p>
             <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-8">
@@ -160,18 +160,18 @@ export function DiseaseOverview() {
               </h1>
               <div className="hidden flex-wrap items-end gap-6 pb-1 lg:flex">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+                  <span className="text-[11px] lg:text-[13px] font-bold uppercase tracking-[0.20em] text-[#64748B]">
                     QC Status:
                   </span>
                   <span
-                    className="text-base font-bold"
+                    className="text-base  font-bold"
                     style={{ color: qcStatusColor }}
                   >
                     {qcStatusLabel}
                   </span>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+                  <span className="text-[11px] font-bold lg:text-[13px] uppercase tracking-[0.20em] text-[#64748B]">
                     Last Updated:
                   </span>
                   <span className="text-base font-bold text-[#111827]">
