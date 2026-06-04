@@ -1114,11 +1114,11 @@ export default function QCDashboard({
         </div>
       </motion.div>
 
-      <motion.div
-        {...getRevealProps(1)}
-        className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3"
-      >
-        <div className="qc-card lg:col-span-2">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <motion.div
+          {...getRevealProps(3)}
+          className="qc-card order-1 lg:order-3 lg:col-span-1"
+        >
           <div className="mb-6 flex items-start justify-between gap-4">
             <h2 className="text-[16px] font-semibold text-[#111827]">
               New QC Entry
@@ -1140,8 +1140,8 @@ export default function QCDashboard({
             }}
             className="space-y-4"
           >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-2">
+              <div className="space-y-2 lg:order-1">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   Date
                 </label>
@@ -1154,7 +1154,7 @@ export default function QCDashboard({
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 lg:order-3 lg:col-span-2">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   OD Value (ABS)
                 </label>
@@ -1179,7 +1179,7 @@ export default function QCDashboard({
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 lg:order-2">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   Protocol No.
                 </label>
@@ -1195,12 +1195,12 @@ export default function QCDashboard({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-1">
               <div className="space-y-2">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   Remarks
                 </label>
-                <Input
+                <Textarea
                   placeholder="Optional remarks"
                   value={formValues.remarks}
                   disabled={isArchivedDataset}
@@ -1208,7 +1208,7 @@ export default function QCDashboard({
                   onChange={(event) =>
                     handleFieldChange("remarks", event.target.value)
                   }
-                  className={ENTRY_FIELD_CLASS_NAME}
+                  className="min-h-[4.75rem] resize-none border-[#e5e7eb] bg-white px-3 py-2 text-[#111827]"
                 />
               </div>
 
@@ -1227,7 +1227,7 @@ export default function QCDashboard({
                 />
               </div>
 
-              <div className="flex items-end md:col-span-2 xl:col-span-1">
+              <div className="flex items-end md:col-span-2 lg:col-span-1 xl:col-span-1">
                 <Button
                   type="submit"
                   disabled={isArchivedDataset || isSubmitting}
@@ -1259,100 +1259,98 @@ export default function QCDashboard({
               </div>
             )}
           </form>
-        </div>
+        </motion.div>
 
-        <div className="qc-card flex flex-col">
-          <div className="mb-8 flex items-start justify-between gap-4">
+        <motion.div
+          {...getRevealProps(1)}
+          className="qc-card order-2 px-5 py-4 lg:order-1 lg:col-span-3"
+        >
+          <div className="mb-5 flex items-start justify-between gap-4">
             <h2 className="text-[16px] font-semibold text-[#111827]">
-              System Health
+              System Health and Run Statistics
             </h2>
           </div>
 
-          <div className="flex flex-1 items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-              <div
-                className={`flex h-16 w-16 items-center justify-center rounded-full border-4 ${monitorStatusMeta.ringClassName}`}
-              >
-                <MonitorStatusIcon size={26} />
+          <div className="grid gap-6 lg:grid-cols-[minmax(15rem,0.75fr)_minmax(0,2.25fr)]">
+            <div className="flex flex-col lg:border-r lg:border-[#e5e7eb] lg:pr-6">
+              <div className="flex flex-1 items-center justify-center lg:justify-start">
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 ${monitorStatusMeta.ringClassName}`}
+                  >
+                    <MonitorStatusIcon size={26} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[28px] font-bold text-[#111827]">
+                      {monitorStatusMeta.healthLabel}
+                    </p>
+                    <p className="text-[13px] text-[#6b7280]">
+                      {`Last entry validated: ${entries.length > 0 ? formatDateTimeLabel(getEntryTimestamp(entries[entries.length - 1])) : "No entries yet"}`}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-[28px] font-bold text-[#111827]">
-                  {monitorStatusMeta.healthLabel}
-                </p>
-                <p className="text-[13px] text-[#6b7280]">
-                  {`Last entry validated: ${entries.length > 0 ? formatDateTimeLabel(getEntryTimestamp(entries[entries.length - 1])) : "No entries yet"}`}
-                </p>
+            </div>
+
+            <div className="min-w-0">
+              <div className="overflow-hidden rounded-lg bg-white">
+                <div className="grid w-full grid-cols-2 justify-items-center md:grid-cols-3 xl:grid-cols-6">
+                  {[
+                    {
+                      label: "MEAN",
+                      value: runStatistics.mean.toFixed(3),
+                    },
+                    { label: "SD", value: runStatistics.sd.toFixed(3) },
+                    {
+                      label: "SUM",
+                      value: runStatistics.sum.toFixed(3),
+                    },
+                    {
+                      label: "CONFIDENCE",
+                      value: `${runStatistics.confidence.toFixed(0)}%`,
+                    },
+                    {
+                      label: "CV %",
+                      value: `${runStatistics.cv.toFixed(2)}%`,
+                      isEmphasized: true,
+                    },
+                    {
+                      label: "LAST OD",
+                      value:
+                        runStatistics.lastOD === null
+                          ? "-"
+                          : runStatistics.lastOD.toFixed(4),
+                      isEmphasized: true,
+                    },
+                  ].map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="min-w-0 py-1 text-left xl:border-l xl:border-[#e5e7eb] xl:first:border-l-0 xl:pl-5 xl:first:pl-0"
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                        {stat.label}
+                      </p>
+                      <p
+                        className={`mt-2 text-[22px] font-bold leading-none ${
+                          stat.isEmphasized
+                            ? "text-[#1a1aff]"
+                            : "text-[#111827]"
+                        }`}
+                      >
+                        {stat.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      <motion.div
-        {...getRevealProps(2)}
-        className="qc-card mb-6 px-5 py-4"
-      >
-        <div className="mb-3">
-          <h2 className="text-[16px] font-semibold text-[#111827]">
-            Run Statistics
-          </h2>
-        </div>
-
-        <div className="overflow-hidden rounded-lg bg-white">
-          <div className="grid w-full grid-cols-2 justify-items-center md:grid-cols-3 xl:grid-cols-6">
-            {[
-              {
-                label: "MEAN",
-                value: runStatistics.mean.toFixed(3),
-              },
-              { label: "SD", value: runStatistics.sd.toFixed(3) },
-              {
-                label: "SUM",
-                value: runStatistics.sum.toFixed(3),
-              },
-              {
-                label: "CONFIDENCE",
-                value: `${runStatistics.confidence.toFixed(0)}%`,
-              },
-              {
-                label: "CV %",
-                value: `${runStatistics.cv.toFixed(2)}%`,
-                isEmphasized: true,
-              },
-              {
-                label: "LAST OD",
-                value:
-                  runStatistics.lastOD === null
-                    ? "-"
-                    : runStatistics.lastOD.toFixed(4),
-                isEmphasized: true,
-              },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="min-w-0 py-1 text-left"
-              >
-                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
-                  {stat.label}
-                </p>
-                <p
-                  className={`mt-2 text-[22px] font-bold leading-none ${
-                    stat.isEmphasized ? "text-[#1a1aff]" : "text-[#111827]"
-                  }`}
-                >
-                  {stat.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        {...getRevealProps(3)}
-        className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3"
-      >
-        <div className="lg:col-span-2">
+        <motion.div
+          {...getRevealProps(3)}
+          className="order-3 lg:order-2 lg:col-span-2"
+        >
           <LeveyJenningsChart
             data={chartData}
             statistics={statistics}
@@ -1390,9 +1388,12 @@ export default function QCDashboard({
             showBadge={false}
             showChartTitle={false}
           />
-        </div>
+        </motion.div>
 
-        <div className="flex flex-col gap-6 lg:col-span-1">
+        <motion.div
+          {...getRevealProps(5)}
+          className="order-4 flex flex-col gap-6 lg:order-5 lg:col-span-1"
+        >
           <div className="qc-card">
             <div className="mb-4 flex items-start justify-between gap-3">
               <h3 className="text-[15px] font-semibold text-[#111827]">
@@ -1507,10 +1508,12 @@ export default function QCDashboard({
               View Rule Logs
             </Button>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      <motion.div {...getRevealProps(4)} className="qc-card">
+        <motion.div
+          {...getRevealProps(4)}
+          className="qc-card order-5 lg:order-4 lg:col-span-2"
+        >
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-[16px] font-semibold text-[#111827]">
             Recent Control Runs
@@ -1656,7 +1659,8 @@ export default function QCDashboard({
             View All Analysis History
           </button>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       <QCRulesReferenceCard
         className="mt-6"
