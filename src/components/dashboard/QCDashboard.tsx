@@ -1120,18 +1120,26 @@ export default function QCDashboard({
           className="qc-card order-1 lg:order-3 lg:col-span-1"
         >
           <div className="mb-6 flex items-start justify-between gap-4">
-            <h2 className="text-[16px] font-semibold text-[#111827]">
-              New QC Entry
-            </h2>
-          </div>
-
-          {isArchivedDataset && (
-            <div className="mb-5 rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-4 py-3 text-sm text-[#6b7280]">
-              {isInHouseControl
-                ? "This archived in-house batch is read-only. Select the active batch or start a new batch to continue recording."
-                : "This archived lot is read-only. Select an active lot or start a new lot to continue recording."}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-[16px] font-semibold text-[#111827]">
+                  New QC Entry
+                </h2>
+                {isArchivedDataset && (
+                  <Badge className="h-5 shrink-0 bg-[#f3f4f6] px-2.5 text-[#6b7280]">
+                    Read-only
+                  </Badge>
+                )}
+              </div>
+              {isArchivedDataset && (
+                <p className="mt-1 text-[12px] text-[#6b7280]">
+                  {isInHouseControl
+                    ? "Select the active batch or start a new batch to continue recording."
+                    : "Select an active lot or start a new lot to continue recording."}
+                </p>
+              )}
             </div>
-          )}
+          </div>
 
           <form
             onSubmit={(event) => {
