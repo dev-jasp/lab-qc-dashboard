@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS: QCSettings = {
   recentLogsCount: 10,
   chartTheme: 'light',
   defaultChartView: 'daily',
+  lotExpiryWarningDays: 30,
 };
 
 type StoredBackup = Record<string, unknown>;
@@ -240,7 +241,8 @@ function isQCSettings(value: unknown): value is QCSettings {
     isString(value.chartTheme) &&
     CHART_THEMES.has(value.chartTheme) &&
     isString(value.defaultChartView) &&
-    CHART_VIEWS.has(value.defaultChartView)
+    CHART_VIEWS.has(value.defaultChartView) &&
+    isNumber(value.lotExpiryWarningDays)
   );
 }
 
@@ -775,7 +777,9 @@ function ensureBackupPayload(value: unknown): StoredBackup {
     }
 
     if (key === SETTINGS_KEY) {
-      if (!isQCSettings(storedValue)) {
+      // Same defaults-merge as getSettings, so a backup taken before a settings
+      // field existed still restores instead of being rejected outright.
+      if (!isRecord(storedValue) || !isQCSettings({ ...DEFAULT_SETTINGS, ...storedValue })) {
         throw new Error('Backup settings payload is malformed.');
       }
       continue;
@@ -1126,6 +1130,41 @@ export async function createInHouseBatch(disease: string, batch: InHouseBatchMet
 }
 
 /**
+ * Archives an in-house batch without deleting any QC entries stored under it.
+ *
+ * @param disease Disease slug that owns the in-house batches.
+ * @param batchId Batch identifier to archive.
+ * @throws {Error} When the batch does not exist.
+ */
+export async function archiveInHouseBatch(disease: string, batchId: string): Promise<void> {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  const safeBatchId = requireNonEmptyString(batchId, 'Batch ID');
+
+  ensureInHouseBatchRegistry(safeDisease);
+
+  const batchesKey = buildInHouseBatchesKey(safeDisease);
+  const batches = readInHouseBatches(batchesKey);
+  const targetBatch = batches.find((batch) => batch.batchId === safeBatchId);
+
+  if (targetBatch === undefined) {
+    throw new Error(`In-house batch "${safeBatchId}" does not exist for ${safeDisease}.`);
+  }
+
+  setKey(
+    batchesKey,
+    batches.map((batch) =>
+      batch.batchId === safeBatchId
+        ? {
+            ...batch,
+            status: 'archived' as const,
+            endDate: getTodayIsoDate(),
+          }
+        : batch,
+    ),
+  );
+}
+
+/**
  * Seeds lot metadata only when no lot registry exists for the control yet.
  *
  * @param disease Disease slug that owns the lots.
@@ -1391,11 +1430,26 @@ export async function getSettings(): Promise<QCSettings> {
     return structuredClone(DEFAULT_SETTINGS);
   }
 
-  if (!isQCSettings(settings)) {
+  if (!isRecord(settings)) {
     throw new Error('Stored QC settings are malformed.');
   }
 
-  return settings;
+  // Records written before a settings field existed are missing that key. Filling
+  // from defaults before validating keeps older installs loading instead of
+  // throwing, and self-heals the stored record so the gap closes permanently.
+  const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+
+  if (!isQCSettings(mergedSettings)) {
+    throw new Error('Stored QC settings are malformed.');
+  }
+
+  const hasMissingKeys = Object.keys(DEFAULT_SETTINGS).some((key) => !(key in settings));
+
+  if (hasMissingKeys) {
+    setKey(SETTINGS_KEY, mergedSettings);
+  }
+
+  return mergedSettings;
 }
 
 /**

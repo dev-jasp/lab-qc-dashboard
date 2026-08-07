@@ -36,6 +36,11 @@ export type ExportStream = {
   partitionId: string;
   partitionStatus: 'active' | 'archived';
   startDate: string;
+  /** Archival date, or null while the lot/batch is still active. */
+  endDate: string | null;
+  /** Reagent expiry. Always null for in-house batches, which have no expiry. */
+  expiryDate: string | null;
+  notes: string | null;
   entries: QCEntry[];
   runCount: number;
   lastRunDate: string | null;
@@ -70,17 +75,35 @@ function getLastRunDate(entries: QCEntry[]): string | null {
   return entries.length > 0 ? entries[entries.length - 1].date : null;
 }
 
-function buildStream(
-  disease: DiseaseSlug,
-  diseaseName: string,
-  assayTag: string,
-  controlType: ControlTypeSlug,
-  partitionKind: 'lot' | 'batch',
-  partitionId: string,
-  partitionStatus: 'active' | 'archived',
-  startDate: string,
-  entries: QCEntry[],
-): ExportStream {
+type StreamInput = {
+  disease: DiseaseSlug;
+  diseaseName: string;
+  assayTag: string;
+  controlType: ControlTypeSlug;
+  partitionKind: 'lot' | 'batch';
+  partitionId: string;
+  partitionStatus: 'active' | 'archived';
+  startDate: string;
+  endDate: string | null;
+  expiryDate: string | null;
+  notes: string | null;
+  entries: QCEntry[];
+};
+
+function buildStream({
+  disease,
+  diseaseName,
+  assayTag,
+  controlType,
+  partitionKind,
+  partitionId,
+  partitionStatus,
+  startDate,
+  endDate,
+  expiryDate,
+  notes,
+  entries,
+}: StreamInput): ExportStream {
   const controlDefinition = getControlDefinition(controlType);
   const sortedEntries = sortEntriesByDate(entries);
   const statistics = calculateStatistics(entriesToChartData(sortedEntries));
@@ -97,6 +120,9 @@ function buildStream(
     partitionId,
     partitionStatus,
     startDate,
+    endDate,
+    expiryDate,
+    notes,
     entries: sortedEntries,
     runCount: sortedEntries.length,
     lastRunDate: getLastRunDate(sortedEntries),
@@ -139,17 +165,21 @@ async function buildControlStreams(
       batches.map(async (batch) => {
         const entries = await getEntries(disease, controlType, batch.batchId);
 
-        return buildStream(
+        return buildStream({
           disease,
           diseaseName,
           assayTag,
           controlType,
-          'batch',
-          batch.batchId,
-          batch.status,
-          batch.startDate,
+          partitionKind: 'batch',
+          partitionId: batch.batchId,
+          partitionStatus: batch.status,
+          startDate: batch.startDate,
+          endDate: batch.endDate,
+          // InHouseBatchMetadata has no expiry — batches are lab-made, not reagent kits.
+          expiryDate: null,
+          notes: batch.notes,
           entries,
-        );
+        });
       }),
     );
   }
@@ -160,17 +190,20 @@ async function buildControlStreams(
     lots.map(async (lot) => {
       const entries = await getEntries(disease, controlType, lot.lotNumber);
 
-      return buildStream(
+      return buildStream({
         disease,
         diseaseName,
         assayTag,
         controlType,
-        'lot',
-        lot.lotNumber,
-        lot.status,
-        lot.startDate,
+        partitionKind: 'lot',
+        partitionId: lot.lotNumber,
+        partitionStatus: lot.status,
+        startDate: lot.startDate,
+        endDate: lot.endDate,
+        expiryDate: lot.expiryDate,
+        notes: lot.notes,
         entries,
-      );
+      });
     }),
   );
 }

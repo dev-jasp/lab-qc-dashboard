@@ -549,13 +549,14 @@ export function AppSidebar() {
                     </SidebarTooltip>
                   </SidebarMenuItem>
 
-                  {/* Batches / Lots — placeholder */}
+                  {/* Batches / Lots */}
                   <SidebarMenuItem>
                     <SidebarTooltip label="Batches / Lots">
                       <SidebarMenuButton
                         type="button"
-                        isActive={false}
-                        className="mx-auto h-10 w-10 rounded-lg p-0 opacity-40"
+                        isActive={location.pathname === "/lots"}
+                        onClick={() => handleSidebarNavigate("/lots")}
+                        className="mx-auto h-10 w-10 rounded-lg p-0"
                       >
                         <StackIcon size={17} className="text-[#334155]" />
                       </SidebarMenuButton>
@@ -623,23 +624,16 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* Batches / Lots — empty placeholder */}
+                  {/* Batches / Lots */}
                   <SidebarMenuItem>
-                    <Collapsible.Root className="group/batches w-full">
-                      <Collapsible.Trigger asChild>
-                        <SidebarMenuButton type="button">
-                          <StackIcon size={17} className="shrink-0" />
-                          <span className="flex min-w-0 flex-1 items-center justify-between">
-                            <span className="truncate">Batches / Lots</span>
-                            <CaretDownIcon
-                              size={13}
-                              className="shrink-0 transition-transform duration-200 group-data-[state=open]/batches:rotate-180"
-                            />
-                          </span>
-                        </SidebarMenuButton>
-                      </Collapsible.Trigger>
-                      <Collapsible.Content />
-                    </Collapsible.Root>
+                    <SidebarMenuButton
+                      type="button"
+                      isActive={location.pathname === "/lots"}
+                      onClick={() => handleSidebarNavigate("/lots")}
+                    >
+                      <StackIcon size={17} className="shrink-0" />
+                      <span className="truncate">Batches / Lots</span>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
               )}

@@ -48,6 +48,10 @@ function buildSegments(pathname: string): BreadcrumbSegment[] {
     return [{ label: 'EXPORTS' }];
   }
 
+  if (pathname === '/lots') {
+    return [{ label: 'BATCHES / LOTS' }];
+  }
+
   if (pathname === '/help') {
     return [{ label: 'HELP' }];
   }

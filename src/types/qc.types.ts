@@ -161,6 +161,8 @@ export type QCSettings = {
   recentLogsCount: number;
   chartTheme: 'light' | 'dark';
   defaultChartView: 'daily' | 'weekly' | 'monthly';
+  /** Days before a reagent lot's expiry date that it starts appearing on the lot watchlist. */
+  lotExpiryWarningDays: number;
 };
 
 export type QCUserRole = 'analyst' | 'supervisor' | 'admin';

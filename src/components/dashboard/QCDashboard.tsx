@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 
 import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
 import { ExportModal } from "@/components/export/ExportModal";
+import { LotFormDialog } from "@/components/lots/LotFormDialog";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
 import { QCRulesReferenceCard } from "@/components/panels/QCRulesReferenceCard";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -63,6 +63,7 @@ import {
 import { useQCLogic } from "@/hooks/useQCLogic";
 import { useToast } from "@/hooks/useToast";
 import { getUser, type AuthUser } from "@/lib/auth";
+import type { LotFormValues } from "@/lib/lotValidation";
 import type { ControlTabSlug } from "@/constants/monitor-config";
 import {
   buildRunStatisticsSummary,
@@ -111,13 +112,6 @@ interface QCDashboardProps {
   controlTabSlug: ControlTabSlug;
 }
 
-type NewLotFormValues = {
-  lotNumber: string;
-  startDate: string;
-  expiryDate: string;
-  notes: string;
-};
-
 type MonitorStatus = "stable" | "normal" | "watchlist" | "out";
 
 type RecentFlagItem = {
@@ -141,6 +135,7 @@ const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
   recentLogsCount: 10,
   chartTheme: "light",
   defaultChartView: "daily",
+  lotExpiryWarningDays: 30,
 };
 
 const MONITOR_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
@@ -160,15 +155,6 @@ function createDefaultEntryForm(): EntryFormValues {
     protocolNumber: "",
     remarks: "",
     performedBy: "",
-  };
-}
-
-function createDefaultLotForm(): NewLotFormValues {
-  return {
-    lotNumber: "",
-    startDate: getTodayIsoDate(),
-    expiryDate: "",
-    notes: "",
   };
 }
 
@@ -456,8 +442,6 @@ export default function QCDashboard({
   const [formValues, setFormValues] = useState<EntryFormValues>(
     createDefaultEntryForm,
   );
-  const [newLotValues, setNewLotValues] =
-    useState<NewLotFormValues>(createDefaultLotForm);
   const [settings, setSettings] = useState<QCSettings>(
     DEFAULT_SETTINGS_FALLBACK,
   );
@@ -898,39 +882,18 @@ export default function QCDashboard({
     }
   };
 
-  const handleCreateLot = async () => {
-    const trimmedLotNumber = newLotValues.lotNumber.trim();
-
-    if (!trimmedLotNumber) {
-      error(
-        isInHouseControl
-          ? "In-house batch ID is required."
-          : "Lot number is required.",
-      );
-      return;
-    }
-
-    if (!isInHouseControl && !newLotValues.expiryDate) {
-      error("Expiry date is required for reagent lots.");
-      return;
-    }
-
-    if (
-      !isInHouseControl &&
-      newLotValues.expiryDate < newLotValues.startDate
-    ) {
-      error("Expiry date cannot be earlier than the start date.");
-      return;
-    }
+  const handleCreateLot = async (values: LotFormValues): Promise<boolean> => {
+    const trimmedLotNumber = values.lotNumber;
+    const trimmedNotes = values.notes ? values.notes : null;
 
     try {
       if (isInHouseControl) {
         await createInHouseBatch(diseaseSlug, {
           batchId: trimmedLotNumber,
-          startDate: newLotValues.startDate,
+          startDate: values.startDate,
           endDate: null,
           status: "active",
-          notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
+          notes: trimmedNotes,
         });
 
         const updatedBatches = await getInHouseBatches(diseaseSlug);
@@ -944,21 +907,19 @@ export default function QCDashboard({
         setSelectedInHouseBatchId(trimmedLotNumber);
         setEntries(updatedEntries);
         setViolations([]);
-        setIsStartLotDialogOpen(false);
-        setNewLotValues(createDefaultLotForm());
         setFormValues(createDefaultEntryForm());
         success(`In-house batch ${trimmedLotNumber} is now active.`);
         refreshViolationsEvent();
-        return;
+        return true;
       }
 
       await createLot(diseaseSlug, controlType, {
         lotNumber: trimmedLotNumber,
-        startDate: newLotValues.startDate,
+        startDate: values.startDate,
         endDate: null,
-        expiryDate: newLotValues.expiryDate,
+        expiryDate: values.expiryDate,
         status: "active",
-        notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
+        notes: trimmedNotes,
       });
 
       const updatedLots = await getLots(diseaseSlug, controlType);
@@ -972,9 +933,8 @@ export default function QCDashboard({
       setSelectedLotNumber(trimmedLotNumber);
       setEntries(updatedEntries);
       setViolations([]);
-      setIsStartLotDialogOpen(false);
-      setNewLotValues(createDefaultLotForm());
       success(`Lot ${trimmedLotNumber} is now active.`);
+      return true;
     } catch (caughtError) {
       error(
         caughtError instanceof Error
@@ -983,6 +943,7 @@ export default function QCDashboard({
             ? "Unable to start the new in-house batch."
             : "Unable to start the new lot.",
       );
+      return false;
     }
   };
 
@@ -1675,129 +1636,15 @@ export default function QCDashboard({
         minRunsForWestgard={minRunsForWestgard}
       />
 
-      <Dialog
+      <LotFormDialog
         open={isStartLotDialogOpen}
         onOpenChange={setIsStartLotDialogOpen}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {isInHouseControl ? "Start new in-house batch" : "Start new lot"}
-            </DialogTitle>
-            <DialogDescription>
-              {isInHouseControl
-                ? "The current active in-house batch will be archived and a fresh graph will become the working dataset for this control."
-                : "The current active lot will be archived and the new lot will become the working dataset for this control."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">
-                {isInHouseControl ? "Batch ID" : "Lot Number"}
-              </label>
-              <Input
-                value={newLotValues.lotNumber}
-                onChange={(event) =>
-                  setNewLotValues((currentValues) => ({
-                    ...currentValues,
-                    lotNumber: event.target.value,
-                  }))
-                }
-                placeholder={
-                  isInHouseControl
-                    ? "Enter in-house batch ID"
-                    : "Enter reagent lot number"
-                }
-                className="h-11 border-[#dce4f2] bg-white px-3"
-              />
-            </div>
-
-            <div
-              className={
-                isInHouseControl
-                  ? "grid grid-cols-1 gap-4"
-                  : "grid grid-cols-1 gap-4 lg:grid-cols-2"
-              }
-            >
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#1A1C1C]">
-                  Start Date
-                </label>
-                <IsoDatePicker
-                  value={newLotValues.startDate}
-                  onChange={(value) =>
-                    setNewLotValues((currentValues) => ({
-                      ...currentValues,
-                      startDate: value,
-                    }))
-                  }
-                  displayFormat={settings.dateFormat}
-                  className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
-                />
-              </div>
-
-              {!isInHouseControl && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#1A1C1C]">
-                    Expiry Date
-                  </label>
-                  <IsoDatePicker
-                    value={newLotValues.expiryDate}
-                    onChange={(value) =>
-                      setNewLotValues((currentValues) => ({
-                        ...currentValues,
-                        expiryDate: value,
-                      }))
-                    }
-                    displayFormat={settings.dateFormat}
-                    className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">
-                Notes
-              </label>
-              <Textarea
-                value={newLotValues.notes}
-                onChange={(event) =>
-                  setNewLotValues((currentValues) => ({
-                    ...currentValues,
-                    notes: event.target.value,
-                  }))
-                }
-                rows={3}
-                maxLength={200}
-                placeholder={
-                  isInHouseControl
-                    ? "Optional notes for this in-house batch"
-                    : "Optional notes for this lot"
-                }
-                className="resize-none border-[#dce4f2] bg-white px-3 py-2"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsStartLotDialogOpen(false);
-                setNewLotValues(createDefaultLotForm());
-              }}
-            >
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleCreateLot}>
-              {isInHouseControl ? "Start batch" : "Start lot"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        target={{ disease: diseaseSlug, controlType }}
+        defaultStartDate={getTodayIsoDate()}
+        dateFormat={settings.dateFormat}
+        onInvalid={error}
+        onSubmit={handleCreateLot}
+      />
 
       <Dialog
         open={selectedEntry !== null}

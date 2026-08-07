@@ -9,6 +9,7 @@ import { Exports } from '@/pages/Exports';
 import { Help } from '@/pages/Help';
 import { History } from '@/pages/History';
 import LoginPage from '@/pages/LoginPage';
+import { Lots } from '@/pages/Lots';
 import { Settings } from '@/pages/Settings';
 import { Violations } from '@/pages/Violations';
 
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: '/monitor/:disease', element: <DiseaseOverview /> },
       { path: '/monitor/:disease/:control', element: <ControlMonitor /> },
       { path: '/exports', element: <Exports /> },
+      { path: '/lots', element: <Lots /> },
       { path: '/help', element: <Help /> },
       { path: '/history', element: <History /> },
       { path: '/violations', element: <Violations /> },
