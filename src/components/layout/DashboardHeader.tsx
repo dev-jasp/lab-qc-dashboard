@@ -44,6 +44,10 @@ function buildSegments(pathname: string): BreadcrumbSegment[] {
     return [{ label: 'VIOLATIONS' }];
   }
 
+  if (pathname === '/exports') {
+    return [{ label: 'EXPORTS' }];
+  }
+
   if (pathname === '/help') {
     return [{ label: 'HELP' }];
   }

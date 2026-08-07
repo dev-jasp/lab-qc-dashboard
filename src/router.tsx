@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ControlMonitor } from '@/pages/ControlMonitor';
 import { DiseaseOverview } from '@/pages/DiseaseOverview';
 import { DiseaseSelector } from '@/pages/DiseaseSelector';
+import { Exports } from '@/pages/Exports';
 import { Help } from '@/pages/Help';
 import { History } from '@/pages/History';
 import LoginPage from '@/pages/LoginPage';
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: '/monitor', element: <DiseaseSelector /> },
       { path: '/monitor/:disease', element: <DiseaseOverview /> },
       { path: '/monitor/:disease/:control', element: <ControlMonitor /> },
+      { path: '/exports', element: <Exports /> },
       { path: '/help', element: <Help /> },
       { path: '/history', element: <History /> },
       { path: '/violations', element: <Violations /> },
