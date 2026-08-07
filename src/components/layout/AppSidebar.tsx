@@ -535,13 +535,14 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* Exports — placeholder */}
+                  {/* Exports */}
                   <SidebarMenuItem>
                     <SidebarTooltip label="Exports">
                       <SidebarMenuButton
                         type="button"
-                        isActive={false}
-                        className="mx-auto h-10 w-10 rounded-lg p-0 opacity-40"
+                        isActive={location.pathname === "/exports"}
+                        onClick={() => handleSidebarNavigate("/exports")}
+                        className="mx-auto h-10 w-10 rounded-lg p-0"
                       >
                         <ArrowSquareOutIcon size={17} className="text-[#334155]" />
                       </SidebarMenuButton>
@@ -610,23 +611,16 @@ export function AppSidebar() {
                     </Collapsible.Root>
                   </SidebarMenuItem>
 
-                  {/* Exports — empty placeholder */}
+                  {/* Exports */}
                   <SidebarMenuItem>
-                    <Collapsible.Root className="group/exports w-full">
-                      <Collapsible.Trigger asChild>
-                        <SidebarMenuButton type="button">
-                          <ArrowSquareOutIcon size={17} className="shrink-0" />
-                          <span className="flex min-w-0 flex-1 items-center justify-between">
-                            <span className="truncate">Exports</span>
-                            <CaretDownIcon
-                              size={13}
-                              className="shrink-0 transition-transform duration-200 group-data-[state=open]/exports:rotate-180"
-                            />
-                          </span>
-                        </SidebarMenuButton>
-                      </Collapsible.Trigger>
-                      <Collapsible.Content />
-                    </Collapsible.Root>
+                    <SidebarMenuButton
+                      type="button"
+                      isActive={location.pathname === "/exports"}
+                      onClick={() => handleSidebarNavigate("/exports")}
+                    >
+                      <ArrowSquareOutIcon size={17} className="shrink-0" />
+                      <span className="truncate">Exports</span>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
 
                   {/* Batches / Lots — empty placeholder */}
