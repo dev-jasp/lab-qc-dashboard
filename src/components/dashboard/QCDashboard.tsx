@@ -22,7 +22,8 @@ import { ExportModal } from "@/components/export/ExportModal";
 import { LotFormDialog } from "@/components/lots/LotFormDialog";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
 import { StaffFormDialog, type StaffFormValues } from "@/components/personnel/StaffFormDialog";
-import { PerformedByLabel } from "@/components/personnel/PerformedByLabel";
+import { StaffNameLabel } from "@/components/personnel/StaffNameLabel";
+import { RunFileDropzone } from "@/components/panels/RunFileDropzone";
 import { StaffPicker } from "@/components/personnel/StaffPicker";
 import { QCRulesReferenceCard } from "@/components/panels/QCRulesReferenceCard";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -110,6 +112,12 @@ import {
   calculateZScore,
   evaluateQCRules,
 } from "@/utils/qc-calculations";
+import {
+  getDiseaseName,
+  parseProtocolWorkbook,
+  type ParsedRun,
+} from "@/lib/protocolWorkbook";
+import { findStaffByBenchName } from "@/lib/staffDirectory";
 import { validateODValue } from "@/utils/export";
 
 interface QCDashboardProps {
@@ -155,24 +163,68 @@ function getTodayIsoDate(): string {
 }
 
 /**
- * Seeds the entry form, pre-filling "Performed By" from the lab's default
- * technician so it survives a submit instead of being retyped every run.
+ * Seeds the entry form, pre-filling "Performed By" and "Validated By" from the
+ * lab's defaults so they survive a submit instead of being retyped every run.
  */
 function createDefaultEntryForm(
   staff: StaffMember[] = [],
-  defaultStaffId = "",
+  defaultPerformerId = "",
+  defaultValidatorId = "",
 ): EntryFormValues {
-  const defaultMember =
-    staff.find((member) => member.id === defaultStaffId && member.isActive) ?? null;
+  const performer = findActiveMember(staff, defaultPerformerId);
+  // Defaulting both to the same person would seed a form that can never be
+  // submitted, so the collision drops the validator rather than the performer.
+  const validator =
+    defaultValidatorId === defaultPerformerId
+      ? null
+      : findActiveMember(staff, defaultValidatorId);
 
   return {
     date: getTodayIsoDate(),
     odValue: "",
     protocolNumber: "",
     remarks: "",
-    performedBy: defaultMember?.displayName ?? "",
-    performedById: defaultMember?.id ?? "",
+    performedBy: performer?.displayName ?? "",
+    performedById: performer?.id ?? "",
+    validatedBy: validator?.displayName ?? "",
+    validatedById: validator?.id ?? "",
   };
+}
+
+function findActiveMember(
+  staff: StaffMember[],
+  memberId: string,
+): StaffMember | null {
+  return staff.find((member) => member.id === memberId && member.isActive) ?? null;
+}
+
+/**
+ * A reason the operator needs to see before an imported workbook fills the
+ * form. `block` cannot be overridden; `confirm` asks; `warn` is stated and the
+ * fill proceeds.
+ */
+type ImportIssue = { severity: "block" | "confirm" | "warn"; message: string };
+
+type PendingImport = {
+  run: ParsedRun;
+  fileName: string;
+  issues: ImportIssue[];
+};
+
+/** What the form was filled from, kept visible until the entry is submitted. */
+type ImportProvenance = {
+  fileName: string;
+  controlLabel: string;
+  wellNumber: number | null;
+  odFromCachedValue: boolean;
+};
+
+function formatFieldList(fields: string[]): string {
+  if (fields.length <= 1) {
+    return fields.join("");
+  }
+
+  return `${fields.slice(0, -1).join(", ")} and ${fields[fields.length - 1]}`;
 }
 
 function getSelectedLot(
@@ -460,7 +512,17 @@ export default function QCDashboard({
   );
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
+  /** Which picker opened the quick-add dialog, so the new person lands there. */
+  const [staffDialogTarget, setStaffDialogTarget] = useState<
+    "performer" | "validator"
+  >("performer");
   const [isStartLotDialogOpen, setIsStartLotDialogOpen] = useState(false);
+  const [entryMode, setEntryMode] = useState<"manual" | "upload">("manual");
+  const [isParsingRunFile, setIsParsingRunFile] = useState(false);
+  const [runFileError, setRunFileError] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [importProvenance, setImportProvenance] =
+    useState<ImportProvenance | null>(null);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -605,7 +667,11 @@ export default function QCDashboard({
         // selection the operator has already made.
         setFormValues((current) =>
           current.performedById === ""
-            ? createDefaultEntryForm(staffRoster, appSettings.defaultPreparedBy)
+            ? createDefaultEntryForm(
+                staffRoster,
+                appSettings.defaultPreparedBy,
+                appSettings.defaultValidatedBy,
+              )
             : current,
         );
 
@@ -701,9 +767,9 @@ export default function QCDashboard({
   };
 
   /**
-   * Quick-add from inside the Performed By picker: create the person, then
-   * select them straight away so the operator is not sent to another page
-   * mid-run.
+   * Quick-add from inside either attribution picker: create the person, then
+   * select them straight away — into whichever picker opened the dialog — so
+   * the operator is not sent to another page mid-run.
    */
   const handleQuickAddStaff = async (values: StaffFormValues): Promise<boolean> => {
     const newMember: StaffMember = {
@@ -726,11 +792,19 @@ export default function QCDashboard({
     try {
       await createStaffMember(newMember);
       setStaff(await getStaff());
-      setFormValues((current) => ({
-        ...current,
-        performedBy: newMember.displayName,
-        performedById: newMember.id,
-      }));
+      setFormValues((current) =>
+        staffDialogTarget === "validator"
+          ? {
+              ...current,
+              validatedBy: newMember.displayName,
+              validatedById: newMember.id,
+            }
+          : {
+              ...current,
+              performedBy: newMember.displayName,
+              performedById: newMember.id,
+            },
+      );
       success(`${newMember.displayName} added to the roster.`);
       return true;
     } catch (caughtError) {
@@ -742,6 +816,189 @@ export default function QCDashboard({
       return false;
     }
   };
+
+  /** Fields the import owns, listed only when the operator already typed there. */
+  const describeOverwrites = (run: ParsedRun): string[] => {
+    const fields: string[] = [];
+
+    if (
+      formValues.odValue.trim() !== "" &&
+      Number(formValues.odValue) !== run.odValue
+    ) {
+      fields.push("OD value");
+    }
+
+    if (
+      formValues.protocolNumber.trim() !== "" &&
+      formValues.protocolNumber.trim() !== run.protocolNumber
+    ) {
+      fields.push("protocol number");
+    }
+
+    if (formValues.remarks.trim() !== "") {
+      fields.push("remarks");
+    }
+
+    return fields;
+  };
+
+  const collectImportIssues = (run: ParsedRun): ImportIssue[] => {
+    const issues: ImportIssue[] = [];
+
+    if (run.disease !== diseaseSlug) {
+      issues.push({
+        severity: "block",
+        message: `This is a ${getDiseaseName(run.disease)} protocol, but you are recording ${getDiseaseName(diseaseSlug)}.`,
+      });
+    }
+
+    if (entries.some((entry) => entry.protocolNumber === run.protocolNumber)) {
+      issues.push({
+        severity: "block",
+        message: `Protocol ${run.protocolNumber} is already recorded in this dataset.`,
+      });
+    }
+
+    // In-house datasets are keyed by batch, not by the reagent kit lot the
+    // workbook carries, so the two are not comparable.
+    if (
+      !isInHouseControl &&
+      activeDatasetLotNumber &&
+      run.lotNumber !== activeDatasetLotNumber
+    ) {
+      issues.push({
+        severity: "confirm",
+        message: `This run used lot ${run.lotNumber}, but you are recording into ${activeDatasetLotNumber}.`,
+      });
+    }
+
+    const overwrites = describeOverwrites(run);
+
+    if (overwrites.length > 0) {
+      issues.push({
+        severity: "confirm",
+        message: `This replaces the ${formatFieldList(overwrites)} you already entered.`,
+      });
+    }
+
+    if (run.expiryDate !== null && run.expiryDate < run.date) {
+      issues.push({
+        severity: "warn",
+        message: `Lot ${run.lotNumber} expired on ${run.expiryDate}, before this run on ${run.date}.`,
+      });
+    }
+
+    if (run.odFromCachedValue) {
+      issues.push({
+        severity: "warn",
+        message:
+          "The OD came from a cached formula result because its source cell could not be resolved. Check it against the worksheet.",
+      });
+    }
+
+    if (
+      run.performedBy !== null &&
+      findStaffByBenchName(staff, run.performedBy) === null
+    ) {
+      issues.push({
+        severity: "warn",
+        message: `"${run.performedBy}" is not on the roster, so Performed By is left empty.`,
+      });
+    }
+
+    if (
+      run.validatedBy !== null &&
+      findStaffByBenchName(staff, run.validatedBy) === null
+    ) {
+      issues.push({
+        severity: "warn",
+        message: `"${run.validatedBy}" is not on the roster, so Validated By is left empty.`,
+      });
+    }
+
+    return issues;
+  };
+
+  const applyParsedRun = (run: ParsedRun, fileName: string) => {
+    const performer =
+      run.performedBy === null ? null : findStaffByBenchName(staff, run.performedBy);
+    const validator =
+      run.validatedBy === null ? null : findStaffByBenchName(staff, run.validatedBy);
+    // A workbook naming one person for both roles would seed a form that
+    // cannot be submitted, so the validator gives way.
+    const resolvedValidator =
+      validator !== null && validator.id === performer?.id ? null : validator;
+
+    setFormValues((current) => ({
+      ...current,
+      date: run.date,
+      odValue: String(run.odValue),
+      protocolNumber: run.protocolNumber,
+      remarks: `Imported from ${fileName}`,
+      performedBy: performer?.displayName ?? "",
+      performedById: performer?.id ?? "",
+      validatedBy: resolvedValidator?.displayName ?? "",
+      validatedById: resolvedValidator?.id ?? "",
+    }));
+
+    setImportProvenance({
+      fileName,
+      controlLabel: run.controlLabel,
+      wellNumber: run.wellNumber,
+      odFromCachedValue: run.odFromCachedValue,
+    });
+    setPendingImport(null);
+    setRunFileError(null);
+    setEntryMode("manual");
+  };
+
+  const handleRunFile = async (file: File) => {
+    setIsParsingRunFile(true);
+    setRunFileError(null);
+
+    try {
+      const result = await parseProtocolWorkbook(
+        await file.arrayBuffer(),
+        controlType,
+      );
+
+      if (!result.ok) {
+        setRunFileError(result.error);
+        return;
+      }
+
+      const issues = collectImportIssues(result.run);
+
+      if (issues.length === 0) {
+        applyParsedRun(result.run, file.name);
+        return;
+      }
+
+      setPendingImport({ run: result.run, fileName: file.name, issues });
+    } catch (caughtError) {
+      setRunFileError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to read that file.",
+      );
+    } finally {
+      setIsParsingRunFile(false);
+    }
+  };
+
+  const clearImportProvenance = () => {
+    setImportProvenance(null);
+    setFormValues(
+      createDefaultEntryForm(
+        staff,
+        settings.defaultPreparedBy,
+        settings.defaultValidatedBy,
+      ),
+    );
+  };
+
+  const isImportBlocked =
+    pendingImport?.issues.some((issue) => issue.severity === "block") ?? false;
 
   const handleAddEntry = async () => {
     const datasetLotNumber = activeDatasetLotNumber;
@@ -758,6 +1015,16 @@ export default function QCDashboard({
 
     if (!formValues.performedById) {
       error("Select who performed this run.");
+      return;
+    }
+
+    if (!formValues.validatedById) {
+      error("Select who validated this run.");
+      return;
+    }
+
+    if (formValues.validatedById === formValues.performedById) {
+      error("The validator must be someone other than the performer.");
       return;
     }
 
@@ -788,6 +1055,8 @@ export default function QCDashboard({
       vialNumber: `V${String(entries.length + 1).padStart(2, "0")}`,
       performedBy: formValues.performedBy.trim(),
       performedById: formValues.performedById,
+      validatedBy: formValues.validatedBy.trim(),
+      validatedById: formValues.validatedById,
       flag: null,
       notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
       editedAt: null,
@@ -836,7 +1105,12 @@ export default function QCDashboard({
 
       setEntries(updatedEntries);
       setViolations(updatedViolations);
-      setFormValues(createDefaultEntryForm(staff, settings.defaultPreparedBy));
+      setFormValues(createDefaultEntryForm(
+          staff,
+          settings.defaultPreparedBy,
+          settings.defaultValidatedBy,
+        ));
+      setImportProvenance(null);
       setHasSubmitted(true);
       success("Entry recorded successfully");
       refreshViolationsEvent();
@@ -975,7 +1249,11 @@ export default function QCDashboard({
         setSelectedInHouseBatchId(trimmedLotNumber);
         setEntries(updatedEntries);
         setViolations([]);
-        setFormValues(createDefaultEntryForm(staff, settings.defaultPreparedBy));
+        setFormValues(createDefaultEntryForm(
+          staff,
+          settings.defaultPreparedBy,
+          settings.defaultValidatedBy,
+        ));
         success(`In-house batch ${trimmedLotNumber} is now active.`);
         refreshViolationsEvent();
         return true;
@@ -1146,7 +1424,7 @@ export default function QCDashboard({
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <motion.div
           {...getRevealProps(3)}
-          className="qc-card order-1 lg:order-3 lg:col-span-1"
+          className="qc-card order-1 flex flex-col lg:order-3 lg:col-span-1"
         >
           <div className="mb-6 flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -1168,15 +1446,74 @@ export default function QCDashboard({
                 </p>
               )}
             </div>
+
+            {!isArchivedDataset && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRunFileError(null);
+                  setEntryMode((current) =>
+                    current === "upload" ? "manual" : "upload",
+                  );
+                }}
+                className="shrink-0 text-[12px] font-semibold text-[#6b7280] underline-offset-4 transition-colors hover:text-[#1a1aff] hover:underline"
+              >
+                {entryMode === "upload" ? "Enter manually" : "Upload run file"}
+              </button>
+            )}
           </div>
 
+          {/*
+            The card is stretched to its grid row by the chart beside it, so
+            the dropzone fills that height rather than leaving the rest of the
+            card blank. A fixed floor here would instead pad the manual form.
+          */}
+          <div className="flex flex-1 flex-col">
+          {entryMode === "upload" ? (
+            <RunFileDropzone
+              onFile={(file) => void handleRunFile(file)}
+              isBusy={isParsingRunFile}
+              error={runFileError}
+              disabled={isArchivedDataset}
+            />
+          ) : (
           <form
             onSubmit={(event) => {
               event.preventDefault();
               void handleAddEntry();
             }}
-            className="space-y-4"
+            className="flex flex-1 flex-col gap-4"
           >
+            {importProvenance !== null && (
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-[#dbe4ff] bg-[#f5f7ff] px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-[12px] font-semibold text-[#1a1aff]">
+                    {`Loaded from ${importProvenance.fileName}`}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-[#6b7280]">
+                    {[
+                      importProvenance.controlLabel,
+                      importProvenance.wellNumber === null
+                        ? null
+                        : `well ${importProvenance.wellNumber}`,
+                      importProvenance.odFromCachedValue
+                        ? "OD from cached value"
+                        : null,
+                    ]
+                      .filter((part) => part !== null)
+                      .join(" · ")}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearImportProvenance}
+                  aria-label="Clear the imported values"
+                  className="shrink-0 text-[16px] leading-none text-[#9ca3af] transition-colors hover:text-[#111827]"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-2">
               <div className="space-y-2 lg:order-1">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
@@ -1232,23 +1569,28 @@ export default function QCDashboard({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-1">
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
-                  Remarks
-                </label>
-                <Textarea
-                  placeholder="Optional remarks"
-                  value={formValues.remarks}
-                  disabled={isArchivedDataset}
-                  maxLength={200}
-                  onChange={(event) =>
-                    handleFieldChange("remarks", event.target.value)
-                  }
-                  className="min-h-[4.75rem] resize-none border-[#e5e7eb] bg-white px-3 py-2 text-[#111827]"
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                Remarks
+              </label>
+              <Textarea
+                placeholder="Optional remarks"
+                value={formValues.remarks}
+                disabled={isArchivedDataset}
+                maxLength={200}
+                onChange={(event) =>
+                  handleFieldChange("remarks", event.target.value)
+                }
+                className="min-h-[4.75rem] resize-none border-[#e5e7eb] bg-white px-3 py-2 text-[#111827]"
+              />
+            </div>
 
+            {/*
+              The two attribution pickers pair up wherever there is room. At lg
+              this card is a third of the row, which leaves each one too narrow
+              to read a name in, so they stack there and pair again at xl.
+            */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   PERFORMED BY
@@ -1264,21 +1606,50 @@ export default function QCDashboard({
                       performedById: member?.id ?? "",
                     }))
                   }
-                  onQuickAdd={() => setIsStaffDialogOpen(true)}
+                  onQuickAdd={() => {
+                    setStaffDialogTarget("performer");
+                    setIsStaffDialogOpen(true);
+                  }}
                   className={ENTRY_FIELD_CLASS_NAME}
                 />
               </div>
 
-              <div className="flex items-end md:col-span-2 lg:col-span-1 xl:col-span-1">
-                <Button
-                  type="submit"
-                  disabled={isArchivedDataset || isSubmitting}
-                  className="h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
-                >
-                  {isSubmitting ? "Submitting..." : "Submit Recording"}
-                </Button>
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                  VALIDATED BY
+                </label>
+                <StaffPicker
+                  staff={staff}
+                  valueId={formValues.validatedById}
+                  disabled={isArchivedDataset}
+                  placeholder="Select who attested this"
+                  onChange={(member) =>
+                    setFormValues((current) => ({
+                      ...current,
+                      validatedBy: member?.displayName ?? "",
+                      validatedById: member?.id ?? "",
+                    }))
+                  }
+                  onQuickAdd={() => {
+                    setStaffDialogTarget("validator");
+                    setIsStaffDialogOpen(true);
+                  }}
+                  className={ENTRY_FIELD_CLASS_NAME}
+                />
               </div>
             </div>
+
+            {/*
+              Anchored to the bottom of the card, which the chart beside it
+              stretches taller than this form needs.
+            */}
+            <Button
+              type="submit"
+              disabled={isArchivedDataset || isSubmitting}
+              className="mt-auto h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
+            >
+              {isSubmitting ? "Submitting..." : "Submit Recording"}
+            </Button>
 
             {hasSubmitted && (
               <div>
@@ -1301,6 +1672,8 @@ export default function QCDashboard({
               </div>
             )}
           </form>
+          )}
+          </div>
         </motion.div>
 
         <motion.div
@@ -1584,6 +1957,9 @@ export default function QCDashboard({
               <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
                 Performed By
               </TableHead>
+              <TableHead className="h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
+                Validated By
+              </TableHead>
               <TableHead className="h-12 text-right text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]">
                 Action
               </TableHead>
@@ -1647,10 +2023,18 @@ export default function QCDashboard({
                     </div>
                   </TableCell>
                   <TableCell className="py-4 text-[14px] text-[#374151]">
-                    <PerformedByLabel
-                      performedBy={entry.performedBy}
-                      performedById={entry.performedById}
+                    <StaffNameLabel
+                      name={entry.performedBy}
+                      memberId={entry.performedById}
                       staff={staff}
+                    />
+                  </TableCell>
+                  <TableCell className="py-4 text-[14px] text-[#374151]">
+                    <StaffNameLabel
+                      name={entry.validatedBy}
+                      memberId={entry.validatedById}
+                      staff={staff}
+                      emptyLabel="—"
                     />
                   </TableCell>
                   <TableCell className="py-4 text-right">
@@ -1712,6 +2096,64 @@ export default function QCDashboard({
         className="mt-6"
         minRunsForWestgard={minRunsForWestgard}
       />
+
+      <Dialog
+        open={pendingImport !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingImport(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isImportBlocked
+                ? "This workbook cannot fill the form"
+                : "Check this before filling the form"}
+            </DialogTitle>
+            <DialogDescription>{pendingImport?.fileName}</DialogDescription>
+          </DialogHeader>
+
+          <ul className="space-y-2">
+            {pendingImport?.issues.map((issue) => (
+              <li
+                key={issue.message}
+                className={`rounded-lg border px-3 py-2.5 text-[13px] leading-5 ${
+                  issue.severity === "block"
+                    ? "border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]"
+                    : issue.severity === "confirm"
+                      ? "border-[#fde68a] bg-[#fffbeb] text-[#b45309]"
+                      : "border-[#e5e7eb] bg-[#f9fafb] text-[#4b5563]"
+                }`}
+              >
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPendingImport(null)}
+            >
+              {isImportBlocked ? "Close" : "Cancel"}
+            </Button>
+            {!isImportBlocked && pendingImport !== null && (
+              <Button
+                type="button"
+                className="bg-[#1a1aff] text-white hover:bg-[#1515cc]"
+                onClick={() =>
+                  applyParsedRun(pendingImport.run, pendingImport.fileName)
+                }
+              >
+                Fill the form
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <StaffFormDialog
         open={isStaffDialogOpen}
@@ -1776,10 +2218,23 @@ export default function QCDashboard({
                   Performed By
                 </p>
                 <div className="mt-1 text-sm font-medium text-[#111827]">
-                  <PerformedByLabel
-                    performedBy={selectedEntry.performedBy}
-                    performedById={selectedEntry.performedById}
+                  <StaffNameLabel
+                    name={selectedEntry.performedBy}
+                    memberId={selectedEntry.performedById}
                     staff={staff}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
+                  Validated By
+                </p>
+                <div className="mt-1 text-sm font-medium text-[#111827]">
+                  <StaffNameLabel
+                    name={selectedEntry.validatedBy}
+                    memberId={selectedEntry.validatedById}
+                    staff={staff}
+                    emptyLabel="—"
                   />
                 </div>
               </div>

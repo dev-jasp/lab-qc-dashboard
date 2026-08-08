@@ -1,4 +1,5 @@
 import type { ExportStream } from '@/lib/exportCatalog';
+import { formatBenchName } from '@/lib/staffDirectory';
 import { calculateZScore } from '@/utils/qc-calculations';
 
 /**
@@ -20,9 +21,20 @@ export const DATA_COLUMN_HEADERS: readonly string[] = [
   'Protocol number',
   'OD',
   'Lot Number',
+  'Performed By',
+  'Validated By',
   'Remarks',
   'Z-Score',
 ];
+
+/**
+ * Attribution as the bench writes it ("A. Reyes"), matching the worksheets
+ * these reports are filed alongside. Entries recorded before the field existed
+ * carry nobody, which prints as an em dash rather than an empty cell — a blank
+ * reads as a missing column, not a missing person.
+ */
+const formatAttribution = (name: string | null): string =>
+  name?.trim() ? formatBenchName(name) : '—';
 
 /** OD values are always 4 decimal places. */
 const formatOD = (value: number): string => value.toFixed(4);
@@ -66,6 +78,8 @@ export function buildDataRows(stream: ExportStream): string[][] {
     entry.protocolNumber,
     formatOD(entry.odValue),
     entry.lotNumber,
+    formatAttribution(entry.performedBy),
+    formatAttribution(entry.validatedBy),
     entry.notes ?? '',
     formatStatistic(calculateZScore(entry.odValue, resolvedMean, resolvedSD)),
   ]);
