@@ -10,9 +10,13 @@ import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
 import { SidebarContext, useSidebar } from '@/components/ui/sidebar-context';
 
-const SIDEBAR_EXPANDED_WIDTH = 260;
+// 260 left the header's "LABORATORY SYSTEM" line ~5px short once the brand
+// logo grew to 40px, clipping its final M. The header reserves 48px on the
+// right to clear the collapse rail, so the label's budget is tighter than the
+// sidebar width suggests.
+const SIDEBAR_EXPANDED_WIDTH = 288;
 const SIDEBAR_COLLAPSED_WIDTH = 64;
-const SIDEBAR_MOBILE_WIDTH = 260;
+const SIDEBAR_MOBILE_WIDTH = 288;
 const SIDEBAR_TRANSITION: Transition = {
   duration: 0.25,
   ease: [0.4, 0, 0.2, 1],
