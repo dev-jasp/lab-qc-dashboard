@@ -1,4 +1,4 @@
-import { SEED_STAFF } from '@/lib/staffSeed';
+import { SEED_STAFF, SEED_STAFF_ID_PREFIX, STAFF_SEED_VERSION } from '@/lib/staffSeed';
 import type {
   AuditEntry,
   CorrectiveAction,
@@ -14,6 +14,7 @@ const STORAGE_PREFIX = 'qc_';
 const STORAGE_INDEX_KEY = '__qc_storage_index__';
 const SETTINGS_KEY = 'qc_settings';
 const STAFF_KEY = 'qc_staff';
+const STAFF_SEED_VERSION_KEY = 'qc_staff_seed_version';
 const LOGO_KEYS = {
   seal: 'qc_logo_seal',
   pathology: 'qc_logo_pathology',
@@ -665,7 +666,14 @@ function readStaffFromStorage(): StaffMember[] {
   // and the personnel pages have something to show on a fresh browser. An
   // explicitly empty roster reads as `[]`, not null, so it is left alone.
   if (stored === null) {
-    setKey(STAFF_KEY, SEED_STAFF);
+    applyMutationsAtomically(
+      [
+        { key: STAFF_KEY, value: SEED_STAFF },
+        { key: STAFF_SEED_VERSION_KEY, value: STAFF_SEED_VERSION },
+      ],
+      'seed the personnel roster',
+    );
+
     return SEED_STAFF;
   }
 
@@ -675,7 +683,27 @@ function readStaffFromStorage(): StaffMember[] {
     throw new Error('Stored personnel records are malformed.');
   }
 
-  return normalized;
+  if (getKey<unknown>(STAFF_SEED_VERSION_KEY) === STAFF_SEED_VERSION) {
+    return normalized;
+  }
+
+  // The seed changed. Replace the seeded records so the update actually
+  // reaches a browser that seeded under an older version, and keep everyone
+  // added through the UI — they are real records, not demo data.
+  const refreshed = [
+    ...SEED_STAFF,
+    ...normalized.filter((member) => !member.id.startsWith(SEED_STAFF_ID_PREFIX)),
+  ];
+
+  applyMutationsAtomically(
+    [
+      { key: STAFF_KEY, value: refreshed },
+      { key: STAFF_SEED_VERSION_KEY, value: STAFF_SEED_VERSION },
+    ],
+    'refresh the seeded personnel roster',
+  );
+
+  return refreshed;
 }
 
 function sortEntriesAscending(entries: QCEntry[]): QCEntry[] {

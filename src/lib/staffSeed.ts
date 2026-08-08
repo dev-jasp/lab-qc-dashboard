@@ -12,6 +12,19 @@ import type { StaffMember } from '@/types/qc.types';
  * pointing at the same person if the seed is ever re-applied to a fresh
  * browser, and makes these records easy to spot when clearing demo data.
  */
+/**
+ * Bump whenever SEED_STAFF changes.
+ *
+ * A stored roster stamped with an older version has its seeded records
+ * replaced on the next read, which is what lets a change here reach a browser
+ * that already seeded. Edits made to a seeded person through the UI are lost
+ * when this changes; people *added* through the UI are not.
+ */
+export const STAFF_SEED_VERSION = 'zcmc-demo-roster-photos-v1';
+
+/** Seeded ids share this prefix, which is how a refresh spares user-added records. */
+export const SEED_STAFF_ID_PREFIX = 'seed-staff-';
+
 export const SEED_STAFF: StaffMember[] = [
   {
     id: 'seed-staff-bautista',
@@ -21,7 +34,7 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'supervisor',
     contactNumber: '+63 917 812 4470',
     email: 'me.bautista@zcmc.doh.gov.ph',
-    photoUrl: null,
+    photoUrl: '/staff/maria_bautista.jpg',
     shift: 'morning',
     dutyDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
     isActive: true,
@@ -37,7 +50,7 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'analyst',
     contactNumber: '+63 918 335 6021',
     email: 'j.andrada@zcmc.doh.gov.ph',
-    photoUrl: null,
+    photoUrl: '/staff/Joel_andrada.jpg',
     shift: 'morning',
     dutyDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
     isActive: true,
@@ -53,7 +66,7 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'analyst',
     contactNumber: '+63 916 204 8813',
     email: 'r.delfin@zcmc.doh.gov.ph',
-    photoUrl: null,
+    photoUrl: '/staff/Rosario_delfin.jpg',
     shift: 'mid',
     dutyDays: ['tue', 'wed', 'thu', 'fri', 'sat'],
     isActive: true,
@@ -69,7 +82,8 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'analyst',
     contactNumber: '+63 995 471 2298',
     email: 'k.mabalot@zcmc.doh.gov.ph',
-    photoUrl: null,
+    // Percent-encoded: this file is the only one with a space in its name.
+    photoUrl: '/staff/Kristine%20Mabalot.jpg',
     shift: 'night',
     dutyDays: ['wed', 'thu', 'fri', 'sat'],
     isActive: true,
@@ -85,7 +99,7 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'analyst',
     contactNumber: '+63 927 660 1745',
     email: 'f.lacsamana@zcmc.doh.gov.ph',
-    photoUrl: null,
+    photoUrl: '/staff/Ferdinand_lacsamana.jpg',
     shift: 'rotating',
     dutyDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
     isActive: true,
@@ -101,7 +115,7 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'analyst',
     contactNumber: '+63 939 118 5062',
     email: 'a.sarmiento@zcmc.doh.gov.ph',
-    photoUrl: null,
+    photoUrl: '/staff/Alvin_sarmiento.jpg',
     shift: 'mid',
     dutyDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
     isActive: true,
@@ -117,7 +131,7 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'admin',
     contactNumber: '+63 917 559 3384',
     email: 'g.villanueva@zcmc.doh.gov.ph',
-    photoUrl: null,
+    photoUrl: '/staff/Grace_villanueva.jpg',
     shift: 'morning',
     dutyDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
     isActive: true,
@@ -133,7 +147,7 @@ export const SEED_STAFF: StaffMember[] = [
     role: 'analyst',
     contactNumber: '+63 906 742 9015',
     email: 'n.cabrera@zcmc.doh.gov.ph',
-    photoUrl: null,
+    photoUrl: '/staff/Noel_cabrera.jpg',
     shift: 'night',
     dutyDays: ['mon', 'tue', 'wed'],
     // Deliberately inactive: exercises the "kept but off the picker" path.

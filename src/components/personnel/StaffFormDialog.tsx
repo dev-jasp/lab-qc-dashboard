@@ -282,12 +282,12 @@ export function StaffFormDialog({
                 onChange={(event) =>
                   setValues((current) => ({ ...current, photoUrl: event.target.value }))
                 }
-                placeholder="/images/staff/j-santos.jpg"
+                placeholder="/staff/j-santos.jpg"
                 className={`${FIELD_CLASS_NAME} flex-1`}
               />
             </div>
             <p className="text-[12px] text-[#9ca3af]">
-              Path to an image in public/, or a data URI. Leave blank to use initials.
+              Path to an image in public/staff/, or a data URI. Leave blank to use initials.
             </p>
           </div>
 

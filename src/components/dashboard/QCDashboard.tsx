@@ -22,6 +22,7 @@ import { ExportModal } from "@/components/export/ExportModal";
 import { LotFormDialog } from "@/components/lots/LotFormDialog";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
 import { StaffFormDialog, type StaffFormValues } from "@/components/personnel/StaffFormDialog";
+import { PerformedByLabel } from "@/components/personnel/PerformedByLabel";
 import { StaffPicker } from "@/components/personnel/StaffPicker";
 import { QCRulesReferenceCard } from "@/components/panels/QCRulesReferenceCard";
 import { Badge } from "@/components/ui/badge";
@@ -219,10 +220,6 @@ function formatDateTimeLabel(value: string | null): string {
 
   const resolvedValue = value.includes("T") ? value : `${value}T08:00:00`;
   return format(new Date(resolvedValue), "MMM dd, hh:mm a");
-}
-
-function formatPerformedBy(value: string | null): string {
-  return value?.trim() ? value : "Not recorded";
 }
 
 function getEntryTimestamp(entry: QCEntry): string {
@@ -1650,7 +1647,11 @@ export default function QCDashboard({
                     </div>
                   </TableCell>
                   <TableCell className="py-4 text-[14px] text-[#374151]">
-                    {formatPerformedBy(entry.performedBy)}
+                    <PerformedByLabel
+                      performedBy={entry.performedBy}
+                      performedById={entry.performedById}
+                      staff={staff}
+                    />
                   </TableCell>
                   <TableCell className="py-4 text-right">
                     <DropdownMenu>
@@ -1774,9 +1775,13 @@ export default function QCDashboard({
                 <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
                   Performed By
                 </p>
-                <p className="mt-1 text-sm font-medium text-[#111827]">
-                  {formatPerformedBy(selectedEntry.performedBy)}
-                </p>
+                <div className="mt-1 text-sm font-medium text-[#111827]">
+                  <PerformedByLabel
+                    performedBy={selectedEntry.performedBy}
+                    performedById={selectedEntry.performedById}
+                    staff={staff}
+                  />
+                </div>
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
