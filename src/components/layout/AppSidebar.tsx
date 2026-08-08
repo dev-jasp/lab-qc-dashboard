@@ -579,7 +579,26 @@ export function AppSidebar() {
                   <SidebarMenuItem>
                     <Collapsible.Root className="group/diseases w-full" defaultOpen>
                       <Collapsible.Trigger asChild>
-                        <SidebarMenuButton type="button">
+                        {/* This row toggles the group, it never navigates, so
+                            how it marks an active disease depends on whether
+                            the children are on screen to do it themselves. */}
+                        <SidebarMenuButton
+                          type="button"
+                          className={cn(
+                            activeDisease !== null && [
+                              // Open: the active disease is visible below and
+                              // carries the pill. Tint only, or the trigger
+                              // outweighs the page you are actually on.
+                              "group-data-[state=open]/diseases:text-[var(--sidebar-accent-foreground)]",
+                              // Closed: the sub-items are hidden, so the trigger
+                              // stands in for the active disease and takes the
+                              // same pill Reports and Batches use.
+                              "group-data-[state=closed]/diseases:bg-[var(--sidebar-primary)]",
+                              "group-data-[state=closed]/diseases:text-white",
+                              "group-data-[state=closed]/diseases:shadow-sm",
+                            ],
+                          )}
+                        >
                           <VirusIcon size={NAV_ICON_SIZE} className="shrink-0" />
                           <span className="flex min-w-0 flex-1 items-center justify-between">
                             <span className="truncate">Diseases</span>
