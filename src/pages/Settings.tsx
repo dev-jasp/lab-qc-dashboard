@@ -1,17 +1,29 @@
-import { ArrowRightIcon, SlidersHorizontalIcon, StackIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, SlidersHorizontalIcon, StackIcon, UsersIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
-import { getSettings, updateSettings } from "@/lib/qcStorage";
+import { getSettings, getStaff, updateSettings } from "@/lib/qcStorage";
+import type { StaffMember } from "@/types/qc.types";
 
 const MIN_WARNING_DAYS = 1;
 const MAX_WARNING_DAYS = 365;
+/** Select cannot hold an empty string value, so "nobody" needs a sentinel. */
+const NO_DEFAULT_STAFF = "__none__";
 
 export function Settings() {
   const [warningDays, setWarningDays] = useState("30");
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [defaultStaffId, setDefaultStaffId] = useState(NO_DEFAULT_STAFF);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { success, error } = useToast();
@@ -21,10 +33,16 @@ export function Settings() {
 
     const loadSettings = async () => {
       try {
-        const settings = await getSettings();
+        const [settings, roster] = await Promise.all([getSettings(), getStaff()]);
 
         if (!isCancelled) {
           setWarningDays(String(settings.lotExpiryWarningDays));
+          setStaff(roster);
+          setDefaultStaffId(
+            roster.some((member) => member.id === settings.defaultPreparedBy)
+              ? settings.defaultPreparedBy
+              : NO_DEFAULT_STAFF,
+          );
         }
       } catch (caughtError) {
         if (!isCancelled) {
@@ -58,8 +76,11 @@ export function Settings() {
 
     setIsSaving(true);
     try {
-      await updateSettings({ lotExpiryWarningDays: parsedDays });
-      success(`Lots will be flagged ${parsedDays} days before expiry.`);
+      await updateSettings({
+        lotExpiryWarningDays: parsedDays,
+        defaultPreparedBy: defaultStaffId === NO_DEFAULT_STAFF ? "" : defaultStaffId,
+      });
+      success("Lab configuration saved.");
     } catch (caughtError) {
       error(
         caughtError instanceof Error ? caughtError.message : "Unable to save QC settings.",
@@ -107,6 +128,50 @@ export function Settings() {
                 className="h-11 w-32 border-[#e5e7eb] bg-white px-3 text-[#111827]"
               />
             </div>
+          </div>
+
+          <div className="mt-6 border-t border-[#f0f0f0] pt-6">
+            <div className="mb-3 flex items-center gap-2 text-[#1a1aff]">
+              <UsersIcon size={18} />
+              <span className="text-[16px] font-semibold">Default technician</span>
+            </div>
+            <p className="text-sm leading-7 text-[#6b7280]">
+              Pre-fills &quot;Performed By&quot; on the QC entry form, so it does not have to be
+              picked again after every run.
+            </p>
+
+            <div className="mt-4 space-y-2">
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                Pre-select on the entry form
+              </label>
+              <Select
+                value={defaultStaffId}
+                disabled={isLoading}
+                onValueChange={setDefaultStaffId}
+              >
+                <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white px-3 text-[#111827] sm:w-72">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_DEFAULT_STAFF}>No default</SelectItem>
+                  {staff
+                    .filter((member) => member.isActive)
+                    .map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.displayName}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {staff.length === 0 && (
+                <p className="text-[12px] text-[#9ca3af]">
+                  Nobody on the roster yet — add someone under Personnel first.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6">
             <Button
               type="button"
               disabled={isLoading || isSaving}

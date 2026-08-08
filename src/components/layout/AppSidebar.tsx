@@ -1,13 +1,13 @@
 import {
   ArrowRightIcon,
-  ArrowSquareOutIcon,
   BellIcon,
   CaretDownIcon,
-  ChartBarIcon,
   ClockIcon,
+  FileTextIcon,
   GearIcon,
   SignOutIcon,
   StackIcon,
+  UsersIcon,
   VirusIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
@@ -80,6 +80,7 @@ const DISEASE_ROUTE_CONFIG: DiseaseRouteConfig[] = [
 ];
 
 const SYSTEM_ROUTES: SystemRoute[] = [
+  { href: "/personnel", icon: UsersIcon, label: "Personnel" },
   { href: "/history", icon: ClockIcon, label: "History" },
   { href: "/violations", icon: WarningIcon, label: "Violations" },
   { href: "/settings", icon: GearIcon, label: "Settings" },
@@ -105,6 +106,10 @@ const SIDEBAR_TRANSITION: Transition = {
   duration: 0.25,
   ease: [0.4, 0, 0.2, 1],
 };
+
+const NAV_ICON_SIZE = 17;
+/** The collapsed rail drops every label, so the icon carries the whole target. */
+const NAV_ICON_SIZE_COLLAPSED = 20;
 
 const FLYOUT_LEFT = 76;
 const FLYOUT_WIDTH = 244;
@@ -363,9 +368,8 @@ export function AppSidebar() {
   }> = [
     {
       label: "Reports",
-      icon: ChartBarIcon,
-      badge: "New",
-      disabled: true,
+      icon: FileTextIcon,
+      href: "/reports",
     },
     {
       label: "History / Audit Log",
@@ -523,28 +527,29 @@ export function AppSidebar() {
                     >
                       <span
                         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                        style={{
-                          color:
-                            activeDisease !== null
-                              ? DISEASE_ACCENTS[activeDisease]
-                              : "#334155",
-                        }}
+                        // Only the accent overrides the button's own colour; with no
+                        // disease selected the icon inherits it like every other item.
+                        style={
+                          activeDisease !== null
+                            ? { color: DISEASE_ACCENTS[activeDisease] }
+                            : undefined
+                        }
                       >
-                        <VirusIcon size={17} />
+                        <VirusIcon size={NAV_ICON_SIZE_COLLAPSED} />
                       </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* Exports */}
+                  {/* Reports */}
                   <SidebarMenuItem>
-                    <SidebarTooltip label="Exports">
+                    <SidebarTooltip label="Reports">
                       <SidebarMenuButton
                         type="button"
-                        isActive={location.pathname === "/exports"}
-                        onClick={() => handleSidebarNavigate("/exports")}
+                        isActive={location.pathname === "/reports"}
+                        onClick={() => handleSidebarNavigate("/reports")}
                         className="mx-auto h-10 w-10 rounded-lg p-0"
                       >
-                        <ArrowSquareOutIcon size={17} className="text-[#334155]" />
+                        <FileTextIcon size={NAV_ICON_SIZE_COLLAPSED} />
                       </SidebarMenuButton>
                     </SidebarTooltip>
                   </SidebarMenuItem>
@@ -558,7 +563,7 @@ export function AppSidebar() {
                         onClick={() => handleSidebarNavigate("/lots")}
                         className="mx-auto h-10 w-10 rounded-lg p-0"
                       >
-                        <StackIcon size={17} className="text-[#334155]" />
+                        <StackIcon size={NAV_ICON_SIZE_COLLAPSED} />
                       </SidebarMenuButton>
                     </SidebarTooltip>
                   </SidebarMenuItem>
@@ -571,7 +576,7 @@ export function AppSidebar() {
                     <Collapsible.Root className="group/diseases w-full" defaultOpen>
                       <Collapsible.Trigger asChild>
                         <SidebarMenuButton type="button">
-                          <VirusIcon size={17} className="shrink-0" />
+                          <VirusIcon size={NAV_ICON_SIZE} className="shrink-0" />
                           <span className="flex min-w-0 flex-1 items-center justify-between">
                             <span className="truncate">Diseases</span>
                             <CaretDownIcon
@@ -612,15 +617,15 @@ export function AppSidebar() {
                     </Collapsible.Root>
                   </SidebarMenuItem>
 
-                  {/* Exports */}
+                  {/* Reports */}
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       type="button"
-                      isActive={location.pathname === "/exports"}
-                      onClick={() => handleSidebarNavigate("/exports")}
+                      isActive={location.pathname === "/reports"}
+                      onClick={() => handleSidebarNavigate("/reports")}
                     >
-                      <ArrowSquareOutIcon size={17} className="shrink-0" />
-                      <span className="truncate">Exports</span>
+                      <FileTextIcon size={NAV_ICON_SIZE} className="shrink-0" />
+                      <span className="truncate">Reports</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
@@ -631,7 +636,7 @@ export function AppSidebar() {
                       isActive={location.pathname === "/lots"}
                       onClick={() => handleSidebarNavigate("/lots")}
                     >
-                      <StackIcon size={17} className="shrink-0" />
+                      <StackIcon size={NAV_ICON_SIZE} className="shrink-0" />
                       <span className="truncate">Batches / Lots</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -668,7 +673,14 @@ export function AppSidebar() {
                               : undefined
                           }
                         >
-                          <Icon size={17} className="shrink-0" />
+                          <Icon
+                            size={
+                              isCollapsedDesktop
+                                ? NAV_ICON_SIZE_COLLAPSED
+                                : NAV_ICON_SIZE
+                            }
+                            className="shrink-0"
+                          />
                           <SidebarAnimatedLabel className="ml-2 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap [--sidebar-label-width:8.5rem]">
                             <span className="truncate">{route.label}</span>
                             {route.label === "Violations" &&

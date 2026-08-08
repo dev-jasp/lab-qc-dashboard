@@ -5,11 +5,13 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ControlMonitor } from '@/pages/ControlMonitor';
 import { DiseaseOverview } from '@/pages/DiseaseOverview';
 import { DiseaseSelector } from '@/pages/DiseaseSelector';
-import { Exports } from '@/pages/Exports';
 import { Help } from '@/pages/Help';
 import { History } from '@/pages/History';
 import LoginPage from '@/pages/LoginPage';
 import { Lots } from '@/pages/Lots';
+import { Personnel } from '@/pages/Personnel';
+import { Reports } from '@/pages/Reports';
+import { StaffProfile } from '@/pages/StaffProfile';
 import { Settings } from '@/pages/Settings';
 import { Violations } from '@/pages/Violations';
 
@@ -34,8 +36,12 @@ export const router = createBrowserRouter([
       { path: '/monitor', element: <DiseaseSelector /> },
       { path: '/monitor/:disease', element: <DiseaseOverview /> },
       { path: '/monitor/:disease/:control', element: <ControlMonitor /> },
-      { path: '/exports', element: <Exports /> },
+      { path: '/reports', element: <Reports /> },
+      // Kept so links to the page's original path still resolve.
+      { path: '/exports', element: <Navigate to="/reports" replace /> },
       { path: '/lots', element: <Lots /> },
+      { path: '/personnel', element: <Personnel /> },
+      { path: '/personnel/:staffId', element: <StaffProfile /> },
       { path: '/help', element: <Help /> },
       { path: '/history', element: <History /> },
       { path: '/violations', element: <Violations /> },

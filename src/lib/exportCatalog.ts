@@ -154,7 +154,7 @@ async function buildControlStreams(
   assayTag: string,
   controlType: ControlTypeSlug,
 ): Promise<ExportStream[]> {
-  // Seeds on first visit exactly as the monitor page does, so /exports never
+  // Seeds on first visit exactly as the monitor page does, so /reports never
   // renders an empty catalog against a cold localStorage.
   await ensureControlDatasetInitialized(disease, controlType);
 

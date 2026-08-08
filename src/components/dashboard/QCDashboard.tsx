@@ -21,6 +21,8 @@ import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
 import { ExportModal } from "@/components/export/ExportModal";
 import { LotFormDialog } from "@/components/lots/LotFormDialog";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
+import { StaffFormDialog, type StaffFormValues } from "@/components/personnel/StaffFormDialog";
+import { StaffPicker } from "@/components/personnel/StaffPicker";
 import { QCRulesReferenceCard } from "@/components/panels/QCRulesReferenceCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,10 +80,12 @@ import {
   addViolation,
   createInHouseBatch,
   createLot,
+  createStaffMember,
   getEntries,
   getInHouseBatches,
   getLots,
   getSettings,
+  getStaff,
   getViolations,
   updateEntry,
 } from "@/lib/qcStorage";
@@ -97,6 +101,7 @@ import type {
   QCEntryFlag,
   QCRule,
   QCSettings,
+  StaffMember,
   ViolationEntry,
 } from "@/types/qc.types";
 import {
@@ -148,13 +153,24 @@ function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function createDefaultEntryForm(): EntryFormValues {
+/**
+ * Seeds the entry form, pre-filling "Performed By" from the lab's default
+ * technician so it survives a submit instead of being retyped every run.
+ */
+function createDefaultEntryForm(
+  staff: StaffMember[] = [],
+  defaultStaffId = "",
+): EntryFormValues {
+  const defaultMember =
+    staff.find((member) => member.id === defaultStaffId && member.isActive) ?? null;
+
   return {
     date: getTodayIsoDate(),
     odValue: "",
     protocolNumber: "",
     remarks: "",
-    performedBy: "",
+    performedBy: defaultMember?.displayName ?? "",
+    performedById: defaultMember?.id ?? "",
   };
 }
 
@@ -439,12 +455,14 @@ export default function QCDashboard({
   );
   const [selectedLotNumber, setSelectedLotNumber] = useState("");
   const [selectedInHouseBatchId, setSelectedInHouseBatchId] = useState("");
-  const [formValues, setFormValues] = useState<EntryFormValues>(
-    createDefaultEntryForm,
+  const [formValues, setFormValues] = useState<EntryFormValues>(() =>
+    createDefaultEntryForm(),
   );
   const [settings, setSettings] = useState<QCSettings>(
     DEFAULT_SETTINGS_FALLBACK,
   );
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
   const [isStartLotDialogOpen, setIsStartLotDialogOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -573,9 +591,10 @@ export default function QCDashboard({
 
       try {
         await ensureControlDatasetInitialized(diseaseSlug, controlType);
-        const [authUser, appSettings] = await Promise.all([
+        const [authUser, appSettings, staffRoster] = await Promise.all([
           getUser(),
           getSettings(),
+          getStaff(),
         ]);
 
         if (isCancelled) {
@@ -584,6 +603,14 @@ export default function QCDashboard({
 
         setCurrentUser(authUser);
         setSettings(appSettings);
+        setStaff(staffRoster);
+        // Seed "Performed By" from the lab default, but never clobber a
+        // selection the operator has already made.
+        setFormValues((current) =>
+          current.performedById === ""
+            ? createDefaultEntryForm(staffRoster, appSettings.defaultPreparedBy)
+            : current,
+        );
 
         if (isInHouseControl) {
           const storedBatches = await getInHouseBatches(diseaseSlug);
@@ -676,6 +703,49 @@ export default function QCDashboard({
     }));
   };
 
+  /**
+   * Quick-add from inside the Performed By picker: create the person, then
+   * select them straight away so the operator is not sent to another page
+   * mid-run.
+   */
+  const handleQuickAddStaff = async (values: StaffFormValues): Promise<boolean> => {
+    const newMember: StaffMember = {
+      id: crypto.randomUUID(),
+      staffId: values.staffId,
+      displayName: values.displayName,
+      initials: values.initials,
+      role: values.role,
+      contactNumber: values.contactNumber ? values.contactNumber : null,
+      email: values.email ? values.email : null,
+      photoUrl: values.photoUrl ? values.photoUrl : null,
+      shift: values.shift,
+      dutyDays: values.dutyDays,
+      isActive: true,
+      notes: values.notes ? values.notes : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
+    };
+
+    try {
+      await createStaffMember(newMember);
+      setStaff(await getStaff());
+      setFormValues((current) => ({
+        ...current,
+        performedBy: newMember.displayName,
+        performedById: newMember.id,
+      }));
+      success(`${newMember.displayName} added to the roster.`);
+      return true;
+    } catch (caughtError) {
+      error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to add the personnel record.",
+      );
+      return false;
+    }
+  };
+
   const handleAddEntry = async () => {
     const datasetLotNumber = activeDatasetLotNumber;
 
@@ -689,8 +759,8 @@ export default function QCDashboard({
       return;
     }
 
-    if (!formValues.performedBy.trim()) {
-      error("Performed by is required.");
+    if (!formValues.performedById) {
+      error("Select who performed this run.");
       return;
     }
 
@@ -720,6 +790,7 @@ export default function QCDashboard({
       runNumber: String(entries.length + 1).padStart(2, "0"),
       vialNumber: `V${String(entries.length + 1).padStart(2, "0")}`,
       performedBy: formValues.performedBy.trim(),
+      performedById: formValues.performedById,
       flag: null,
       notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
       editedAt: null,
@@ -768,7 +839,7 @@ export default function QCDashboard({
 
       setEntries(updatedEntries);
       setViolations(updatedViolations);
-      setFormValues(createDefaultEntryForm());
+      setFormValues(createDefaultEntryForm(staff, settings.defaultPreparedBy));
       setHasSubmitted(true);
       success("Entry recorded successfully");
       refreshViolationsEvent();
@@ -907,7 +978,7 @@ export default function QCDashboard({
         setSelectedInHouseBatchId(trimmedLotNumber);
         setEntries(updatedEntries);
         setViolations([]);
-        setFormValues(createDefaultEntryForm());
+        setFormValues(createDefaultEntryForm(staff, settings.defaultPreparedBy));
         success(`In-house batch ${trimmedLotNumber} is now active.`);
         refreshViolationsEvent();
         return true;
@@ -1185,13 +1256,18 @@ export default function QCDashboard({
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   PERFORMED BY
                 </label>
-                <Input
-                  placeholder="e.g. J. Santos"
-                  value={formValues.performedBy}
+                <StaffPicker
+                  staff={staff}
+                  valueId={formValues.performedById}
                   disabled={isArchivedDataset}
-                  onChange={(event) =>
-                    handleFieldChange("performedBy", event.target.value)
+                  onChange={(member) =>
+                    setFormValues((current) => ({
+                      ...current,
+                      performedBy: member?.displayName ?? "",
+                      performedById: member?.id ?? "",
+                    }))
                   }
+                  onQuickAdd={() => setIsStaffDialogOpen(true)}
                   className={ENTRY_FIELD_CLASS_NAME}
                 />
               </div>
@@ -1634,6 +1710,14 @@ export default function QCDashboard({
       <QCRulesReferenceCard
         className="mt-6"
         minRunsForWestgard={minRunsForWestgard}
+      />
+
+      <StaffFormDialog
+        open={isStaffDialogOpen}
+        onOpenChange={setIsStaffDialogOpen}
+        member={null}
+        onInvalid={error}
+        onSubmit={handleQuickAddStaff}
       />
 
       <LotFormDialog

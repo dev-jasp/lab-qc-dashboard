@@ -91,7 +91,10 @@ export type QCEntry = {
   controlCode: string;
   runNumber: string;
   vialNumber: string;
+  /** Human-readable name, kept for exports and print output. */
   performedBy: string | null;
+  /** Joins to StaffMember.id. Null on legacy and seeded entries. */
+  performedById: string | null;
   flag: QCEntryFlag | null;
   notes: string | null;
   editedAt: string | null;
@@ -105,7 +108,10 @@ export type EntryFormValues = {
   odValue: string;
   protocolNumber: string;
   remarks: string;
+  /** Display name of the selected staff member, mirrored for storage. */
   performedBy: string;
+  /** Selected StaffMember.id. Empty string when nobody is selected yet. */
+  performedById: string;
 };
 
 export type LotMetadata = {
@@ -165,28 +171,45 @@ export type QCSettings = {
   lotExpiryWarningDays: number;
 };
 
-export type QCUserRole = 'analyst' | 'supervisor' | 'admin';
+/**
+ * A roster designation, NOT an access-control role.
+ *
+ * Access control lives in src/lib/auth.ts, which has its own capitalised
+ * `UserRole`. Staff records and login accounts are deliberately separate: a
+ * bench technician may have no login, and an account holder may record no runs.
+ * Do not try to join these two vocabularies.
+ */
+export type StaffRole = 'analyst' | 'supervisor' | 'admin';
 
-export type QCUser = {
+/**
+ * The shift a person is normally rostered on. `rotating` covers staff who move
+ * between shifts rather than holding a fixed one.
+ */
+export type DutyShift = 'morning' | 'mid' | 'night' | 'rotating';
+
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+/** A member of lab personnel who can be attributed to a QC run. */
+export type StaffMember = {
   id: string;
-  username: string;
+  /** Lab or employee identifier. Unique, compared case-insensitively. */
+  staffId: string;
   displayName: string;
-  role: QCUserRole;
-  pinHash: string;
+  /** Defaulted from displayName, then editable. */
+  initials: string;
+  role: StaffRole;
+  /** Stored as typed; the roster is a directory, not a dialler. */
+  contactNumber: string | null;
+  email: string | null;
+  /** Portrait path or data URI. Null falls back to the initials avatar. */
+  photoUrl: string | null;
+  shift: DutyShift;
+  /** Weekdays normally worked. Empty when the person has no fixed days. */
+  dutyDays: Weekday[];
+  isActive: boolean;
+  notes: string | null;
   createdAt: string;
   updatedAt: string | null;
-  lastLoginAt: string | null;
-  isActive: boolean;
-};
-
-export type QCSession = {
-  userId: string;
-  username: string;
-  displayName: string;
-  role: QCUserRole;
-  startedAt: string;
-  lastActivityAt: string;
-  expiresAt: string;
 };
 
 // Component prop types
