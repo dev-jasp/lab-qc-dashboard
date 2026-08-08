@@ -28,7 +28,6 @@ import type { DiseaseSlug } from '@/types/qc.types';
 
 type PdfRequest = {
   title: string;
-  description: string;
   filename: string;
   sections: PrintableQCLayoutProps[];
 };
@@ -175,7 +174,6 @@ export function Reports() {
   const handlePreviewStreamPdf = useCallback((stream: ExportStream) => {
     setPdfRequest({
       title: `${stream.diseaseName} · ${stream.controlLabel}`,
-      description: `Lot ${stream.partitionId} · ${stream.runCount} runs. Review the ZCMC report before downloading.`,
       filename: buildStreamFilename(stream, 'pdf'),
       sections: [toPrintableSection(stream)],
     });
@@ -192,7 +190,6 @@ export function Reports() {
 
       setPdfRequest({
         title: `${group.diseaseName} · full QC report`,
-        description: `${streams.length} control streams · ${group.totalRuns} runs. One letterheaded page per stream.`,
         filename: buildDiseaseReportFilename(group.diseaseName, describePeriod(dateRange), 'pdf'),
         sections: streams.map(toPrintableSection),
       });
@@ -276,7 +273,6 @@ export function Reports() {
           open
           onClose={() => setPdfRequest(null)}
           title={pdfRequest.title}
-          description={pdfRequest.description}
           filename={pdfRequest.filename}
           sections={pdfRequest.sections}
         />

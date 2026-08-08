@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -14,12 +13,12 @@ import { useToast } from '@/hooks/useToast';
 import { captureLayout, downloadAsMultiPagePDF } from '@/lib/exportQCChart';
 
 import { PrintableQCLayout, type PrintableQCLayoutProps } from './PrintableQCLayout';
+import { ReportPagePreview } from './ReportPagePreview';
 
 export interface ExportReportDialogProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  description: string;
   filename: string;
   /** One letterheaded page per section. A whole-disease report passes three. */
   sections: PrintableQCLayoutProps[];
@@ -36,7 +35,6 @@ export function ExportReportDialog({
   open,
   onClose,
   title,
-  description,
   filename,
   sections,
 }: ExportReportDialogProps) {
@@ -122,17 +120,21 @@ export function ExportReportDialog({
         }
       }}
     >
-      <DialogContent className="no-print w-full max-w-4xl sm:max-w-4xl">
+      {/* aria-describedby is cleared explicitly: this dialog has no description
+          element, and Radix warns when one is neither provided nor opted out of. */}
+      <DialogContent
+        aria-describedby={undefined}
+        className="no-print w-full max-w-5xl sm:max-w-5xl"
+      >
         <DialogHeader className="no-print">
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="no-print">
           <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
             {`Report Preview · ${pageLabel}`}
           </p>
-          <div className="mt-2 max-h-[500px] space-y-4 overflow-auto rounded-lg bg-gray-100 p-4">
+          <div className="mt-2 max-h-[72vh] space-y-4 overflow-auto rounded-lg bg-gray-100 p-4">
             {isCapturing && (
               <div className="flex h-[420px] flex-col items-center justify-center gap-3 text-[#6b7280]">
                 <SpinnerIcon size={28} className="animate-spin text-[#1a1aff]" />
@@ -141,11 +143,10 @@ export function ExportReportDialog({
             )}
             {!isCapturing &&
               previewUrls.map((url, index) => (
-                <img
+                <ReportPagePreview
                   key={url.slice(-32) + index}
                   src={url}
                   alt={`Report page ${index + 1}`}
-                  className="w-full rounded shadow-md"
                 />
               ))}
             {!isCapturing && previewUrls.length === 0 && (
@@ -154,9 +155,6 @@ export function ExportReportDialog({
               </div>
             )}
           </div>
-          <p className="mt-2 text-[11px] text-[#9ca3af]">
-            Preview is approximate. Actual output may vary slightly by PDF viewer.
-          </p>
         </div>
 
         <DialogFooter className="no-print">
