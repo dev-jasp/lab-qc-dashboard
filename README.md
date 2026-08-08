@@ -12,16 +12,9 @@ Built for the **Vaccine Preventable Disease Referral Laboratory (VPDRL)** at **Z
 
 > Sign in with `demoaccount@gmail.com` / `Analyst@2025`, or use the **Quick login** panel to switch between Analyst, Supervisor and Admin. The demo seeds itself with a full year of control data on first load — nothing to set up.
 
-<!-- SCREENSHOTS — commented out until the files exist, so the repo front page
-     never shows broken images. Drop the four captures into docs/screenshots/
-     and delete this comment wrapper to publish them.
+![Levey–Jennings control monitor with rule evaluation and run entry](docs/screenshots/monitor.png)
 
-![Levey–Jennings control monitor](docs/screenshots/monitor.png)
-![QC reports and exports](docs/screenshots/reports.png)
-![Personnel roster](docs/screenshots/personnel.png)
-![Report preview](docs/screenshots/report-preview.png)
-
--->
+<sub>Rubella in-house control — Levey–Jennings chart with ±1/2/3 SD bands, live run statistics, rolling CV trend, and attributed run history.</sub>
 
 ---
 
@@ -38,6 +31,34 @@ Built for the **Vaccine Preventable Disease Referral Laboratory (VPDRL)** at **Z
 | **Violations & audit log** | Rule breaches raised as violations with corrective-action tracking; every edit and deletion recorded. |
 
 Five disease programmes (measles, rubella, rotavirus, Japanese encephalitis, dengue) × three control types (in-house, positive, negative), each with independent lot histories.
+
+### Reports & exports
+
+Per-lot CSV, Excel and PDF, or a full per-disease report covering all three controls. Actions are colour-coded by format.
+
+![QC reports and data exports](docs/screenshots/reports.png)
+
+### Letterheaded report output
+
+Reports render an offscreen A4 layout with the laboratory's letterhead, previewed at the exact page geometry the PDF is written to.
+
+![Print and export preview showing the letterheaded QC chart](docs/screenshots/report-preview.png)
+
+### Personnel & run attribution
+
+Every run is bound to an analyst. Deactivating someone removes them from the entry picker while preserving the runs already attributed to them.
+
+![Lab staff roster with roles, duty schedules and run counts](docs/screenshots/personnel.png)
+
+### Surveillance programmes
+
+![Disease programme dashboard](docs/screenshots/dashboard.png)
+
+### Responsive
+
+<p>
+  <img src="docs/screenshots/login-mobile.png" alt="Login on mobile" height="420">
+</p>
 
 ## Stack
 
