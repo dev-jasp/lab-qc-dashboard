@@ -24,6 +24,7 @@ export function Settings() {
   const [warningDays, setWarningDays] = useState("30");
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [defaultStaffId, setDefaultStaffId] = useState(NO_DEFAULT_STAFF);
+  const [defaultValidatorId, setDefaultValidatorId] = useState(NO_DEFAULT_STAFF);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { success, error } = useToast();
@@ -41,6 +42,11 @@ export function Settings() {
           setDefaultStaffId(
             roster.some((member) => member.id === settings.defaultPreparedBy)
               ? settings.defaultPreparedBy
+              : NO_DEFAULT_STAFF,
+          );
+          setDefaultValidatorId(
+            roster.some((member) => member.id === settings.defaultValidatedBy)
+              ? settings.defaultValidatedBy
               : NO_DEFAULT_STAFF,
           );
         }
@@ -74,11 +80,21 @@ export function Settings() {
       return;
     }
 
+    if (
+      defaultStaffId !== NO_DEFAULT_STAFF &&
+      defaultStaffId === defaultValidatorId
+    ) {
+      error("The default validator must be someone other than the default technician.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       await updateSettings({
         lotExpiryWarningDays: parsedDays,
         defaultPreparedBy: defaultStaffId === NO_DEFAULT_STAFF ? "" : defaultStaffId,
+        defaultValidatedBy:
+          defaultValidatorId === NO_DEFAULT_STAFF ? "" : defaultValidatorId,
       });
       success("Lab configuration saved.");
     } catch (caughtError) {
@@ -133,11 +149,11 @@ export function Settings() {
           <div className="mt-6 border-t border-[#f0f0f0] pt-6">
             <div className="mb-3 flex items-center gap-2 text-[#1a1aff]">
               <UsersIcon size={18} />
-              <span className="text-[16px] font-semibold">Default technician</span>
+              <span className="text-[16px] font-semibold">Entry form defaults</span>
             </div>
             <p className="text-sm leading-7 text-[#6b7280]">
-              Pre-fills &quot;Performed By&quot; on the QC entry form, so it does not have to be
-              picked again after every run.
+              Pre-fills &quot;Performed By&quot; and &quot;Validated By&quot; on the QC entry
+              form, so they do not have to be picked again after every run.
             </p>
 
             <div className="mt-4 space-y-2">
@@ -168,6 +184,40 @@ export function Settings() {
                   Nobody on the roster yet — add someone under Personnel first.
                 </p>
               )}
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                Default validator
+              </label>
+              <Select
+                value={defaultValidatorId}
+                disabled={isLoading}
+                onValueChange={setDefaultValidatorId}
+              >
+                <SelectTrigger className="h-11 w-full border-[#e5e7eb] bg-white px-3 text-[#111827] sm:w-72">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_DEFAULT_STAFF}>No default</SelectItem>
+                  {staff
+                    // The entry form refuses a validator who is also the
+                    // performer, so a default pair that collides is not
+                    // offerable here either.
+                    .filter(
+                      (member) => member.isActive && member.id !== defaultStaffId,
+                    )
+                    .map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.displayName}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[12px] text-[#9ca3af]">
+                Pre-fills &quot;Validated By&quot;. Must be someone other than the
+                technician above — nobody attests their own run.
+              </p>
             </div>
           </div>
 

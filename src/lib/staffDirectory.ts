@@ -129,10 +129,7 @@ const EMPTY_ACTIVITY: StaffActivity = {
 };
 
 export function deriveInitials(displayName: string): string {
-  const words = displayName
-    .split(/[\s.]+/)
-    .map((word) => word.trim())
-    .filter((word) => word.length > 0);
+  const words = splitNameWords(displayName);
 
   if (words.length === 0) {
     return '';
@@ -143,6 +140,69 @@ export function deriveInitials(displayName: string): string {
   }
 
   return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
+/**
+ * Renders a roster name the way the bench writes it: first initial, surname.
+ * "Rosario Delfin" becomes "R. Delfin".
+ *
+ * Derived rather than stored, because every name on this roster is a given
+ * name followed by a surname. A roster carrying suffixes ("Juan Cruz Jr.") or
+ * multi-word surnames ("Ana de la Cruz") would need a stored override — the
+ * last word stops being the surname and no rule recovers it.
+ */
+export function formatBenchName(displayName: string): string {
+  const words = splitNameWords(displayName);
+
+  if (words.length === 0) {
+    return '';
+  }
+
+  if (words.length === 1) {
+    return words[0];
+  }
+
+  return `${words[0][0].toUpperCase()}. ${words[words.length - 1]}`;
+}
+
+/**
+ * Finds the roster member a worksheet's bench name refers to.
+ *
+ * Worksheets write "A.REYES"; the roster stores "Alina Reyes". Both collapse
+ * to the same letters-only key, which is the whole comparison — punctuation,
+ * spacing and case all vary between files and none of them carry meaning.
+ *
+ * Returns null unless exactly one member matches. Two people sharing an
+ * initial and a surname is not something to resolve by guessing, and the
+ * caller is expected to leave the picker empty rather than pick for the
+ * operator.
+ */
+export function findStaffByBenchName(
+  staff: StaffMember[],
+  benchName: string,
+): StaffMember | null {
+  const target = benchNameKey(benchName);
+
+  if (target === '') {
+    return null;
+  }
+
+  const matches = staff.filter(
+    (member) => benchNameKey(formatBenchName(member.displayName)) === target,
+  );
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function benchNameKey(value: string): string {
+  return value.replace(/[^a-z]/gi, '').toUpperCase();
+}
+
+function splitNameWords(displayName: string): string[] {
+  return displayName
+    .split(/[\s.]+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 0);
 }
 
 /**

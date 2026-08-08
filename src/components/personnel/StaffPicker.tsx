@@ -21,10 +21,13 @@ interface StaffPickerProps {
   onQuickAdd: () => void;
   disabled?: boolean;
   className?: string;
+  /** Prompt shown when nobody is selected. */
+  placeholder?: string;
 }
 
 /**
- * Roster-backed picker for "Performed By".
+ * Roster-backed picker for the people attached to a run — who performed it,
+ * and who attested it.
  *
  * Only active staff are offered, except that a currently-selected member who
  * has since been deactivated stays listed — otherwise editing an older entry
@@ -37,6 +40,7 @@ export function StaffPicker({
   onQuickAdd,
   disabled = false,
   className,
+  placeholder = 'Select who ran this',
 }: StaffPickerProps) {
   const selectableStaff = staff.filter(
     (member) => member.isActive || member.id === valueId,
@@ -58,9 +62,15 @@ export function StaffPicker({
     >
       {/* SelectTrigger defaults to w-fit; the entry form needs full-width fields. */}
       <SelectTrigger className={`w-full ${className ?? ''}`}>
-        <SelectValue placeholder={hasStaff ? 'Select who ran this' : 'No personnel yet'} />
+        <SelectValue placeholder={hasStaff ? placeholder : 'No personnel yet'} />
       </SelectTrigger>
-      <SelectContent>
+      {/*
+        The shared Select defaults to item-aligned, which lifts the list so the
+        checked person sits on the trigger — over the field's own label. A
+        roster this long makes that a big overlap, so this one anchors below the
+        trigger and scrolls instead.
+      */}
+      <SelectContent position="popper" sideOffset={4}>
         {selectableStaff.map((member) => (
           <SelectItem key={member.id} value={member.id}>
             <StaffAvatar
