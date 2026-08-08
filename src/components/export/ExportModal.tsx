@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -15,6 +14,7 @@ import { captureLayout, downloadAsPDF } from '@/lib/exportQCChart';
 import type { PrintableChartDataPoint } from '@/types/export';
 
 import { PrintableQCLayout } from './PrintableQCLayout';
+import { ReportPagePreview } from './ReportPagePreview';
 
 const PRINT_ROOT_ID = 'qc-print-root';
 
@@ -232,19 +232,21 @@ export function ExportModal({
         }
       }}
     >
-      <DialogContent className="no-print w-full max-w-4xl sm:max-w-4xl">
+      {/* aria-describedby is cleared explicitly: this dialog has no description
+          element, and Radix warns when one is neither provided nor opted out of. */}
+      <DialogContent
+        aria-describedby={undefined}
+        className="no-print w-full max-w-5xl sm:max-w-5xl"
+      >
         <DialogHeader className="no-print">
           <DialogTitle>Print / Export Chart</DialogTitle>
-          <DialogDescription>
-            Review the print-ready layout before downloading or printing.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="no-print">
           <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
             Print Preview
           </p>
-          <div className="mt-2 max-h-[500px] overflow-auto rounded-lg bg-gray-100 p-4">
+          <div className="mt-2 max-h-[72vh] overflow-auto rounded-lg bg-gray-100 p-4">
             {isCapturing && (
               <div className="flex h-[420px] flex-col items-center justify-center gap-3 text-[#6b7280]">
                 <SpinnerIcon size={28} className="animate-spin text-[#1a1aff]" />
@@ -252,11 +254,7 @@ export function ExportModal({
               </div>
             )}
             {!isCapturing && capturedImageUrl && (
-              <img
-                src={capturedImageUrl}
-                alt="QC Chart preview"
-                className="w-full rounded shadow-md"
-              />
+              <ReportPagePreview src={capturedImageUrl} alt="QC Chart preview" />
             )}
             {!isCapturing && !capturedImageUrl && (
               <div className="flex h-[420px] items-center justify-center rounded border border-dashed border-[#d1d5db] bg-white text-center text-sm text-[#6b7280]">
@@ -264,9 +262,6 @@ export function ExportModal({
               </div>
             )}
           </div>
-          <p className="mt-2 text-[11px] text-[#9ca3af]">
-            Preview is approximate. Actual output may vary slightly by printer or PDF viewer.
-          </p>
         </div>
 
         <DialogFooter className="no-print">

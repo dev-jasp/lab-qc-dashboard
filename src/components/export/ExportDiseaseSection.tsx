@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/table';
 import type { DiseaseExportGroup, ExportStream } from '@/lib/exportCatalog';
 import { buildStreamKey, selectActiveStreams } from '@/lib/exportCatalog';
+import { cn } from '@/utils/cn';
 
 export type DataExportFormat = 'csv' | 'xlsx';
 
@@ -43,8 +44,33 @@ interface ExportDiseaseSectionProps {
 
 const HEAD_CLASS_NAME =
   'h-12 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#94a3b8]';
-const ROW_ACTION_CLASS_NAME =
-  'h-8 gap-1 rounded-full border-[#dbe4ff] px-3 text-[12px] font-semibold text-[#1a1aff]';
+const ROW_ACTION_CLASS_NAME = 'h-8 gap-1 rounded-full px-3 text-[12px] font-semibold';
+
+type ReportFormat = 'csv' | 'xlsx' | 'pdf';
+
+/**
+ * Per-format colour, so a row's three actions are told apart at a glance.
+ *
+ * hover:text-* is repeated deliberately: the outline button variant sets
+ * hover:text-foreground, and only an explicit hover utility gets it dropped by
+ * tailwind-merge — without it the colour washes out under the cursor.
+ */
+const FORMAT_ACTION_CLASS_NAME: Record<ReportFormat, string> = {
+  csv: 'border-[#dbe4ff] text-[#1a1aff] hover:bg-[#eef2ff] hover:text-[#1a1aff]',
+  xlsx: 'border-[#bbf7d0] text-[#16a34a] hover:bg-[#f0fdf4] hover:text-[#16a34a]',
+  pdf: 'border-[#fecaca] text-[#dc2626] hover:bg-[#fef2f2] hover:text-[#dc2626]',
+};
+
+/**
+ * Same palette for the Full report menu. Applied inline rather than by class
+ * because DropdownMenuItem repaints itself and every descendant on focus
+ * (`focus:**:text-accent-foreground`), which a utility class cannot outrank.
+ */
+const FORMAT_COLOR: Record<ReportFormat, string> = {
+  csv: '#1a1aff',
+  xlsx: '#16a34a',
+  pdf: '#dc2626',
+};
 
 function formatDateLabel(value: string | null): string {
   if (value === null) {
@@ -104,17 +130,26 @@ export function ExportDiseaseSection({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onSelect={() => onPreviewDiseasePdf(group)}>
-              <FilePdfIcon size={15} />
+            <DropdownMenuItem
+              onSelect={() => onPreviewDiseasePdf(group)}
+              style={{ color: FORMAT_COLOR.pdf }}
+            >
+              <FilePdfIcon size={15} style={{ color: FORMAT_COLOR.pdf }} />
               PDF · all controls
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onDownloadDisease(group, 'xlsx')}>
-              <FileXlsIcon size={15} />
+            <DropdownMenuItem
+              onSelect={() => onDownloadDisease(group, 'xlsx')}
+              style={{ color: FORMAT_COLOR.xlsx }}
+            >
+              <FileXlsIcon size={15} style={{ color: FORMAT_COLOR.xlsx }} />
               Excel · sheet per control
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onDownloadDisease(group, 'csv')}>
-              <FileCsvIcon size={15} />
+            <DropdownMenuItem
+              onSelect={() => onDownloadDisease(group, 'csv')}
+              style={{ color: FORMAT_COLOR.csv }}
+            >
+              <FileCsvIcon size={15} style={{ color: FORMAT_COLOR.csv }} />
               CSV · all controls
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -177,7 +212,7 @@ export function ExportDiseaseSection({
                         size="sm"
                         disabled={isEmpty || isBusy}
                         onClick={() => onDownloadStream(stream, 'csv')}
-                        className={ROW_ACTION_CLASS_NAME}
+                        className={cn(ROW_ACTION_CLASS_NAME, FORMAT_ACTION_CLASS_NAME.csv)}
                       >
                         <FileCsvIcon size={14} />
                         CSV
@@ -188,7 +223,7 @@ export function ExportDiseaseSection({
                         size="sm"
                         disabled={isEmpty || isBusy}
                         onClick={() => onDownloadStream(stream, 'xlsx')}
-                        className={ROW_ACTION_CLASS_NAME}
+                        className={cn(ROW_ACTION_CLASS_NAME, FORMAT_ACTION_CLASS_NAME.xlsx)}
                       >
                         {isBusy ? (
                           <SpinnerIcon size={14} className="animate-spin" />
@@ -203,7 +238,7 @@ export function ExportDiseaseSection({
                         size="sm"
                         disabled={isEmpty || isBusy}
                         onClick={() => onPreviewStreamPdf(stream)}
-                        className={ROW_ACTION_CLASS_NAME}
+                        className={cn(ROW_ACTION_CLASS_NAME, FORMAT_ACTION_CLASS_NAME.pdf)}
                       >
                         <FilePdfIcon size={14} />
                         PDF

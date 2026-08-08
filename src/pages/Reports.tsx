@@ -28,7 +28,6 @@ import type { DiseaseSlug } from '@/types/qc.types';
 
 type PdfRequest = {
   title: string;
-  description: string;
   filename: string;
   sections: PrintableQCLayoutProps[];
 };
@@ -175,7 +174,6 @@ export function Reports() {
   const handlePreviewStreamPdf = useCallback((stream: ExportStream) => {
     setPdfRequest({
       title: `${stream.diseaseName} · ${stream.controlLabel}`,
-      description: `Lot ${stream.partitionId} · ${stream.runCount} runs. Review the ZCMC report before downloading.`,
       filename: buildStreamFilename(stream, 'pdf'),
       sections: [toPrintableSection(stream)],
     });
@@ -192,7 +190,6 @@ export function Reports() {
 
       setPdfRequest({
         title: `${group.diseaseName} · full QC report`,
-        description: `${streams.length} control streams · ${group.totalRuns} runs. One letterheaded page per stream.`,
         filename: buildDiseaseReportFilename(group.diseaseName, describePeriod(dateRange), 'pdf'),
         sections: streams.map(toPrintableSection),
       });
@@ -219,11 +216,6 @@ export function Reports() {
             <h1 className="mt-3 text-3xl font-bold text-[#111827]">
               QC reports &amp; data exports
             </h1>
-            <p className="mt-3 max-w-3xl text-sm text-[#6b7280]">
-              Every disease control stream is collected here as a downloadable ZCMC record. Pull a
-              single lot as CSV, Excel or PDF, or generate a full report covering all three controls
-              of a disease.
-            </p>
           </div>
           <div className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#eef2ff] px-4 py-2 text-sm font-semibold text-[#1a1aff]">
             <DownloadSimpleIcon size={16} />
@@ -281,7 +273,6 @@ export function Reports() {
           open
           onClose={() => setPdfRequest(null)}
           title={pdfRequest.title}
-          description={pdfRequest.description}
           filename={pdfRequest.filename}
           sections={pdfRequest.sections}
         />

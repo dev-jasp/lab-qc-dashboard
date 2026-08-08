@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/utils/cn';
 
 const SIZES = {
-  sm: 'h-6 w-6 text-[10px]',
-  md: 'h-9 w-9 text-[12px]',
+  // Ring scales with the avatar so a 24px one in a table row does not read as
+  // heavily outlined as a 36px one on a profile.
+  sm: { box: 'h-6 w-6 text-[10px]', ring: 'ring-1' },
+  md: { box: 'h-9 w-9 text-[12px]', ring: 'ring-2' },
 } as const;
 
 interface StaffAvatarProps {
@@ -35,7 +37,10 @@ export function StaffAvatar({
     setHasImageFailed(false);
   }, [photoUrl]);
 
-  const dimensions = SIZES[size];
+  const { box, ring } = SIZES[size];
+  // Inactive staff keep the outline so the row still lines up, but in grey —
+  // a brand-blue ring reads as "on the roster".
+  const ringColor = isActive ? 'ring-[#1a1aff]' : 'ring-[#e5e7eb]';
 
   if (photoUrl !== null && photoUrl !== '' && !hasImageFailed) {
     return (
@@ -47,7 +52,9 @@ export function StaffAvatar({
         onError={() => setHasImageFailed(true)}
         className={cn(
           'shrink-0 rounded-full object-cover',
-          dimensions,
+          box,
+          ring,
+          ringColor,
           !isActive && 'opacity-60 grayscale',
         )}
       />
@@ -58,7 +65,9 @@ export function StaffAvatar({
     <span
       className={cn(
         'flex shrink-0 items-center justify-center rounded-full font-bold',
-        dimensions,
+        box,
+        ring,
+        ringColor,
         isActive ? 'bg-[#eef2ff] text-[#1a1aff]' : 'bg-[#f3f4f6] text-[#9ca3af]',
       )}
     >
