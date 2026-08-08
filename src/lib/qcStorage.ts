@@ -121,6 +121,8 @@ function isQCEntry(value: unknown): value is QCEntry {
     isString(value.vialNumber) &&
     (!('performedBy' in value) || isNullableString(value.performedBy)) &&
     (!('performedById' in value) || isNullableString(value.performedById)) &&
+    (!('validatedBy' in value) || isNullableString(value.validatedBy)) &&
+    (!('validatedById' in value) || isNullableString(value.validatedById)) &&
     (value.flag === null || (isString(value.flag) && ENTRY_FLAGS.has(value.flag))) &&
     isNullableString(value.notes) &&
     isNullableString(value.editedAt) &&
@@ -135,6 +137,8 @@ function normalizeQCEntry(entry: QCEntry): QCEntry {
     ...entry,
     performedBy: entry.performedBy ?? null,
     performedById: entry.performedById ?? null,
+    validatedBy: entry.validatedBy ?? null,
+    validatedById: entry.validatedById ?? null,
   };
 }
 

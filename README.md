@@ -56,9 +56,30 @@ Every run is bound to an analyst. Deactivating someone removes them from the ent
 
 ### Responsive
 
-<p>
-  <img src="docs/screenshots/login-mobile.png" alt="Login on mobile" height="420">
-</p>
+Every surface works on a phone. Below `lg` the sidebar collapses behind a menu trigger that carries the current page name, cards stack to a single column, and wide data tables scroll horizontally inside their own container rather than crushing their columns.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/dashboard-mobile.png" alt="Disease programme dashboard on mobile" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/monitor-mobile.png" alt="Control monitor and QC run entry on mobile" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/lots-mobile.png" alt="Reagent lots and in-house batches on mobile" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Surveillance programmes</sub></td>
+    <td align="center"><sub>Run entry &amp; statistics</sub></td>
+    <td align="center"><sub>Lots &amp; batches</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/reports-mobile.png" alt="QC reports and exports on mobile" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/personnel-mobile.png" alt="Lab staff roster on mobile" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/login-mobile.png" alt="Login on mobile" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Reports &amp; exports</sub></td>
+    <td align="center"><sub>Personnel roster</sub></td>
+    <td align="center"><sub>Sign in</sub></td>
+  </tr>
+</table>
 
 ## Stack
 

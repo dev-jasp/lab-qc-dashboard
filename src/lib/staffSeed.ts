@@ -20,7 +20,7 @@ import type { StaffMember } from '@/types/qc.types';
  * that already seeded. Edits made to a seeded person through the UI are lost
  * when this changes; people *added* through the UI are not.
  */
-export const STAFF_SEED_VERSION = 'zcmc-demo-roster-photos-v1';
+export const STAFF_SEED_VERSION = 'zcmc-demo-roster-worksheet-staff-v2';
 
 /** Seeded ids share this prefix, which is how a refresh spares user-added records. */
 export const SEED_STAFF_ID_PREFIX = 'seed-staff-';
@@ -156,6 +156,38 @@ export const SEED_STAFF: StaffMember[] = [
     createdAt: '2024-02-05T08:00:00.000Z',
     updatedAt: '2026-06-15T08:00:00.000Z',
   },
+  {
+    id: 'seed-staff-reyes',
+    staffId: 'MT-0192',
+    displayName: 'Alina Reyes',
+    initials: 'AR',
+    role: 'analyst',
+    contactNumber: '+63 918 337 6621',
+    email: 'a.reyes@zcmc.doh.gov.ph',
+    photoUrl: null,
+    shift: 'morning',
+    dutyDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
+    isActive: true,
+    notes: 'Signs bench worksheets as A.REYES.',
+    createdAt: '2024-03-11T08:00:00.000Z',
+    updatedAt: null,
+  },
+  {
+    id: 'seed-staff-puti',
+    staffId: 'MT-0205',
+    displayName: 'Mina Puti',
+    initials: 'MP',
+    role: 'supervisor',
+    contactNumber: '+63 918 204 7758',
+    email: 'm.puti@zcmc.doh.gov.ph',
+    photoUrl: null,
+    shift: 'morning',
+    dutyDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
+    isActive: true,
+    notes: 'Countersigns bench worksheets as M.PUTI.',
+    createdAt: '2024-03-11T08:00:00.000Z',
+    updatedAt: null,
+  },
 ];
 
 const SEED_STAFF_BY_ID = new Map(SEED_STAFF.map((member) => [member.id, member]));
@@ -169,6 +201,10 @@ const SEED_STAFF_BY_ID = new Map(SEED_STAFF.map((member) => [member.id, member])
  * Noel Cabrera appears despite being inactive: every seeded run falls in March
  * 2026, before his June transfer, which is what gives the roster a person
  * whose history outlives their membership.
+ *
+ * Alina Reyes and Mina Puti are absent on purpose. They exist so the names on
+ * imported bench worksheets resolve to real roster records; back-dating seeded
+ * runs to them would invent a history they do not have.
  */
 const BENCH_ROTATION: string[] = [
   'seed-staff-andrada',
@@ -209,11 +245,45 @@ export function pickSeedPerformer(
   streamKey: string,
   runIndex: number,
 ): { id: string; displayName: string } {
-  const rotationIndex = (hashStreamKey(streamKey) + runIndex) % BENCH_ROTATION.length;
-  const member = SEED_STAFF_BY_ID.get(BENCH_ROTATION[rotationIndex]);
+  return resolveRotationMember(rotationIndexFor(streamKey, runIndex));
+}
+
+/**
+ * Picks who attested a seeded run, always someone other than its performer.
+ *
+ * The entry form refuses a validator who is also the performer, so seeded data
+ * must not contradict the rule the UI enforces. The rotation repeats people,
+ * so this walks forward to the next *different* person rather than assuming a
+ * fixed offset lands on one.
+ */
+export function pickSeedValidator(
+  streamKey: string,
+  runIndex: number,
+): { id: string; displayName: string } {
+  const performerIndex = rotationIndexFor(streamKey, runIndex);
+  const performerId = BENCH_ROTATION[performerIndex];
+
+  for (let step = 1; step < BENCH_ROTATION.length; step += 1) {
+    const candidateIndex = (performerIndex + step) % BENCH_ROTATION.length;
+
+    if (BENCH_ROTATION[candidateIndex] !== performerId) {
+      return resolveRotationMember(candidateIndex);
+    }
+  }
+
+  throw new Error('BENCH_ROTATION holds only one distinct person, so no seeded run can have a separate validator.');
+}
+
+function rotationIndexFor(streamKey: string, runIndex: number): number {
+  return (hashStreamKey(streamKey) + runIndex) % BENCH_ROTATION.length;
+}
+
+function resolveRotationMember(rotationIndex: number): { id: string; displayName: string } {
+  const memberId = BENCH_ROTATION[rotationIndex];
+  const member = SEED_STAFF_BY_ID.get(memberId);
 
   if (member === undefined) {
-    throw new Error(`BENCH_ROTATION references "${BENCH_ROTATION[rotationIndex]}", which is not in SEED_STAFF.`);
+    throw new Error(`BENCH_ROTATION references "${memberId}", which is not in SEED_STAFF.`);
   }
 
   return { id: member.id, displayName: member.displayName };
