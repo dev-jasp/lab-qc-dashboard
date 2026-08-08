@@ -19,7 +19,11 @@ import { useNavigate } from "react-router-dom";
 
 import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
 import { ExportModal } from "@/components/export/ExportModal";
+import { LotFormDialog } from "@/components/lots/LotFormDialog";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
+import { StaffFormDialog, type StaffFormValues } from "@/components/personnel/StaffFormDialog";
+import { PerformedByLabel } from "@/components/personnel/PerformedByLabel";
+import { StaffPicker } from "@/components/personnel/StaffPicker";
 import { QCRulesReferenceCard } from "@/components/panels/QCRulesReferenceCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +31,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -63,6 +66,7 @@ import {
 import { useQCLogic } from "@/hooks/useQCLogic";
 import { useToast } from "@/hooks/useToast";
 import { getUser, type AuthUser } from "@/lib/auth";
+import type { LotFormValues } from "@/lib/lotValidation";
 import type { ControlTabSlug } from "@/constants/monitor-config";
 import {
   buildRunStatisticsSummary,
@@ -77,10 +81,12 @@ import {
   addViolation,
   createInHouseBatch,
   createLot,
+  createStaffMember,
   getEntries,
   getInHouseBatches,
   getLots,
   getSettings,
+  getStaff,
   getViolations,
   updateEntry,
 } from "@/lib/qcStorage";
@@ -96,6 +102,7 @@ import type {
   QCEntryFlag,
   QCRule,
   QCSettings,
+  StaffMember,
   ViolationEntry,
 } from "@/types/qc.types";
 import {
@@ -110,13 +117,6 @@ interface QCDashboardProps {
   controlType: ControlTypeSlug;
   controlTabSlug: ControlTabSlug;
 }
-
-type NewLotFormValues = {
-  lotNumber: string;
-  startDate: string;
-  expiryDate: string;
-  notes: string;
-};
 
 type MonitorStatus = "stable" | "normal" | "watchlist" | "out";
 
@@ -141,6 +141,7 @@ const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
   recentLogsCount: 10,
   chartTheme: "light",
   defaultChartView: "daily",
+  lotExpiryWarningDays: 30,
 };
 
 const MONITOR_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
@@ -153,22 +154,24 @@ function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function createDefaultEntryForm(): EntryFormValues {
+/**
+ * Seeds the entry form, pre-filling "Performed By" from the lab's default
+ * technician so it survives a submit instead of being retyped every run.
+ */
+function createDefaultEntryForm(
+  staff: StaffMember[] = [],
+  defaultStaffId = "",
+): EntryFormValues {
+  const defaultMember =
+    staff.find((member) => member.id === defaultStaffId && member.isActive) ?? null;
+
   return {
     date: getTodayIsoDate(),
     odValue: "",
     protocolNumber: "",
     remarks: "",
-    performedBy: "",
-  };
-}
-
-function createDefaultLotForm(): NewLotFormValues {
-  return {
-    lotNumber: "",
-    startDate: getTodayIsoDate(),
-    expiryDate: "",
-    notes: "",
+    performedBy: defaultMember?.displayName ?? "",
+    performedById: defaultMember?.id ?? "",
   };
 }
 
@@ -217,10 +220,6 @@ function formatDateTimeLabel(value: string | null): string {
 
   const resolvedValue = value.includes("T") ? value : `${value}T08:00:00`;
   return format(new Date(resolvedValue), "MMM dd, hh:mm a");
-}
-
-function formatPerformedBy(value: string | null): string {
-  return value?.trim() ? value : "Not recorded";
 }
 
 function getEntryTimestamp(entry: QCEntry): string {
@@ -453,14 +452,14 @@ export default function QCDashboard({
   );
   const [selectedLotNumber, setSelectedLotNumber] = useState("");
   const [selectedInHouseBatchId, setSelectedInHouseBatchId] = useState("");
-  const [formValues, setFormValues] = useState<EntryFormValues>(
-    createDefaultEntryForm,
+  const [formValues, setFormValues] = useState<EntryFormValues>(() =>
+    createDefaultEntryForm(),
   );
-  const [newLotValues, setNewLotValues] =
-    useState<NewLotFormValues>(createDefaultLotForm);
   const [settings, setSettings] = useState<QCSettings>(
     DEFAULT_SETTINGS_FALLBACK,
   );
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
   const [isStartLotDialogOpen, setIsStartLotDialogOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -589,9 +588,10 @@ export default function QCDashboard({
 
       try {
         await ensureControlDatasetInitialized(diseaseSlug, controlType);
-        const [authUser, appSettings] = await Promise.all([
+        const [authUser, appSettings, staffRoster] = await Promise.all([
           getUser(),
           getSettings(),
+          getStaff(),
         ]);
 
         if (isCancelled) {
@@ -600,6 +600,14 @@ export default function QCDashboard({
 
         setCurrentUser(authUser);
         setSettings(appSettings);
+        setStaff(staffRoster);
+        // Seed "Performed By" from the lab default, but never clobber a
+        // selection the operator has already made.
+        setFormValues((current) =>
+          current.performedById === ""
+            ? createDefaultEntryForm(staffRoster, appSettings.defaultPreparedBy)
+            : current,
+        );
 
         if (isInHouseControl) {
           const storedBatches = await getInHouseBatches(diseaseSlug);
@@ -692,6 +700,49 @@ export default function QCDashboard({
     }));
   };
 
+  /**
+   * Quick-add from inside the Performed By picker: create the person, then
+   * select them straight away so the operator is not sent to another page
+   * mid-run.
+   */
+  const handleQuickAddStaff = async (values: StaffFormValues): Promise<boolean> => {
+    const newMember: StaffMember = {
+      id: crypto.randomUUID(),
+      staffId: values.staffId,
+      displayName: values.displayName,
+      initials: values.initials,
+      role: values.role,
+      contactNumber: values.contactNumber ? values.contactNumber : null,
+      email: values.email ? values.email : null,
+      photoUrl: values.photoUrl ? values.photoUrl : null,
+      shift: values.shift,
+      dutyDays: values.dutyDays,
+      isActive: true,
+      notes: values.notes ? values.notes : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
+    };
+
+    try {
+      await createStaffMember(newMember);
+      setStaff(await getStaff());
+      setFormValues((current) => ({
+        ...current,
+        performedBy: newMember.displayName,
+        performedById: newMember.id,
+      }));
+      success(`${newMember.displayName} added to the roster.`);
+      return true;
+    } catch (caughtError) {
+      error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to add the personnel record.",
+      );
+      return false;
+    }
+  };
+
   const handleAddEntry = async () => {
     const datasetLotNumber = activeDatasetLotNumber;
 
@@ -705,8 +756,8 @@ export default function QCDashboard({
       return;
     }
 
-    if (!formValues.performedBy.trim()) {
-      error("Performed by is required.");
+    if (!formValues.performedById) {
+      error("Select who performed this run.");
       return;
     }
 
@@ -736,6 +787,7 @@ export default function QCDashboard({
       runNumber: String(entries.length + 1).padStart(2, "0"),
       vialNumber: `V${String(entries.length + 1).padStart(2, "0")}`,
       performedBy: formValues.performedBy.trim(),
+      performedById: formValues.performedById,
       flag: null,
       notes: formValues.remarks.trim() ? formValues.remarks.trim() : null,
       editedAt: null,
@@ -784,7 +836,7 @@ export default function QCDashboard({
 
       setEntries(updatedEntries);
       setViolations(updatedViolations);
-      setFormValues(createDefaultEntryForm());
+      setFormValues(createDefaultEntryForm(staff, settings.defaultPreparedBy));
       setHasSubmitted(true);
       success("Entry recorded successfully");
       refreshViolationsEvent();
@@ -898,39 +950,18 @@ export default function QCDashboard({
     }
   };
 
-  const handleCreateLot = async () => {
-    const trimmedLotNumber = newLotValues.lotNumber.trim();
-
-    if (!trimmedLotNumber) {
-      error(
-        isInHouseControl
-          ? "In-house batch ID is required."
-          : "Lot number is required.",
-      );
-      return;
-    }
-
-    if (!isInHouseControl && !newLotValues.expiryDate) {
-      error("Expiry date is required for reagent lots.");
-      return;
-    }
-
-    if (
-      !isInHouseControl &&
-      newLotValues.expiryDate < newLotValues.startDate
-    ) {
-      error("Expiry date cannot be earlier than the start date.");
-      return;
-    }
+  const handleCreateLot = async (values: LotFormValues): Promise<boolean> => {
+    const trimmedLotNumber = values.lotNumber;
+    const trimmedNotes = values.notes ? values.notes : null;
 
     try {
       if (isInHouseControl) {
         await createInHouseBatch(diseaseSlug, {
           batchId: trimmedLotNumber,
-          startDate: newLotValues.startDate,
+          startDate: values.startDate,
           endDate: null,
           status: "active",
-          notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
+          notes: trimmedNotes,
         });
 
         const updatedBatches = await getInHouseBatches(diseaseSlug);
@@ -944,21 +975,19 @@ export default function QCDashboard({
         setSelectedInHouseBatchId(trimmedLotNumber);
         setEntries(updatedEntries);
         setViolations([]);
-        setIsStartLotDialogOpen(false);
-        setNewLotValues(createDefaultLotForm());
-        setFormValues(createDefaultEntryForm());
+        setFormValues(createDefaultEntryForm(staff, settings.defaultPreparedBy));
         success(`In-house batch ${trimmedLotNumber} is now active.`);
         refreshViolationsEvent();
-        return;
+        return true;
       }
 
       await createLot(diseaseSlug, controlType, {
         lotNumber: trimmedLotNumber,
-        startDate: newLotValues.startDate,
+        startDate: values.startDate,
         endDate: null,
-        expiryDate: newLotValues.expiryDate,
+        expiryDate: values.expiryDate,
         status: "active",
-        notes: newLotValues.notes.trim() ? newLotValues.notes.trim() : null,
+        notes: trimmedNotes,
       });
 
       const updatedLots = await getLots(diseaseSlug, controlType);
@@ -972,9 +1001,8 @@ export default function QCDashboard({
       setSelectedLotNumber(trimmedLotNumber);
       setEntries(updatedEntries);
       setViolations([]);
-      setIsStartLotDialogOpen(false);
-      setNewLotValues(createDefaultLotForm());
       success(`Lot ${trimmedLotNumber} is now active.`);
+      return true;
     } catch (caughtError) {
       error(
         caughtError instanceof Error
@@ -983,6 +1011,7 @@ export default function QCDashboard({
             ? "Unable to start the new in-house batch."
             : "Unable to start the new lot.",
       );
+      return false;
     }
   };
 
@@ -1224,13 +1253,18 @@ export default function QCDashboard({
                 <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
                   PERFORMED BY
                 </label>
-                <Input
-                  placeholder="e.g. J. Santos"
-                  value={formValues.performedBy}
+                <StaffPicker
+                  staff={staff}
+                  valueId={formValues.performedById}
                   disabled={isArchivedDataset}
-                  onChange={(event) =>
-                    handleFieldChange("performedBy", event.target.value)
+                  onChange={(member) =>
+                    setFormValues((current) => ({
+                      ...current,
+                      performedBy: member?.displayName ?? "",
+                      performedById: member?.id ?? "",
+                    }))
                   }
+                  onQuickAdd={() => setIsStaffDialogOpen(true)}
                   className={ENTRY_FIELD_CLASS_NAME}
                 />
               </div>
@@ -1613,7 +1647,11 @@ export default function QCDashboard({
                     </div>
                   </TableCell>
                   <TableCell className="py-4 text-[14px] text-[#374151]">
-                    {formatPerformedBy(entry.performedBy)}
+                    <PerformedByLabel
+                      performedBy={entry.performedBy}
+                      performedById={entry.performedById}
+                      staff={staff}
+                    />
                   </TableCell>
                   <TableCell className="py-4 text-right">
                     <DropdownMenu>
@@ -1675,129 +1713,23 @@ export default function QCDashboard({
         minRunsForWestgard={minRunsForWestgard}
       />
 
-      <Dialog
+      <StaffFormDialog
+        open={isStaffDialogOpen}
+        onOpenChange={setIsStaffDialogOpen}
+        member={null}
+        onInvalid={error}
+        onSubmit={handleQuickAddStaff}
+      />
+
+      <LotFormDialog
         open={isStartLotDialogOpen}
         onOpenChange={setIsStartLotDialogOpen}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {isInHouseControl ? "Start new in-house batch" : "Start new lot"}
-            </DialogTitle>
-            <DialogDescription>
-              {isInHouseControl
-                ? "The current active in-house batch will be archived and a fresh graph will become the working dataset for this control."
-                : "The current active lot will be archived and the new lot will become the working dataset for this control."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">
-                {isInHouseControl ? "Batch ID" : "Lot Number"}
-              </label>
-              <Input
-                value={newLotValues.lotNumber}
-                onChange={(event) =>
-                  setNewLotValues((currentValues) => ({
-                    ...currentValues,
-                    lotNumber: event.target.value,
-                  }))
-                }
-                placeholder={
-                  isInHouseControl
-                    ? "Enter in-house batch ID"
-                    : "Enter reagent lot number"
-                }
-                className="h-11 border-[#dce4f2] bg-white px-3"
-              />
-            </div>
-
-            <div
-              className={
-                isInHouseControl
-                  ? "grid grid-cols-1 gap-4"
-                  : "grid grid-cols-1 gap-4 lg:grid-cols-2"
-              }
-            >
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[#1A1C1C]">
-                  Start Date
-                </label>
-                <IsoDatePicker
-                  value={newLotValues.startDate}
-                  onChange={(value) =>
-                    setNewLotValues((currentValues) => ({
-                      ...currentValues,
-                      startDate: value,
-                    }))
-                  }
-                  displayFormat={settings.dateFormat}
-                  className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
-                />
-              </div>
-
-              {!isInHouseControl && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#1A1C1C]">
-                    Expiry Date
-                  </label>
-                  <IsoDatePicker
-                    value={newLotValues.expiryDate}
-                    onChange={(value) =>
-                      setNewLotValues((currentValues) => ({
-                        ...currentValues,
-                        expiryDate: value,
-                      }))
-                    }
-                    displayFormat={settings.dateFormat}
-                    className="h-11 border-[#dce4f2] bg-white text-[#1A1C1C] hover:bg-[#F8FAFC]"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#1A1C1C]">
-                Notes
-              </label>
-              <Textarea
-                value={newLotValues.notes}
-                onChange={(event) =>
-                  setNewLotValues((currentValues) => ({
-                    ...currentValues,
-                    notes: event.target.value,
-                  }))
-                }
-                rows={3}
-                maxLength={200}
-                placeholder={
-                  isInHouseControl
-                    ? "Optional notes for this in-house batch"
-                    : "Optional notes for this lot"
-                }
-                className="resize-none border-[#dce4f2] bg-white px-3 py-2"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsStartLotDialogOpen(false);
-                setNewLotValues(createDefaultLotForm());
-              }}
-            >
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleCreateLot}>
-              {isInHouseControl ? "Start batch" : "Start lot"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        target={{ disease: diseaseSlug, controlType }}
+        defaultStartDate={getTodayIsoDate()}
+        dateFormat={settings.dateFormat}
+        onInvalid={error}
+        onSubmit={handleCreateLot}
+      />
 
       <Dialog
         open={selectedEntry !== null}
@@ -1843,9 +1775,13 @@ export default function QCDashboard({
                 <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">
                   Performed By
                 </p>
-                <p className="mt-1 text-sm font-medium text-[#111827]">
-                  {formatPerformedBy(selectedEntry.performedBy)}
-                </p>
+                <div className="mt-1 text-sm font-medium text-[#111827]">
+                  <PerformedByLabel
+                    performedBy={selectedEntry.performedBy}
+                    performedById={selectedEntry.performedById}
+                    staff={staff}
+                  />
+                </div>
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.05em] text-[#6b7280]">

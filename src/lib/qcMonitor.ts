@@ -1,5 +1,6 @@
 import { getControlMonitorSeed } from '@/constants/monitor-config';
 import { initializeEntries, initializeLots } from '@/lib/qcStorage';
+import { pickSeedPerformer } from '@/lib/staffSeed';
 import type {
   ChartDataPoint,
   ControlTypeSlug,
@@ -46,23 +47,30 @@ export function buildSeedEntries(disease: DiseaseSlug, controlType: ControlTypeS
   const lotNumber = getSeedLotNumber(disease, controlType);
   const controlCode = getControlCode(controlType);
 
-  return monitorSeed.data.map((point, index) => ({
-    id: crypto.randomUUID(),
-    date: point.timestamp,
-    protocolNumber: point.sample,
-    odValue: point.value,
-    lotNumber,
-    controlCode,
-    runNumber: String(index + 1).padStart(2, '0'),
-    vialNumber: `V${String(index + 1).padStart(2, '0')}`,
-    performedBy: null,
-    flag: null,
-    notes: null,
-    editedAt: null,
-    editReason: null,
-    signedBy: null,
-    signedAt: null,
-  }));
+  const streamKey = `${disease}:${controlType}`;
+
+  return monitorSeed.data.map((point, index) => {
+    const performer = pickSeedPerformer(streamKey, index);
+
+    return {
+      id: crypto.randomUUID(),
+      date: point.timestamp,
+      protocolNumber: point.sample,
+      odValue: point.value,
+      lotNumber,
+      controlCode,
+      runNumber: String(index + 1).padStart(2, '0'),
+      vialNumber: `V${String(index + 1).padStart(2, '0')}`,
+      performedBy: performer.displayName,
+      performedById: performer.id,
+      flag: null,
+      notes: null,
+      editedAt: null,
+      editReason: null,
+      signedBy: null,
+      signedAt: null,
+    };
+  });
 }
 
 export function buildSeedLots(disease: DiseaseSlug, controlType: ControlTypeSlug): LotMetadata[] {

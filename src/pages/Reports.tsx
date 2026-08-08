@@ -50,7 +50,7 @@ function describePeriod({ from, to }: DateRange): string {
   return 'All-Runs';
 }
 
-export function Exports() {
+export function Reports() {
   const [catalog, setCatalog] = useState<DiseaseExportGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDisease, setSelectedDisease] = useState<DiseaseSlug | 'all'>('all');
@@ -76,7 +76,7 @@ export function Exports() {
           error(
             caughtError instanceof Error
               ? caughtError.message
-              : 'Unable to load the export catalog.',
+              : 'Unable to load the report catalog.',
           );
         }
       } finally {
@@ -214,9 +214,11 @@ export function Exports() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9ca3af]">
-              Exports
+              Reports
             </p>
-            <h1 className="mt-3 text-3xl font-bold text-[#111827]">Download QC reports</h1>
+            <h1 className="mt-3 text-3xl font-bold text-[#111827]">
+              QC reports &amp; data exports
+            </h1>
             <p className="mt-3 max-w-3xl text-sm text-[#6b7280]">
               Every disease control stream is collected here as a downloadable ZCMC record. Pull a
               single lot as CSV, Excel or PDF, or generate a full report covering all three controls
@@ -243,7 +245,7 @@ export function Exports() {
 
       {isLoading && (
         <div className="rounded-2xl border border-dashed border-[#dbe3ef] bg-[#f8fafc] px-4 py-12 text-center text-sm text-[#6b7280]">
-          Building the export catalog...
+          Building the report catalog...
         </div>
       )}
 
@@ -288,4 +290,4 @@ export function Exports() {
   );
 }
 
-export default Exports;
+export default Reports;

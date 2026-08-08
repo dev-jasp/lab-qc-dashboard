@@ -1,3 +1,4 @@
+import { SEED_STAFF, SEED_STAFF_ID_PREFIX, STAFF_SEED_VERSION } from '@/lib/staffSeed';
 import type {
   AuditEntry,
   CorrectiveAction,
@@ -5,14 +6,15 @@ import type {
   LotMetadata,
   QCEntry,
   QCSettings,
-  QCUser,
+  StaffMember,
   ViolationEntry,
 } from '@/types/qc.types';
 
 const STORAGE_PREFIX = 'qc_';
 const STORAGE_INDEX_KEY = '__qc_storage_index__';
 const SETTINGS_KEY = 'qc_settings';
-const USERS_KEY = 'qc_users';
+const STAFF_KEY = 'qc_staff';
+const STAFF_SEED_VERSION_KEY = 'qc_staff_seed_version';
 const LOGO_KEYS = {
   seal: 'qc_logo_seal',
   pathology: 'qc_logo_pathology',
@@ -30,6 +32,7 @@ const DEFAULT_SETTINGS: QCSettings = {
   recentLogsCount: 10,
   chartTheme: 'light',
   defaultChartView: 'daily',
+  lotExpiryWarningDays: 30,
 };
 
 type StoredBackup = Record<string, unknown>;
@@ -64,7 +67,9 @@ const CORRECTIVE_ROOT_CAUSES = new Set([
 ]);
 const CORRECTIVE_OUTCOMES = new Set(['resolved', 'ongoing', 'escalated']);
 const AUDIT_ACTIONS = new Set(['EDIT', 'DELETE']);
-const USER_ROLES = new Set(['analyst', 'supervisor', 'admin']);
+const STAFF_ROLES = new Set(['analyst', 'supervisor', 'admin']);
+const DUTY_SHIFTS = new Set(['morning', 'mid', 'night', 'rotating']);
+const WEEKDAYS = new Set(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
 const CHART_THEMES = new Set(['light', 'dark']);
 const CHART_VIEWS = new Set(['daily', 'weekly', 'monthly']);
 
@@ -115,6 +120,7 @@ function isQCEntry(value: unknown): value is QCEntry {
     isString(value.runNumber) &&
     isString(value.vialNumber) &&
     (!('performedBy' in value) || isNullableString(value.performedBy)) &&
+    (!('performedById' in value) || isNullableString(value.performedById)) &&
     (value.flag === null || (isString(value.flag) && ENTRY_FLAGS.has(value.flag))) &&
     isNullableString(value.notes) &&
     isNullableString(value.editedAt) &&
@@ -128,6 +134,7 @@ function normalizeQCEntry(entry: QCEntry): QCEntry {
   return {
     ...entry,
     performedBy: entry.performedBy ?? null,
+    performedById: entry.performedById ?? null,
   };
 }
 
@@ -240,26 +247,34 @@ function isQCSettings(value: unknown): value is QCSettings {
     isString(value.chartTheme) &&
     CHART_THEMES.has(value.chartTheme) &&
     isString(value.defaultChartView) &&
-    CHART_VIEWS.has(value.defaultChartView)
+    CHART_VIEWS.has(value.defaultChartView) &&
+    isNumber(value.lotExpiryWarningDays)
   );
 }
 
-function isQCUser(value: unknown): value is QCUser {
+function isStaffMember(value: unknown): value is StaffMember {
   if (!isRecord(value)) {
     return false;
   }
 
   return (
     isString(value.id) &&
-    isString(value.username) &&
+    isString(value.staffId) &&
     isString(value.displayName) &&
+    isString(value.initials) &&
     isString(value.role) &&
-    USER_ROLES.has(value.role) &&
-    isString(value.pinHash) &&
+    STAFF_ROLES.has(value.role) &&
+    isNullableString(value.contactNumber) &&
+    isNullableString(value.email) &&
+    isNullableString(value.photoUrl) &&
+    isString(value.shift) &&
+    DUTY_SHIFTS.has(value.shift) &&
+    Array.isArray(value.dutyDays) &&
+    value.dutyDays.every((day) => isString(day) && WEEKDAYS.has(day)) &&
+    isBoolean(value.isActive) &&
+    isNullableString(value.notes) &&
     isString(value.createdAt) &&
-    isNullableString(value.updatedAt) &&
-    isNullableString(value.lastLoginAt) &&
-    isBoolean(value.isActive)
+    isNullableString(value.updatedAt)
   );
 }
 
@@ -624,18 +639,71 @@ function readAuditLogEntries(key: string): AuditEntry[] {
   return auditEntries;
 }
 
-function readUsersFromStorage(): QCUser[] {
-  const users = getKey<unknown>(USERS_KEY);
-
-  if (users === null) {
-    return [];
+/**
+ * Backfills the contact and duty-schedule fields, which were added after the
+ * roster shipped. Without this a record written by an earlier build fails
+ * validation and takes the whole read down with it.
+ */
+function withStaffDefaults(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
   }
 
-  if (!isArrayOf(users, isQCUser)) {
-    throw new Error('Stored user accounts are malformed.');
+  return {
+    contactNumber: null,
+    email: null,
+    photoUrl: null,
+    shift: 'morning',
+    dutyDays: [],
+    ...value,
+  };
+}
+
+function readStaffFromStorage(): StaffMember[] {
+  const stored = getKey<unknown>(STAFF_KEY);
+
+  // Nothing written yet — lay down the demo roster so the Performed By picker
+  // and the personnel pages have something to show on a fresh browser. An
+  // explicitly empty roster reads as `[]`, not null, so it is left alone.
+  if (stored === null) {
+    applyMutationsAtomically(
+      [
+        { key: STAFF_KEY, value: SEED_STAFF },
+        { key: STAFF_SEED_VERSION_KEY, value: STAFF_SEED_VERSION },
+      ],
+      'seed the personnel roster',
+    );
+
+    return SEED_STAFF;
   }
 
-  return users;
+  const normalized = Array.isArray(stored) ? stored.map(withStaffDefaults) : stored;
+
+  if (!isArrayOf(normalized, isStaffMember)) {
+    throw new Error('Stored personnel records are malformed.');
+  }
+
+  if (getKey<unknown>(STAFF_SEED_VERSION_KEY) === STAFF_SEED_VERSION) {
+    return normalized;
+  }
+
+  // The seed changed. Replace the seeded records so the update actually
+  // reaches a browser that seeded under an older version, and keep everyone
+  // added through the UI — they are real records, not demo data.
+  const refreshed = [
+    ...SEED_STAFF,
+    ...normalized.filter((member) => !member.id.startsWith(SEED_STAFF_ID_PREFIX)),
+  ];
+
+  applyMutationsAtomically(
+    [
+      { key: STAFF_KEY, value: refreshed },
+      { key: STAFF_SEED_VERSION_KEY, value: STAFF_SEED_VERSION },
+    ],
+    'refresh the seeded personnel roster',
+  );
+
+  return refreshed;
 }
 
 function sortEntriesAscending(entries: QCEntry[]): QCEntry[] {
@@ -775,15 +843,23 @@ function ensureBackupPayload(value: unknown): StoredBackup {
     }
 
     if (key === SETTINGS_KEY) {
-      if (!isQCSettings(storedValue)) {
+      // Same defaults-merge as getSettings, so a backup taken before a settings
+      // field existed still restores instead of being rejected outright.
+      if (!isRecord(storedValue) || !isQCSettings({ ...DEFAULT_SETTINGS, ...storedValue })) {
         throw new Error('Backup settings payload is malformed.');
       }
       continue;
     }
 
-    if (key === USERS_KEY) {
-      if (!isArrayOf(storedValue, isQCUser)) {
-        throw new Error('Backup user payload is malformed.');
+    if (key === STAFF_KEY) {
+      // Normalised first so a backup taken before the contact and duty-schedule
+      // fields existed still restores.
+      const normalizedStaff = Array.isArray(storedValue)
+        ? storedValue.map(withStaffDefaults)
+        : storedValue;
+
+      if (!isArrayOf(normalizedStaff, isStaffMember)) {
+        throw new Error('Backup personnel payload is malformed.');
       }
       continue;
     }
@@ -1126,6 +1202,41 @@ export async function createInHouseBatch(disease: string, batch: InHouseBatchMet
 }
 
 /**
+ * Archives an in-house batch without deleting any QC entries stored under it.
+ *
+ * @param disease Disease slug that owns the in-house batches.
+ * @param batchId Batch identifier to archive.
+ * @throws {Error} When the batch does not exist.
+ */
+export async function archiveInHouseBatch(disease: string, batchId: string): Promise<void> {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  const safeBatchId = requireNonEmptyString(batchId, 'Batch ID');
+
+  ensureInHouseBatchRegistry(safeDisease);
+
+  const batchesKey = buildInHouseBatchesKey(safeDisease);
+  const batches = readInHouseBatches(batchesKey);
+  const targetBatch = batches.find((batch) => batch.batchId === safeBatchId);
+
+  if (targetBatch === undefined) {
+    throw new Error(`In-house batch "${safeBatchId}" does not exist for ${safeDisease}.`);
+  }
+
+  setKey(
+    batchesKey,
+    batches.map((batch) =>
+      batch.batchId === safeBatchId
+        ? {
+            ...batch,
+            status: 'archived' as const,
+            endDate: getTodayIsoDate(),
+          }
+        : batch,
+    ),
+  );
+}
+
+/**
  * Seeds lot metadata only when no lot registry exists for the control yet.
  *
  * @param disease Disease slug that owns the lots.
@@ -1391,11 +1502,26 @@ export async function getSettings(): Promise<QCSettings> {
     return structuredClone(DEFAULT_SETTINGS);
   }
 
-  if (!isQCSettings(settings)) {
+  if (!isRecord(settings)) {
     throw new Error('Stored QC settings are malformed.');
   }
 
-  return settings;
+  // Records written before a settings field existed are missing that key. Filling
+  // from defaults before validating keeps older installs loading instead of
+  // throwing, and self-heals the stored record so the gap closes permanently.
+  const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+
+  if (!isQCSettings(mergedSettings)) {
+    throw new Error('Stored QC settings are malformed.');
+  }
+
+  const hasMissingKeys = Object.keys(DEFAULT_SETTINGS).some((key) => !(key in settings));
+
+  if (hasMissingKeys) {
+    setKey(SETTINGS_KEY, mergedSettings);
+  }
+
+  return mergedSettings;
 }
 
 /**
@@ -1422,68 +1548,76 @@ export async function updateSettings(settings: Partial<QCSettings>): Promise<voi
  *
  * @throws {Error} When the stored user payload is malformed.
  */
-export async function getUsers(): Promise<QCUser[]> {
-  return readUsersFromStorage();
+export async function getStaff(): Promise<StaffMember[]> {
+  return readStaffFromStorage();
 }
 
 /**
- * Creates a new QC user account after enforcing username uniqueness.
+ * Creates a personnel record after enforcing staff ID uniqueness.
  *
- * @param user Fully constructed QC user account to store.
- * @throws {Error} When the user payload is malformed or the username already exists.
+ * @param member Fully constructed staff record to store.
+ * @throws {Error} When the payload is malformed or the staff ID already exists.
  */
-export async function createUser(user: QCUser): Promise<void> {
-  if (!isQCUser(user)) {
-    throw new Error('Cannot create user because the payload is malformed.');
+export async function createStaffMember(member: StaffMember): Promise<void> {
+  if (!isStaffMember(member)) {
+    throw new Error('Cannot create the personnel record because the payload is malformed.');
   }
 
-  const users = readUsersFromStorage();
-  const username = user.username.trim().toLowerCase();
+  const staff = readStaffFromStorage();
+  const staffId = member.staffId.trim().toLowerCase();
 
-  if (users.some((existingUser) => existingUser.username.trim().toLowerCase() === username)) {
-    throw new Error(`Username "${user.username}" already exists.`);
+  if (staff.some((existing) => existing.staffId.trim().toLowerCase() === staffId)) {
+    throw new Error(`Staff ID "${member.staffId}" already exists.`);
   }
 
-  setKey(USERS_KEY, [...users, user]);
+  setKey(STAFF_KEY, [...staff, member]);
 }
 
 /**
- * Updates an existing QC user account.
+ * Updates an existing personnel record.
  *
- * @param userId Identifier of the user to update.
- * @param updates Partial user payload to merge.
- * @throws {Error} When the target user is missing, the username collides, or the merged user payload is malformed.
+ * Deactivation is an update to `isActive`, never a delete, so historical run
+ * attribution survives.
+ *
+ * @param memberId Identifier of the staff record to update.
+ * @param updates Partial staff payload to merge.
+ * @throws {Error} When the record is missing, the staff ID collides, or the merged payload is malformed.
  */
-export async function updateUser(userId: string, updates: Partial<QCUser>): Promise<void> {
-  const safeUserId = requireNonEmptyString(userId, 'User ID');
-  const users = readUsersFromStorage();
-  const userIndex = users.findIndex((user) => user.id === safeUserId);
+export async function updateStaffMember(
+  memberId: string,
+  updates: Partial<StaffMember>,
+): Promise<void> {
+  const safeMemberId = requireNonEmptyString(memberId, 'Staff record ID');
+  const staff = readStaffFromStorage();
+  const memberIndex = staff.findIndex((member) => member.id === safeMemberId);
 
-  if (userIndex === -1) {
-    throw new Error(`User "${safeUserId}" does not exist.`);
+  if (memberIndex === -1) {
+    throw new Error(`Personnel record "${safeMemberId}" does not exist.`);
   }
 
-  const mergedUser: QCUser = {
-    ...users[userIndex],
+  const mergedMember: StaffMember = {
+    ...staff[memberIndex],
     ...updates,
+    updatedAt: new Date().toISOString(),
   };
 
-  if (!isQCUser(mergedUser)) {
-    throw new Error('Cannot update user because the merged payload is malformed.');
+  if (!isStaffMember(mergedMember)) {
+    throw new Error('Cannot update the personnel record because the merged payload is malformed.');
   }
 
-  const normalizedUsername = mergedUser.username.trim().toLowerCase();
-  const duplicateUsername = users.some(
-    (user, index) => index !== userIndex && user.username.trim().toLowerCase() === normalizedUsername,
+  const normalizedStaffId = mergedMember.staffId.trim().toLowerCase();
+  const duplicateStaffId = staff.some(
+    (member, index) =>
+      index !== memberIndex && member.staffId.trim().toLowerCase() === normalizedStaffId,
   );
 
-  if (duplicateUsername) {
-    throw new Error(`Username "${mergedUser.username}" already exists.`);
+  if (duplicateStaffId) {
+    throw new Error(`Staff ID "${mergedMember.staffId}" already exists.`);
   }
 
-  const nextUsers = [...users];
-  nextUsers[userIndex] = mergedUser;
-  setKey(USERS_KEY, nextUsers);
+  const nextStaff = [...staff];
+  nextStaff[memberIndex] = mergedMember;
+  setKey(STAFF_KEY, nextStaff);
 }
 
 /**
