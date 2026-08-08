@@ -1,6 +1,6 @@
 import { getControlMonitorSeed } from '@/constants/monitor-config';
 import { initializeEntries, initializeLots } from '@/lib/qcStorage';
-import { pickSeedPerformer } from '@/lib/staffSeed';
+import { pickSeedPerformer, pickSeedValidator } from '@/lib/staffSeed';
 import type {
   ChartDataPoint,
   ControlTypeSlug,
@@ -51,6 +51,7 @@ export function buildSeedEntries(disease: DiseaseSlug, controlType: ControlTypeS
 
   return monitorSeed.data.map((point, index) => {
     const performer = pickSeedPerformer(streamKey, index);
+    const validator = pickSeedValidator(streamKey, index);
 
     return {
       id: crypto.randomUUID(),
@@ -63,6 +64,8 @@ export function buildSeedEntries(disease: DiseaseSlug, controlType: ControlTypeS
       vialNumber: `V${String(index + 1).padStart(2, '0')}`,
       performedBy: performer.displayName,
       performedById: performer.id,
+      validatedBy: validator.displayName,
+      validatedById: validator.id,
       flag: null,
       notes: null,
       editedAt: null,

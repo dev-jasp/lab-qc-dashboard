@@ -95,6 +95,17 @@ export type QCEntry = {
   performedBy: string | null;
   /** Joins to StaffMember.id. Null on legacy and seeded entries. */
   performedById: string | null;
+  /**
+   * The colleague who attested the run was performed properly, transcribed
+   * from the bench worksheet.
+   *
+   * NOT the same as `signedBy`, which is an in-app attestation that also locks
+   * the record from editing. A validator is a recorded fact and locks nothing.
+   * Null on entries recorded before the field existed.
+   */
+  validatedBy: string | null;
+  /** Joins to StaffMember.id. Null on entries predating the field. */
+  validatedById: string | null;
   flag: QCEntryFlag | null;
   notes: string | null;
   editedAt: string | null;
@@ -112,6 +123,10 @@ export type EntryFormValues = {
   performedBy: string;
   /** Selected StaffMember.id. Empty string when nobody is selected yet. */
   performedById: string;
+  /** Display name of the attesting colleague, mirrored for storage. */
+  validatedBy: string;
+  /** Selected StaffMember.id. Empty string when nobody is selected yet. */
+  validatedById: string;
 };
 
 export type LotMetadata = {
@@ -224,14 +239,6 @@ export interface LeveyJenningsChartProps {
   headerActions?: React.ReactNode;
   showChartTitle?: boolean;
   variant?: 'card' | 'plain';
-}
-
-export interface InputPanelProps {
-  formValues: EntryFormValues;
-  onFieldChange: (field: keyof EntryFormValues, value: string) => void;
-  onAddOD: () => void;
-  currentLotNumber?: string;
-  isReadOnly?: boolean;
 }
 
 export interface StatisticsPanelProps {
