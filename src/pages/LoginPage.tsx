@@ -185,12 +185,28 @@ export default function LoginPage() {
   return (
     <div className="h-svh overflow-hidden bg-[#eef2f6] text-[#0f172a]">
       <div className="grid h-svh lg:grid-cols-[minmax(420px,0.78fr)_minmax(0,1.22fr)]">
-        <section className="flex h-svh items-center bg-white px-5 py-4 sm:px-8 lg:px-12 xl:px-16">
+        <section className="relative flex h-svh items-center overflow-hidden px-5 py-4 sm:px-8 lg:bg-white lg:px-12 xl:px-16">
+          {/* Below lg the right-hand panel is hidden, so the lab photo would be
+              absent entirely. Bring it in behind the card — image only, none of
+              that panel's copy. */}
+          <img
+            src="/images/qc-lab-background-source.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover lg:hidden"
+            loading="eager"
+            decoding="async"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-white/40 lg:hidden"
+          />
+
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.55, ease: MOTION_EASE }}
-            className="mx-auto w-full max-w-[500px] rounded-2xl border border-sky-200/80 bg-white px-6 py-7  sm:px-7 lg:px-8"
+            className="relative z-10 mx-auto w-full max-w-[500px] rounded-2xl border border-[#e2e8f0] bg-white px-6 py-7  sm:px-7 lg:px-8"
           >
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -198,21 +214,20 @@ export default function LoginPage() {
               transition={{ delay: 0.08, duration: 0.45, ease: MOTION_EASE }}
               className="mb-5"
             >
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[1.15rem] bg-white shadow-[0_12px_32px_rgba(26,26,255,0.14)] ring-1 ring-[#dbe3ff]">
-                  <img
-                    src="/images/brand-logo.png"
-                    alt="QC Pulse logo"
-                    className="h-9 w-9 rounded-full object-cover"
-                    loading="eager"
-                    decoding="async"
-                  />
-                </div>
-                <div>
-                  <p className="text-[1.75rem] font-extrabold text-[#0f172a]">
-                    QC Pulse
-                  </p>
-                </div>
+              <div className="mb-4 flex items-center gap-2.5">
+                {/* The frame is gone, so the logo takes the full 48px that
+                    frame used to occupy — bigger, but the row's height and
+                    everything below it stay put. */}
+                <img
+                  src="/images/brand-logo.png"
+                  alt="QC Pulse logo"
+                  className="h-12 w-12 shrink-0 rounded-full object-cover"
+                  loading="eager"
+                  decoding="async"
+                />
+                <p className="text-[1.75rem] font-extrabold text-[#0f172a]">
+                  QC Pulse
+                </p>
               </div>
 
               <h1 className="max-w-md text-[1.65rem] leading-tight font-extrabold text-[#0f172a] sm:text-[1.85rem]">
@@ -308,7 +323,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-11 w-full rounded-md bg-[#1a1aff] text-[15px] font-semibold text-white shadow-[0_18px_45px_rgba(26,26,255,0.22)] transition hover:bg-[#1515e0] disabled:bg-[#94a3ff] disabled:opacity-100"
+                className="h-11 w-full rounded-md bg-[#1a1aff] text-[15px] font-semibold text-white transition hover:bg-[#1515e0] disabled:bg-[#94a3ff] disabled:opacity-100"
               >
                 {isSubmitting ? (
                   <>

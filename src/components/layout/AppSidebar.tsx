@@ -480,15 +480,19 @@ export function AppSidebar() {
                 onClick={() => handleSidebarNavigate("/monitor")}
                 className="flex w-full items-center justify-start rounded-xl px-2 py-2 transition"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-[#e5e7eb]">
+                {/* brand-logo.png carries ~17% white margin on each side, so
+                    the mark fills only about two thirds of the file and reads
+                    as padded at any size. Scale it up inside a clipped box to
+                    crop that margin away. */}
+                <span className="flex h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-sm">
                   <img
                     src="/images/brand-logo.png"
                     alt="QC Pulse brand logo"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full scale-[1.5] object-cover"
                     loading="eager"
                     decoding="async"
                   />
-                </div>
+                </span>
                 <SidebarAnimatedLabel className="ml-3 flex min-w-0 flex-col overflow-hidden whitespace-nowrap text-left [--sidebar-label-width:11rem]">
                   <p className="text-[15px] font-bold tracking-[0.01em] text-[var(--brand-blue)]">
                     QC PULSE
