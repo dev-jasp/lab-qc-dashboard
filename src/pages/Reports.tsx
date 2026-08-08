@@ -219,11 +219,6 @@ export function Reports() {
             <h1 className="mt-3 text-3xl font-bold text-[#111827]">
               QC reports &amp; data exports
             </h1>
-            <p className="mt-3 max-w-3xl text-sm text-[#6b7280]">
-              Every disease control stream is collected here as a downloadable ZCMC record. Pull a
-              single lot as CSV, Excel or PDF, or generate a full report covering all three controls
-              of a disease.
-            </p>
           </div>
           <div className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#eef2ff] px-4 py-2 text-sm font-semibold text-[#1a1aff]">
             <DownloadSimpleIcon size={16} />
