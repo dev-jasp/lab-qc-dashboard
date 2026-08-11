@@ -53,6 +53,25 @@ const LOGIN_FEATURES = [
   { label: "Actionable Insights", Icon: ChartBarIcon },
 ];
 
+/**
+ * Stands in for the lab photo this panel used to show. Every stop is sampled
+ * from that photo: the near-white wash at the top, its bright hotspot just
+ * above centre, the tube rack's cyan low on the left, and the deep blue that
+ * pooled in the bottom-right corner.
+ *
+ * The centre band stays pale on purpose — the highlight copy over it is
+ * #081835, which only clears contrast against a light backdrop. Keep the
+ * saturated stops in the bottom corner, below the text, as the photo had them.
+ *
+ * Layers paint top-most first.
+ */
+const PHOTO_ACCENT_GRADIENT = [
+  "radial-gradient(75% 55% at 50% 32%, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0) 72%)",
+  "radial-gradient(85% 45% at 12% 96%, rgba(17,158,250,0.5) 0%, rgba(17,158,250,0) 62%)",
+  "radial-gradient(95% 55% at 100% 100%, rgba(33,89,225,0.85) 0%, rgba(33,89,225,0) 68%)",
+  "linear-gradient(163deg, #fcfdff 0%, #f2f6fd 30%, #e2eefc 52%, #bfe0fc 70%, #7fcbf9 85%, #3f8bee 100%)",
+].join(", ");
+
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, milliseconds);
@@ -186,20 +205,14 @@ export default function LoginPage() {
     <div className="h-svh overflow-hidden bg-[#eef2f6] text-[#0f172a]">
       <div className="grid h-svh lg:grid-cols-[minmax(420px,0.78fr)_minmax(0,1.22fr)]">
         <section className="relative flex h-svh items-center overflow-hidden px-5 py-4 sm:px-8 lg:bg-white lg:px-12 xl:px-16">
-          {/* Below lg the right-hand panel is hidden, so the lab photo would be
-              absent entirely. Bring it in behind the card — image only, none of
-              that panel's copy. */}
-          <img
-            src="/images/qc-lab-background-source.png"
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover lg:hidden"
-            loading="eager"
-            decoding="async"
-          />
+          {/* Below lg the right-hand panel is hidden, so the accent would be
+              absent entirely. Bring it in behind the card — backdrop only, none
+              of that panel's copy. No scrim needed the way the photo needed
+              one; the gradient is already pale where the card sits. */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-white/40 lg:hidden"
+            className="absolute inset-0 lg:hidden"
+            style={{ backgroundImage: PHOTO_ACCENT_GRADIENT }}
           />
 
           <motion.div
@@ -420,17 +433,10 @@ export default function LoginPage() {
         </section>
 
         <section className="relative hidden h-svh overflow-hidden bg-[#eef4ff] lg:block">
-          <img
-            src="/images/qc-lab-background-source.png"
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover saturate-[1.08] contrast-[1.03]"
-            loading="eager"
-            decoding="async"
-          />
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-[linear-gradient(90deg,rgba(248,251,255,0.18)_0%,rgba(248,251,255,0.08)_34%,rgba(8,24,53,0.04)_100%)]"
+            className="absolute inset-0"
+            style={{ backgroundImage: PHOTO_ACCENT_GRADIENT }}
           />
 
           <motion.div
