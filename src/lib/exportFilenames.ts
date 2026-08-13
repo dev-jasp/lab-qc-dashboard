@@ -30,17 +30,24 @@ export function buildStreamFilename(stream: ExportStream, extension: ExportExten
   return `${parts.join('-')}.${extension}`;
 }
 
-/** `{Disease}-QC-Report-{Period}-{YYYY}.{ext}` for whole-disease reports. */
+/**
+ * `{Disease}-QC-Report-{Period}-{YYYY}.{ext}` for whole-disease reports.
+ *
+ * `year` is required rather than defaulted to the current year: the file is
+ * filed under the year of the runs inside it, which is not always the year it
+ * was generated in. See `getReportYear` in `@/lib/reportPeriod`.
+ */
 export function buildDiseaseReportFilename(
   diseaseName: string,
   period: string,
   extension: ExportExtension,
+  year: number,
 ): string {
   const parts = [
     toFilenameToken(diseaseName),
     'QC-Report',
     toFilenameToken(period),
-    String(new Date().getFullYear()),
+    String(year),
   ].filter((part) => part.length > 0);
 
   return `${parts.join('-')}.${extension}`;
