@@ -24,6 +24,7 @@ import { downloadDiseaseCsv, downloadStreamCsv } from '@/lib/exportCsv';
 import { buildDiseaseReportFilename, buildStreamFilename } from '@/lib/exportFilenames';
 import { toPrintableSection } from '@/lib/exportSections';
 import { downloadDiseaseXlsx, downloadStreamXlsx } from '@/lib/exportXlsx';
+import { getReportYear } from '@/lib/reportPeriod';
 import type { DiseaseSlug } from '@/types/qc.types';
 
 type PdfRequest = {
@@ -47,6 +48,11 @@ function describePeriod({ from, to }: DateRange): string {
   }
 
   return 'All-Runs';
+}
+
+/** Every run date across a disease's streams, for filing the report by year. */
+function collectStreamDates(streams: ExportStream[]): string[] {
+  return streams.flatMap((stream) => stream.entries.map((entry) => entry.date));
 }
 
 export function Reports() {
@@ -150,6 +156,7 @@ export function Reports() {
         group.diseaseName,
         describePeriod(dateRange),
         exportFormat,
+        getReportYear(collectStreamDates(streams)),
       );
 
       try {
@@ -190,7 +197,12 @@ export function Reports() {
 
       setPdfRequest({
         title: `${group.diseaseName} · full QC report`,
-        filename: buildDiseaseReportFilename(group.diseaseName, describePeriod(dateRange), 'pdf'),
+        filename: buildDiseaseReportFilename(
+          group.diseaseName,
+          describePeriod(dateRange),
+          'pdf',
+          getReportYear(collectStreamDates(streams)),
+        ),
         sections: streams.map(toPrintableSection),
       });
     },

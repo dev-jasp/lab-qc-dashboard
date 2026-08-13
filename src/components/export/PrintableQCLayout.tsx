@@ -14,6 +14,7 @@ import {
   type Plugin,
 } from 'chart.js';
 
+import { formatReportPeriod, getReportPeriod } from '@/lib/reportPeriod';
 import type { PrintableChartDataPoint } from '@/types/export';
 
 ChartJS.register(
@@ -221,6 +222,11 @@ export const PrintableQCLayout = React.forwardRef<HTMLDivElement, PrintableQCLay
 
     const chartTitle = `ANTI-${disease.toUpperCase()} IGM ${controlLabel.toUpperCase()} QC CHART ${year}`;
     const hasLotNumber = typeof lotNumber === 'string' && lotNumber.trim().length > 0;
+    // The x-axis is protocol numbers, so the run dates appear nowhere else on
+    // the page. Without this line a filed chart never states what it covers.
+    const periodLabel = formatReportPeriod(
+      getReportPeriod(chartData.map((point) => point.date)),
+    );
 
     return (
       <div
@@ -298,12 +304,26 @@ export const PrintableQCLayout = React.forwardRef<HTMLDivElement, PrintableQCLay
             textAlign: 'center',
             fontWeight: 700,
             fontSize: '16px',
-            margin: '12px 0',
+            margin: '12px 0 6px',
             color: '#111827',
           }}
         >
           {chartTitle}
         </div>
+
+        {periodLabel.length > 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#374151',
+              marginBottom: '10px',
+            }}
+          >
+            {`Period Covered: ${periodLabel}`}
+          </div>
+        )}
 
         <div
           style={{

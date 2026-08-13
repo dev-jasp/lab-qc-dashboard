@@ -92,6 +92,7 @@ import {
   getViolations,
   updateEntry,
 } from "@/lib/qcStorage";
+import { getReportYear } from "@/lib/reportPeriod";
 import type { PrintableChartDataPoint } from "@/types/export";
 import type {
   AuditEntry,
@@ -640,7 +641,7 @@ export default function QCDashboard({
   ).toUpperCase();
   const exportControlLabel = getControlCode(controlType);
   const exportLotNumber = isInHouseControl ? undefined : selectedLotNumber;
-  const exportYear = new Date().getFullYear();
+  const exportYear = getReportYear(entries.map((entry) => entry.date));
 
   useEffect(() => {
     let isCancelled = false;

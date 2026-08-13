@@ -1,5 +1,6 @@
 import type { PrintableQCLayoutProps } from '@/components/export/PrintableQCLayout';
 import type { ExportStream } from '@/lib/exportCatalog';
+import { getReportYear } from '@/lib/reportPeriod';
 
 /**
  * Maps a catalog stream onto the print layout's props, mirroring the label
@@ -11,7 +12,7 @@ export function toPrintableSection(stream: ExportStream): PrintableQCLayoutProps
     disease: stream.diseaseName.toUpperCase(),
     controlType: stream.controlLabel.toUpperCase(),
     controlLabel: stream.controlCode,
-    year: new Date().getFullYear(),
+    year: getReportYear(stream.entries.map((entry) => entry.date)),
     mean: stream.statistics.mean,
     sd: stream.statistics.sd,
     cv: stream.cv,
