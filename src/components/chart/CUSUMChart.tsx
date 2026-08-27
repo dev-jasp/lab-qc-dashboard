@@ -25,7 +25,8 @@ ChartJS.register(
 
 interface CUSUMChartProps {
   result: CUSUMResult;
-  height?: number;
+  /** Pixels, or a CSS length such as "100%" to fill a flex cell. */
+  height?: number | string;
 }
 
 /**

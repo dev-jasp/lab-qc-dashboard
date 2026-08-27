@@ -1454,11 +1454,10 @@ export default function QCDashboard({
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <motion.div
           {...getRevealProps(3)}
-          // Sticky so the form stays reachable beside a chart column that is now
-          // four panels tall. `self-start` stops the grid stretching it to that
-          // column's height; the max-height keeps Submit reachable on a short
-          // viewport instead of stranding it below the fold.
-          className="qc-card order-1 flex flex-col lg:order-3 lg:col-span-1 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto"
+          // Pairs with the Levey-Jennings chart, which is within a few pixels of
+          // this form's natural height. `self-start` keeps it honest if either
+          // side grows — the form should never be stretched to match a chart.
+          className="qc-card order-1 flex flex-col lg:order-3 lg:col-span-1 lg:self-start"
         >
           <div className="mb-6 flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -1797,7 +1796,7 @@ export default function QCDashboard({
         </motion.div>
 
         <motion.div
-          {...getRevealProps(3)}
+          {...getRevealProps(2)}
           className="order-3 lg:order-2 lg:col-span-2"
         >
           <LeveyJenningsChart
@@ -1838,76 +1837,82 @@ export default function QCDashboard({
             showChartTitle={false}
           />
 
-          {/* PRD 6.3 places CUSUM alongside Levey-Jennings, and it belongs there:
-              the two answer different questions about the same runs. */}
-          <div className="qc-card mt-6">
-            <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="text-[15px] font-semibold text-[#111827]">
-                  CUSUM drift detection
-                </h3>
-                <p className="mt-1 text-[13px] text-[#6b7280]">
-                  Cumulative deviation from the mean. Catches a sustained shift that
-                  stays inside the Levey-Jennings limits.
-                </p>
-              </div>
-              {cusum.firstBreachIndex !== null && (
-                <Badge className="bg-[#fee2e2] text-[#dc2626]">
-                  {`Shift detected at run ${cusum.points[cusum.firstBreachIndex]?.sample ?? ''}`}
-                </Badge>
-              )}
-            </div>
-            <div className="mt-4">
-              <CUSUMChart result={cusum} />
-            </div>
+        </motion.div>
+
+        {/*
+          The three secondary charts tile as equal cells beneath the hero chart
+          rather than stacking inside its column. Stacked, they made that column
+          1726px against the 530px form beside it — the Levey-Jennings chart and
+          the form are within 4px of each other, so pairing those two and giving
+          the rest their own row is what actually closes the gap.
+
+          Each is a flex column whose chart fills the leftover height, so all
+          three cells end up the same height no matter which one has the most
+          chrome under its chart.
+        */}
+        {/* PRD 6.3 places CUSUM alongside Levey-Jennings, and it still is —
+            one row down, at equal weight with the other two. */}
+        <motion.div
+          {...getRevealProps(4)}
+          className="qc-card order-4 flex flex-col"
+        >
+          <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+            <h3 className="text-[15px] font-semibold text-[#111827]">
+              CUSUM drift detection
+            </h3>
+            {cusum.firstBreachIndex !== null && (
+              <Badge className="bg-[#fee2e2] text-[#dc2626]">
+                {`Shift detected at run ${cusum.points[cusum.firstBreachIndex]?.sample ?? ''}`}
+              </Badge>
+            )}
+          </div>
+          <div className="mt-4 min-h-[240px] flex-1">
+            <CUSUMChart result={cusum} height="100%" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          {...getRevealProps(5)}
+          className="qc-card order-5 flex flex-col"
+        >
+          <h3 className="mb-1 text-[15px] font-semibold text-[#111827]">
+            Rolling precision
+          </h3>
+          <div className="mt-4 min-h-[240px] flex-1">
+            <RollingCVChart
+              points={cvTrend.rollingCV}
+              threshold={settings.cvAlertThreshold}
+              windowSize={cvTrend.windowSize}
+              height="100%"
+            />
+          </div>
+        </motion.div>
+
+        {/* The only panel on this page that reads the runs as a population
+            rather than a sequence. The band percentages under the chart are
+            also what keeps the amber ±2 SD line from carrying its meaning on
+            colour alone. */}
+        <motion.div
+          {...getRevealProps(6)}
+          className="qc-card order-6 flex flex-col"
+        >
+          <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+            <h3 className="text-[15px] font-semibold text-[#111827]">
+              OD distribution
+            </h3>
+            {Math.abs(distribution.skewness) > 1 && (
+              <Badge className="bg-[#f3f4f6] text-[#6b7280]">
+                {`Skewed ${distribution.skewness > 0 ? 'high' : 'low'}`}
+              </Badge>
+            )}
           </div>
 
-          <div className="qc-card mt-6">
-            <div className="mb-1">
-              <h3 className="text-[15px] font-semibold text-[#111827]">
-                Rolling precision
-              </h3>
-              <p className="mt-1 text-[13px] text-[#6b7280]">
-                {`Coefficient of variation over a moving ${cvTrend.windowSize}-run window. A rising line means the method is getting noisier.`}
-              </p>
-            </div>
-            <div className="mt-4">
-              <RollingCVChart
-                points={cvTrend.rollingCV}
-                threshold={settings.cvAlertThreshold}
-                windowSize={cvTrend.windowSize}
-              />
-            </div>
+          <div className="mt-4 min-h-[240px] flex-1">
+            <ODDistributionChart distribution={distribution} height="100%" />
           </div>
 
-          {/* The only panel on this page that reads the runs as a population
-              rather than a sequence. The band percentages beside the chart are
-              also what keeps the amber ±2 SD line from carrying its meaning on
-              colour alone. */}
-          <div className="qc-card mt-6">
-            <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="text-[15px] font-semibold text-[#111827]">
-                  OD distribution
-                </h3>
-                <p className="mt-1 text-[13px] text-[#6b7280]">
-                  How the runs are spread, not the order they arrived in. Every
-                  Westgard limit above assumes this shape is normal.
-                </p>
-              </div>
-              {Math.abs(distribution.skewness) > 1 && (
-                <Badge className="bg-[#f3f4f6] text-[#6b7280]">
-                  {`Skewed ${distribution.skewness > 0 ? 'high' : 'low'}`}
-                </Badge>
-              )}
-            </div>
-
-            <div className="mt-4">
-              <ODDistributionChart distribution={distribution} />
-            </div>
-
-            {distribution.bins.length > 0 && (
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-[#eef2f7] pt-4 sm:grid-cols-4">
+          {distribution.bins.length > 0 && (
+            <dl className="mt-4 grid shrink-0 grid-cols-2 gap-x-6 gap-y-3 border-t border-[#eef2f7] pt-4">
                 {[
                   {
                     label: "Within ±1 SD",
@@ -1946,14 +1951,13 @@ export default function QCDashboard({
                   </dd>
                   <dd className="text-[12px] text-[#6b7280]">0.00 is symmetric</dd>
                 </div>
-              </dl>
-            )}
-          </div>
+            </dl>
+          )}
         </motion.div>
 
         <motion.div
-          {...getRevealProps(5)}
-          className="order-4 flex flex-col gap-6 lg:order-5 lg:col-span-1"
+          {...getRevealProps(8)}
+          className="order-7 flex flex-col gap-6 lg:order-8 lg:col-span-1"
         >
           <div className="qc-card">
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2072,8 +2076,8 @@ export default function QCDashboard({
         </motion.div>
 
         <motion.div
-          {...getRevealProps(4)}
-          className="qc-card order-5 lg:order-4 lg:col-span-2"
+          {...getRevealProps(7)}
+          className="qc-card order-8 lg:order-7 lg:col-span-2"
         >
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-[16px] font-semibold text-[#111827]">

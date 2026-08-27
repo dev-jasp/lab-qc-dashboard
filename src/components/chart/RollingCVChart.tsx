@@ -28,7 +28,8 @@ interface RollingCVChartProps {
   /** Alert threshold from QC settings, drawn as the watchlist line. */
   threshold: number;
   windowSize?: number;
-  height?: number;
+  /** Pixels, or a CSS length such as "100%" to fill a flex cell. */
+  height?: number | string;
 }
 
 /**

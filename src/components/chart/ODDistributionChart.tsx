@@ -21,8 +21,8 @@ ChartJS.register(BarController, BarElement, LinearScale, Tooltip);
 
 interface ODDistributionChartProps {
   distribution: ODDistribution;
-  /** Displayed in the tooltip so bin bounds read in OD units, not SD units. */
-  height?: number;
+  /** Pixels, or a CSS length such as "100%" to fill a flex cell. */
+  height?: number | string;
 }
 
 type Boundary = {
