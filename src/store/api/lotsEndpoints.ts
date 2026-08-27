@@ -8,6 +8,7 @@ import {
   getInHouseBatches,
   getLots,
 } from '@/lib/qcStorage';
+import { buildControlLotComparison, type LotComparisonRow } from '@/lib/lotComparison';
 import { ALL_STREAMS, controlId, fromStorage, fromStorageWrite, qcApi } from '@/store/api/qcApi';
 import type { ControlArgs } from '@/store/api/qcApi';
 import type { DiseaseSlug, InHouseBatchMetadata, LotMetadata } from '@/types/qc.types';
@@ -50,6 +51,21 @@ const lotsEndpoints = qcApi.injectEndpoints({
       invalidatesTags: (_result, _error, args) => [...invalidateControlDatasets(args)],
     }),
 
+    /**
+     * Depends on both the partition list and the runs inside each one, so it
+     * provides both tags at control scope: adding a run or starting a lot has to
+     * refresh the comparison, and neither knows about the other.
+     */
+    getLotComparison: build.query<LotComparisonRow[], ControlArgs>({
+      queryFn: ({ disease, controlType }) =>
+        fromStorage(() => buildControlLotComparison(disease, controlType)),
+      providesTags: (_result, _error, args) => [
+        { type: 'Lots', id: controlId(args) },
+        { type: 'Batches', id: args.disease },
+        { type: 'Entries', id: controlId(args) },
+      ],
+    }),
+
     getInHouseBatches: build.query<InHouseBatchMetadata[], DiseaseSlug>({
       queryFn: (disease) => fromStorage(() => getInHouseBatches(disease)),
       providesTags: (_result, _error, disease) => [{ type: 'Batches', id: disease }],
@@ -87,6 +103,7 @@ const lotsEndpoints = qcApi.injectEndpoints({
 
 export const {
   useGetLotsQuery,
+  useGetLotComparisonQuery,
   useGetActiveLotQuery,
   useCreateLotMutation,
   useArchiveLotMutation,

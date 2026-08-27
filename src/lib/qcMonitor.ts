@@ -1,5 +1,10 @@
-import { getControlMonitorSeed } from '@/constants/monitor-config';
-import { addViolation, initializeEntries, initializeLots } from '@/lib/qcStorage';
+import { getControlMonitorSeed, getPriorLotSeed } from '@/constants/monitor-config';
+import {
+  addViolation,
+  initializeEntries,
+  initializeInHouseBatches,
+  initializeLots,
+} from '@/lib/qcStorage';
 import { pickSeedPerformer, pickSeedValidator } from '@/lib/staffSeed';
 import { calculateStatistics, evaluateQCRules } from '@/utils/qc-calculations';
 import type {
@@ -48,12 +53,50 @@ export function getControlCode(controlType: ControlTypeSlug): string {
 
 export function buildSeedEntries(disease: DiseaseSlug, controlType: ControlTypeSlug): QCEntry[] {
   const monitorSeed = getControlMonitorSeed(disease, controlType);
-  const lotNumber = getSeedLotNumber(disease, controlType);
+
+  return buildEntriesFromSeries(
+    disease,
+    controlType,
+    monitorSeed.data,
+    getSeedLotNumber(disease, controlType),
+  );
+}
+
+/**
+ * QC entries for the lot — or, for in-house, the batch — this stream replaced.
+ *
+ * Returns an empty array when the stream has no prior partition to seed.
+ */
+export function buildSeedPriorEntries(
+  disease: DiseaseSlug,
+  controlType: ControlTypeSlug,
+): QCEntry[] {
+  const priorSeed = getPriorLotSeed(disease, controlType);
+
+  if (priorSeed === null) {
+    return [];
+  }
+
+  return buildEntriesFromSeries(
+    disease,
+    controlType,
+    priorSeed.data,
+    priorSeed.lotNumber,
+    `${disease}:${controlType}:prior-lot`,
+  );
+}
+
+function buildEntriesFromSeries(
+  disease: DiseaseSlug,
+  controlType: ControlTypeSlug,
+  data: ChartDataPoint[],
+  lotNumber: string,
+  performerKey: string = `${disease}:${controlType}`,
+): QCEntry[] {
   const controlCode = getControlCode(controlType);
+  const streamKey = performerKey;
 
-  const streamKey = `${disease}:${controlType}`;
-
-  return monitorSeed.data.map((point, index) => {
+  return data.map((point, index) => {
     const performer = pickSeedPerformer(streamKey, index);
     const validator = pickSeedValidator(streamKey, index);
 
@@ -215,8 +258,25 @@ export function buildSeedLots(disease: DiseaseSlug, controlType: ControlTypeSlug
   }
 
   const monitorSeed = getControlMonitorSeed(disease, controlType);
+  const priorSeed = getPriorLotSeed(disease, controlType);
+
+  // Oldest first, so anything ordering by index matches ordering by date.
+  const priorLots: LotMetadata[] =
+    priorSeed === null
+      ? []
+      : [
+          {
+            lotNumber: priorSeed.lotNumber,
+            startDate: priorSeed.startDate,
+            endDate: priorSeed.endDate,
+            expiryDate: priorSeed.expiryDate,
+            status: 'archived',
+            notes: 'Retired reagent lot, kept for lot-to-lot comparison',
+          },
+        ];
 
   return [
+    ...priorLots,
     {
       lotNumber: getSeedLotNumber(disease, controlType),
       startDate: monitorSeed.lotStartDate ?? monitorSeed.data.at(0)?.timestamp ?? getTodayIsoDate(),
@@ -238,15 +298,61 @@ export async function ensureControlDatasetInitialized(
   if (controlType === 'in-house-control') {
     await initializeEntries(disease, controlType, seedEntries, DEFAULT_IN_HOUSE_LOT_NUMBER, monitorSeed.seedVersion);
     await seedViolations(disease, controlType, seedEntries);
+
+    // The batch the lab made before the current one. Without it the in-house
+    // monitor is the only stream with nothing to compare a changeover against.
+    const priorBatchSeed = getPriorLotSeed(disease, controlType);
+    const priorBatchEntries = buildSeedPriorEntries(disease, controlType);
+
+    if (priorBatchSeed !== null && priorBatchEntries.length > 0) {
+      await initializeInHouseBatches(
+        disease,
+        [
+          {
+            batchId: priorBatchSeed.lotNumber,
+            startDate: priorBatchSeed.startDate,
+            endDate: priorBatchSeed.endDate,
+            status: 'archived',
+            notes: 'Retired in-house batch, kept for batch-to-batch comparison',
+          },
+        ],
+        monitorSeed.seedVersion,
+      );
+      await initializeEntries(
+        disease,
+        controlType,
+        priorBatchEntries,
+        priorBatchSeed.lotNumber,
+        monitorSeed.seedVersion,
+      );
+      await seedViolations(disease, controlType, priorBatchEntries, priorBatchSeed.lotNumber);
+    }
+
     return;
   }
 
   const seedLots = buildSeedLots(disease, controlType);
-  const seedLotNumber = seedLots[0]?.lotNumber;
+  // Named explicitly rather than taken from seedLots[0]: the prior lot is
+  // prepended so the list reads oldest-first, and index 0 is no longer active.
+  const activeLotNumber = getSeedLotNumber(disease, controlType);
+  const priorSeed = getPriorLotSeed(disease, controlType);
+  const priorEntries = buildSeedPriorEntries(disease, controlType);
 
-  await initializeLots(disease, controlType, seedLots);
-  await initializeEntries(disease, controlType, seedEntries, seedLotNumber, monitorSeed.seedVersion);
-  await seedViolations(disease, controlType, seedEntries, seedLotNumber);
+  await initializeLots(disease, controlType, seedLots, monitorSeed.seedVersion);
+
+  if (priorSeed !== null && priorEntries.length > 0) {
+    await initializeEntries(
+      disease,
+      controlType,
+      priorEntries,
+      priorSeed.lotNumber,
+      monitorSeed.seedVersion,
+    );
+    await seedViolations(disease, controlType, priorEntries, priorSeed.lotNumber);
+  }
+
+  await initializeEntries(disease, controlType, seedEntries, activeLotNumber, monitorSeed.seedVersion);
+  await seedViolations(disease, controlType, seedEntries, activeLotNumber);
 }
 
 /**

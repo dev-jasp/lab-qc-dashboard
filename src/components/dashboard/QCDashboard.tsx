@@ -20,7 +20,9 @@ import { useNavigate } from "react-router-dom";
 import { CUSUMChart } from "@/components/chart/CUSUMChart";
 import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
 import { ODDistributionChart } from "@/components/chart/ODDistributionChart";
-import { RollingCVChart } from "@/components/chart/RollingCVChart";
+import { LotComparisonChart, type LotComparisonPoint } from "@/components/chart/LotComparisonChart";
+import { SHIFT_VERDICT } from "@/constants/lot-shift";
+import type { LotComparisonRow } from "@/lib/lotComparison";
 import { ExportModal } from "@/components/export/ExportModal";
 import { LotFormDialog } from "@/components/lots/LotFormDialog";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
@@ -97,6 +99,7 @@ import {
   useCreateInHouseBatchMutation,
   useCreateLotMutation,
   useGetInHouseBatchesQuery,
+  useGetLotComparisonQuery,
   useGetLotsQuery,
 } from "@/store/api/lotsEndpoints";
 import {
@@ -183,6 +186,7 @@ const EMPTY_VIOLATIONS: ViolationEntry[] = [];
 const EMPTY_LOTS: LotMetadata[] = [];
 const EMPTY_BATCHES: InHouseBatchMetadata[] = [];
 const EMPTY_STAFF: StaffMember[] = [];
+const EMPTY_LOT_COMPARISON: LotComparisonRow[] = [];
 
 const MONITOR_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
 const ENTRY_FIELD_CLASS_NAME =
@@ -550,6 +554,12 @@ export default function QCDashboard({
     diseaseSlug,
     { skip: !isInHouseControl || !isDatasetReady },
   );
+  // Scoped to this control, so the panel does not pull every disease's storage
+  // the way the cross-disease lot registry does.
+  const { data: lotComparison = EMPTY_LOT_COMPARISON } = useGetLotComparisonQuery(
+    { disease: diseaseSlug, controlType },
+    { skip: !isDatasetReady },
+  );
 
   // Which dataset the chart is showing: the operator's pick when it still exists,
   // otherwise the active lot or batch, otherwise whatever is most recent.
@@ -663,6 +673,31 @@ export default function QCDashboard({
    * Scoped to the same lot/batch as CUSUM, and for the same reason: pooling two
    * reagent lots into one histogram invents a spread neither lot has.
    */
+  const lotComparisonPoints = useMemo<LotComparisonPoint[]>(
+    () =>
+      lotComparison.map((row) => ({
+        id: row.id,
+        mean: row.mean,
+        sd: row.sd,
+        cv: row.cv,
+        runCount: row.runCount,
+        status: row.status,
+        startDate: row.startDate,
+      })),
+    [lotComparison],
+  );
+
+  /**
+   * The grade on the partition currently in service. `lotComparison` is newest
+   * first, so the active one is normally row 0 — but a control can be left with
+   * no active lot after an archive, so find it rather than assume.
+   */
+  const activeShiftVerdict = useMemo(() => {
+    const active = lotComparison.find((row) => row.status === "active");
+
+    return active?.shift == null ? null : SHIFT_VERDICT[active.shift.tone];
+  }, [lotComparison]);
+
   const distribution = useMemo(
     () => buildODDistribution(baseChartData, statistics, parameters),
     [baseChartData, parameters, statistics],
@@ -1871,18 +1906,28 @@ export default function QCDashboard({
           </div>
         </motion.div>
 
+        {/* Rolling precision used to sit here. The CV Trend card already carries
+            that signal — sparkline, current CV, and distance to the threshold —
+            whereas nothing on this page could answer whether the lot in service
+            matches the one it replaced. */}
         <motion.div
           {...getRevealProps(5)}
           className="qc-card order-5 flex flex-col"
         >
-          <h3 className="mb-1 text-[15px] font-semibold text-[#111827]">
-            Rolling precision
-          </h3>
+          <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+            <h3 className="text-[15px] font-semibold text-[#111827]">
+              {isInHouseControl ? "Batch comparison" : "Lot comparison"}
+            </h3>
+            {activeShiftVerdict !== null && (
+              <Badge className={activeShiftVerdict.className}>
+                {activeShiftVerdict.label}
+              </Badge>
+            )}
+          </div>
           <div className="mt-4 min-h-[240px] flex-1">
-            <RollingCVChart
-              points={cvTrend.rollingCV}
-              threshold={settings.cvAlertThreshold}
-              windowSize={cvTrend.windowSize}
+            <LotComparisonChart
+              points={lotComparisonPoints}
+              partitionNoun={isInHouseControl ? "batch" : "lot"}
               height="100%"
             />
           </div>

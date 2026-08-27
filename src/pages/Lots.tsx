@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { LotAttentionPanel } from '@/components/lots/LotAttentionPanel';
 import { LotFormDialog, type LotTarget } from '@/components/lots/LotFormDialog';
+import { LotComparisonSheet } from '@/components/lots/LotComparisonSheet';
 import { LotTable } from '@/components/lots/LotTable';
 import {
   AlertDialog,
@@ -65,6 +66,7 @@ export function Lots() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formTarget, setFormTarget] = useState<LotTarget | null>(null);
   const [pendingArchive, setPendingArchive] = useState<LotRecord | null>(null);
+  const [comparisonRecord, setComparisonRecord] = useState<LotRecord | null>(null);
   const navigate = useNavigate();
   const { success, error } = useToast();
 
@@ -284,6 +286,7 @@ export function Lots() {
               onStartReplacement={(record) =>
                 openForm({ disease: record.disease, controlType: record.controlType })
               }
+              onCompare={setComparisonRecord}
               onArchive={setPendingArchive}
               emptyMessage="No active lots for this filter."
             />
@@ -314,6 +317,7 @@ export function Lots() {
                     onStartReplacement={(record) =>
                       openForm({ disease: record.disease, controlType: record.controlType })
                     }
+                    onCompare={setComparisonRecord}
                     onArchive={setPendingArchive}
                     emptyMessage="No archived lots for this filter."
                   />
@@ -331,6 +335,18 @@ export function Lots() {
         defaultStartDate={getTodayIsoDate()}
         onInvalid={error}
         onSubmit={handleCreate}
+      />
+
+      {/* Fed from the full registry rather than the filtered view: comparing a
+          lot against the one it replaced must work even when a filter hides it. */}
+      <LotComparisonSheet
+        record={comparisonRecord}
+        records={registry.records}
+        onOpenChange={(open) => {
+          if (!open) {
+            setComparisonRecord(null);
+          }
+        }}
       />
 
       <AlertDialog

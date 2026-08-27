@@ -1,4 +1,4 @@
-import { addBusinessDays, format, parseISO } from 'date-fns';
+import { addBusinessDays, format, parseISO, subBusinessDays } from 'date-fns';
 
 import type { ChartDataPoint, QCParameters } from '@/types/qc.types';
 
@@ -198,9 +198,11 @@ const buildStreamSeries = (
   prefix: string | null,
   parameters: QCParameters,
   segments: SeedSegment[],
+  /** Defaults to the shared seed epoch. Prior lots run before it. */
+  startDateIso: string = SEED_START_DATE,
 ): ChartDataPoint[] => {
   const random = createSeededRandom(hashSeedKey(streamKey));
-  const startDate = parseISO(SEED_START_DATE);
+  const startDate = parseISO(startDateIso);
   const points: ChartDataPoint[] = [];
   let runIndex = 0;
 
@@ -254,7 +256,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
   measles: {
     'in-house-control': {
       parameters: MEASLES_IN_HOUSE,
-      seedVersion: 'measles-in-house-story-v3',
+      seedVersion: 'measles-in-house-story-v4',
       // Deliberately uneventful. Measles is the reference "everything is fine"
       // disease, so all three of its streams use bounded scatter and trip nothing.
       // The gentle scatter variation keeps the chart from looking synthetic
@@ -267,7 +269,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'positive-control': {
       parameters: MEASLES_POSITIVE,
-      seedVersion: 'measles-positive-story-v3',
+      seedVersion: 'measles-positive-story-v4',
       data: buildStreamSeries('measles:positive-control', 'MEA-PC', MEASLES_POSITIVE, [
         { runs: 72, scatterFrom: 0.95, noise: 'bounded' },
       ]),
@@ -276,7 +278,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'negative-control': {
       parameters: MEASLES_NEGATIVE,
-      seedVersion: 'measles-negative-story-v3',
+      seedVersion: 'measles-negative-story-v4',
       data: buildStreamSeries('measles:negative-control', 'MEA-NC', MEASLES_NEGATIVE, [
         { runs: 72, scatterFrom: 0.9, noise: 'bounded' },
       ]),
@@ -287,7 +289,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
   rubella: {
     'in-house-control': {
       parameters: RUBELLA_IN_HOUSE,
-      seedVersion: 'rubella-in-house-story-v3',
+      seedVersion: 'rubella-in-house-story-v4',
       // Imprecision creeps in mid-series and is brought back under control: this is
       // the stream the rolling-CV chart is meant to visibly bend on.
       data: buildStreamSeries('rubella:in-house-control', 'RUB-IH', RUBELLA_IN_HOUSE, [
@@ -298,7 +300,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'positive-control': {
       parameters: RUBELLA_POSITIVE,
-      seedVersion: 'rubella-positive-story-v2',
+      seedVersion: 'rubella-positive-story-v3',
       // A sustained run above the mean (10x) plus a later 1_2s — both warnings,
       // matching this stream's declared 'warning' tone.
       data: buildStreamSeries('rubella:positive-control', 'RUB-PC', RUBELLA_POSITIVE, [
@@ -311,7 +313,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'negative-control': {
       parameters: RUBELLA_NEGATIVE,
-      seedVersion: 'rubella-negative-story-v2',
+      seedVersion: 'rubella-negative-story-v3',
       data: buildStreamSeries('rubella:negative-control', 'RUB-NC', RUBELLA_NEGATIVE, [
         { runs: 72, scatterFrom: 0.65 },
       ]),
@@ -322,7 +324,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
   rotavirus: {
     'in-house-control': {
       parameters: ROTAVIRUS_IN_HOUSE,
-      seedVersion: 'rotavirus-in-house-story-v2',
+      seedVersion: 'rotavirus-in-house-story-v3',
       // Eight strictly increasing runs trip the 7T trend rule.
       data: buildStreamSeries('rotavirus:in-house-control', 'ROT-IH', ROTAVIRUS_IN_HOUSE, [
         { runs: 45, scatterFrom: 0.7 },
@@ -335,7 +337,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'positive-control': {
       parameters: ROTAVIRUS_POSITIVE,
-      seedVersion: 'rotavirus-positive-story-v2',
+      seedVersion: 'rotavirus-positive-story-v3',
       data: buildStreamSeries('rotavirus:positive-control', 'ROT-PC', ROTAVIRUS_POSITIVE, [
         { runs: 72, scatterFrom: 0.7 },
       ]),
@@ -344,7 +346,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'negative-control': {
       parameters: ROTAVIRUS_NEGATIVE,
-      seedVersion: 'rotavirus-negative-story-v2',
+      seedVersion: 'rotavirus-negative-story-v3',
       data: buildStreamSeries('rotavirus:negative-control', 'ROT-NC', ROTAVIRUS_NEGATIVE, [
         { runs: 72, scatterFrom: 0.6 },
       ]),
@@ -355,7 +357,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
   'japanese-encephalitis': {
     'in-house-control': {
       parameters: JE_IN_HOUSE,
-      seedVersion: 'japanese-encephalitis-in-house-story-v2',
+      seedVersion: 'japanese-encephalitis-in-house-story-v3',
       // The flagship stream: a long systematic upward drift that CUSUM catches
       // well before Levey-Jennings does, closing on a 1_3s rejection.
       data: buildStreamSeries('japanese-encephalitis:in-house-control', 'JE-IH', JE_IN_HOUSE, [
@@ -366,7 +368,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'positive-control': {
       parameters: JE_POSITIVE,
-      seedVersion: 'japanese-encephalitis-positive-story-v2',
+      seedVersion: 'japanese-encephalitis-positive-story-v3',
       data: buildStreamSeries('japanese-encephalitis:positive-control', 'JE-PC', JE_POSITIVE, [
         { runs: 72, scatterFrom: 0.7 },
       ]),
@@ -375,7 +377,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'negative-control': {
       parameters: JE_NEGATIVE,
-      seedVersion: 'japanese-encephalitis-negative-story-v2',
+      seedVersion: 'japanese-encephalitis-negative-story-v3',
       data: buildStreamSeries('japanese-encephalitis:negative-control', 'JE-NC', JE_NEGATIVE, [
         { runs: 72, scatterFrom: 0.6 },
       ]),
@@ -386,7 +388,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
   dengue: {
     'in-house-control': {
       parameters: DENGUE_IN_HOUSE,
-      seedVersion: 'dengue-in-house-story-v2',
+      seedVersion: 'dengue-in-house-story-v3',
       // An abrupt step change downward — a reagent-shift signature rather than a drift.
       data: buildStreamSeries('dengue:in-house-control', 'DEN-IH', DENGUE_IN_HOUSE, [
         { runs: 38, scatterFrom: 0.7 },
@@ -396,7 +398,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'positive-control': {
       parameters: DENGUE_POSITIVE,
-      seedVersion: 'dengue-positive-story-v2',
+      seedVersion: 'dengue-positive-story-v3',
       // Two adjacent runs on opposite sides of the mean trip R_4s.
       data: buildStreamSeries('dengue:positive-control', 'DEN-PC', DENGUE_POSITIVE, [
         { runs: 46, scatterFrom: 0.65 },
@@ -408,7 +410,7 @@ const MONITOR_SEEDS: Record<DiseaseSlug, Record<ControlSlug, MonitorSeed>> = {
     },
     'negative-control': {
       parameters: DENGUE_NEGATIVE,
-      seedVersion: 'dengue-negative-story-v2',
+      seedVersion: 'dengue-negative-story-v3',
       data: buildStreamSeries('dengue:negative-control', 'DEN-NC', DENGUE_NEGATIVE, [
         { runs: 72, scatterFrom: 0.6 },
       ]),
@@ -450,6 +452,103 @@ export const getControlMonitorSeed = (
   disease: DiseaseSlug,
   control: ControlSlug,
 ): MonitorSeed => MONITOR_SEEDS[disease][control];
+
+/** Runs on the lot that preceded the seeded one. Fewer than the active lot. */
+const PRIOR_LOT_RUNS = 40;
+
+/** How far the prior lot's mean sits from target, in SD units, at the extremes. */
+const PRIOR_LOT_MAX_SHIFT_SD = 2.4;
+
+export type PriorLotSeed = {
+  lotNumber: string;
+  startDate: string;
+  endDate: string;
+  expiryDate: string;
+  data: ChartDataPoint[];
+};
+
+/**
+ * Rebuilds a reagent lot number against an earlier date.
+ *
+ * The seeded lots follow the pattern the lab uses — letters, a `yyMMdd` date, then
+ * letters again (`E240423AS`). Keeping that shape matters: a lot number is what a
+ * technician matches against the physical kit box, so an obviously synthetic
+ * `...-PREV` would read as a bug rather than as history.
+ */
+const buildPriorLotNumber = (currentLot: string, priorStartIso: string): string => {
+  const parts = /^([A-Z]+)(\d{6})([A-Z]*)$/.exec(currentLot);
+  const stamp = format(parseISO(priorStartIso), 'yyMMdd');
+
+  return parts === null ? `${currentLot}-P` : `${parts[1]}${stamp}${parts[3]}`;
+};
+
+/** Strips the run number off a seeded protocol label: `MEA-PC-014` -> `MEA-PC`. */
+const getSeriesPrefix = (sample: string | undefined): string | null => {
+  if (sample === undefined) {
+    return null;
+  }
+
+  const parts = /^(.*)-\d+$/.exec(sample);
+
+  return parts === null ? null : parts[1];
+};
+
+/**
+ * The reagent lot each seeded positive/negative stream replaced.
+ *
+ * Lot comparison needs two sides. With one seeded lot per control there is
+ * nothing to verify a changeover against, and the archive views in the lot
+ * console have nothing to list either.
+ *
+ * The size of the shift is derived from the stream key rather than fixed, so the
+ * seeded set spans the whole range the console grades: most changeovers come out
+ * clean, some are worth a second look, and at least one clears the 2 SD mark that
+ * should stop a lot going into service.
+ *
+ * In-house control has no reagent lot, but it does have batches — the lab makes a
+ * new one when the old is used up — so it gets a prior batch on the same terms.
+ * Its id is date-stamped rather than a kit lot number, because nothing is bought.
+ */
+export const getPriorLotSeed = (
+  disease: DiseaseSlug,
+  control: ControlSlug,
+): PriorLotSeed | null => {
+  const seed = MONITOR_SEEDS[disease][control];
+
+  if (control !== 'in-house-control' && seed.lotNumber === undefined) {
+    return null;
+  }
+
+  const streamKey = `${disease}:${control}:prior-lot`;
+  // Spread deterministically across [-MAX, +MAX] so the demo shows every tone.
+  const shiftSd =
+    ((hashSeedKey(streamKey) % 41) / 40) * (PRIOR_LOT_MAX_SHIFT_SD * 2) -
+    PRIOR_LOT_MAX_SHIFT_SD;
+
+  const currentStart = parseISO(seed.lotStartDate ?? SEED_START_DATE);
+  // The prior lot ends the business day before the current one starts, so the
+  // two never overlap and the console can order them by date alone.
+  const startDate = format(subBusinessDays(currentStart, PRIOR_LOT_RUNS + 1), 'yyyy-MM-dd');
+  const endDate = format(subBusinessDays(currentStart, 1), 'yyyy-MM-dd');
+
+  return {
+    lotNumber:
+      seed.lotNumber === undefined
+        ? `IH-${format(parseISO(startDate), 'yyMMdd')}`
+        : buildPriorLotNumber(seed.lotNumber, startDate),
+    startDate,
+    endDate,
+    // Retired lots are past their expiry by the time anyone reviews them.
+    expiryDate: endDate,
+    data: buildStreamSeries(
+      streamKey,
+      getSeriesPrefix(seed.data.at(0)?.sample),
+      seed.parameters,
+      [{ runs: PRIOR_LOT_RUNS, fromSd: shiftSd, scatterFrom: 0.95, noise: 'bounded' }],
+      startDate,
+    ),
+  };
+};
 
 export const getDiseaseControls = (disease: DiseaseSlug) =>
   CONTROL_DEFINITIONS.map((control) => ({

@@ -557,6 +557,17 @@ function buildAuditKey(disease: string, controlType: string, lotNumber?: string)
   return `qc_audit_${safeDisease}_${safeControlType}_${requireLotNumber(safeControlType, lotNumber)}`;
 }
 
+function buildInHouseBatchSeedVersionKey(disease: string): string {
+  return `${STORAGE_PREFIX}batch_seed_version_${requireNonEmptyString(disease, 'Disease')}`;
+}
+
+function buildLotSeedVersionKey(disease: string, controlType: string): string {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+  const safeControlType = requireNonEmptyString(controlType, 'Control type');
+
+  return `${STORAGE_PREFIX}lot_seed_version_${safeDisease}_${safeControlType}`;
+}
+
 function buildEntrySeedVersionKey(disease: string, controlType: string, lotNumber?: string): string {
   const safeDisease = requireNonEmptyString(disease, 'Disease');
   const safeControlType = requireNonEmptyString(controlType, 'Control type');
@@ -1170,6 +1181,59 @@ export async function getActiveInHouseBatch(disease: string): Promise<InHouseBat
  * @param batch Batch metadata to activate.
  * @throws {Error} When the batch payload is malformed or already exists.
  */
+/**
+ * Adds seeded in-house batches that the store has never seen.
+ *
+ * Unlike `createInHouseBatch` this never archives or re-dates the active batch:
+ * it is seeding history behind whatever is already running, not performing a
+ * changeover. Like `initializeLots` it merges rather than replaces, so a batch a
+ * supervisor created is never overwritten by demo data.
+ */
+export async function initializeInHouseBatches(
+  disease: string,
+  batches: InHouseBatchMetadata[],
+  seedVersion?: string,
+): Promise<void> {
+  const safeDisease = requireNonEmptyString(disease, 'Disease');
+
+  if (!isArrayOf(batches, isInHouseBatchMetadata)) {
+    throw new Error('Cannot initialize in-house batches because the payload is malformed.');
+  }
+
+  // Creates the active batch if this disease has never been touched, so the
+  // seeded history always has something to sit behind.
+  ensureInHouseBatchRegistry(safeDisease);
+
+  const safeSeedVersion = seedVersion === undefined ? null : requireNonEmptyString(seedVersion, 'Seed version');
+  const seedVersionKey = safeSeedVersion === null ? null : buildInHouseBatchSeedVersionKey(safeDisease);
+
+  if (safeSeedVersion === null || seedVersionKey === null || getKey<unknown>(seedVersionKey) === safeSeedVersion) {
+    return;
+  }
+
+  const batchesKey = buildInHouseBatchesKey(safeDisease);
+  const existing = readInHouseBatches(batchesKey);
+  const knownBatchIds = new Set(existing.map((batch) => batch.batchId));
+  const missing = batches.filter((batch) => !knownBatchIds.has(batch.batchId));
+
+  applyMutationsAtomically(
+    [
+      ...(missing.length === 0
+        ? []
+        : [
+            {
+              key: batchesKey,
+              value: [...existing, ...missing].sort((first, second) =>
+                first.startDate.localeCompare(second.startDate),
+              ),
+            },
+          ]),
+      { key: seedVersionKey, value: safeSeedVersion },
+    ],
+    `refresh seeded in-house batches for "${safeDisease}"`,
+  );
+}
+
 export async function createInHouseBatch(disease: string, batch: InHouseBatchMetadata): Promise<void> {
   const safeDisease = requireNonEmptyString(disease, 'Disease');
 
@@ -1250,7 +1314,12 @@ export async function archiveInHouseBatch(disease: string, batchId: string): Pro
  * @param lots Initial lot metadata to persist.
  * @throws {Error} When called for in-house control or when the payload is malformed.
  */
-export async function initializeLots(disease: string, controlType: string, lots: LotMetadata[]): Promise<void> {
+export async function initializeLots(
+  disease: string,
+  controlType: string,
+  lots: LotMetadata[],
+  seedVersion?: string,
+): Promise<void> {
   if (isInHouseControl(controlType)) {
     throw new Error('In-house control does not support lot management.');
   }
@@ -1260,12 +1329,42 @@ export async function initializeLots(disease: string, controlType: string, lots:
   }
 
   const key = buildLotsKey(disease, controlType);
+  const safeSeedVersion = seedVersion === undefined ? null : requireNonEmptyString(seedVersion, 'Seed version');
+  const seedVersionKey = safeSeedVersion === null ? null : buildLotSeedVersionKey(disease, controlType);
 
   if (hasStoredKey(key)) {
+    if (safeSeedVersion === null || seedVersionKey === null || getKey<unknown>(seedVersionKey) === safeSeedVersion) {
+      return;
+    }
+
+    // Merge rather than replace. Entries can be re-seeded wholesale because they
+    // are demo data, but a lot list may already hold lots a supervisor created,
+    // and overwriting those would delete real records the entries still point at.
+    // Only lots the store has never seen are added.
+    const existing = readLots(key);
+    const knownLotNumbers = new Set(existing.map((lot) => lot.lotNumber));
+    const missing = lots.filter((lot) => !knownLotNumbers.has(lot.lotNumber));
+
+    applyMutationsAtomically(
+      [
+        ...(missing.length === 0
+          ? []
+          : [{ key, value: [...existing, ...missing].sort((first, second) => first.startDate.localeCompare(second.startDate)) }]),
+        { key: seedVersionKey, value: safeSeedVersion },
+      ],
+      `refresh seeded lots for "${key}"`,
+    );
+
     return;
   }
 
-  setKey(key, lots);
+  const mutations: StorageMutation[] = [{ key, value: lots }];
+
+  if (safeSeedVersion !== null && seedVersionKey !== null) {
+    mutations.push({ key: seedVersionKey, value: safeSeedVersion });
+  }
+
+  applyMutationsAtomically(mutations, `initialize lots for "${key}"`);
 }
 
 /**

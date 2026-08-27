@@ -789,8 +789,11 @@ npm install
 # Start dev server
 npm run dev
 
-# Type check
-npx tsc --noEmit
+# Type check — MUST be `tsc -b`.
+# tsconfig.json is a solution file: `"files": []` plus project references. Plain
+# `npx tsc --noEmit` therefore checks nothing at all and exits 0 on code that does
+# not compile. `tsc -b` is what `npm run build` runs, and the only honest check.
+npx tsc -b
 
 # Build for production
 npm run build
