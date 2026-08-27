@@ -17,7 +17,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { CUSUMChart } from "@/components/chart/CUSUMChart";
 import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
+import { ODDistributionChart } from "@/components/chart/ODDistributionChart";
+import { RollingCVChart } from "@/components/chart/RollingCVChart";
 import { ExportModal } from "@/components/export/ExportModal";
 import { LotFormDialog } from "@/components/lots/LotFormDialog";
 import { EditEntriesSheet } from "@/components/panels/EditEntriesSheet";
@@ -65,9 +68,10 @@ import {
   CONTROL_DEFINITIONS,
   DISEASE_DEFINITIONS,
 } from "@/constants/monitor-config";
+import { useAuth } from "@/hooks/useAuth";
 import { useQCLogic } from "@/hooks/useQCLogic";
 import { useToast } from "@/hooks/useToast";
-import { getUser, type AuthUser } from "@/lib/auth";
+import type { AuthUser } from "@/lib/auth";
 import type { LotFormValues } from "@/lib/lotValidation";
 import type { ControlTabSlug } from "@/constants/monitor-config";
 import {
@@ -78,21 +82,32 @@ import {
   getControlCode,
   getControlParameters,
 } from "@/lib/qcMonitor";
-import {
-  addEntry,
-  addViolation,
-  createInHouseBatch,
-  createLot,
-  createStaffMember,
-  getEntries,
-  getInHouseBatches,
-  getLots,
-  getSettings,
-  getStaff,
-  getViolations,
-  updateEntry,
-} from "@/lib/qcStorage";
+// Read directly, not through the cache: both callers need a settled read of the
+// dataset at a single moment to re-derive Westgard rules before writing the
+// violations those rules imply. A cache subscription is a stream of renders, not
+// a point-in-time read.
+import { getEntries } from "@/lib/qcStorage";
 import { getReportYear } from "@/lib/reportPeriod";
+import {
+  useAddEntryMutation,
+  useGetEntriesQuery,
+  useUpdateEntryMutation,
+} from "@/store/api/entriesEndpoints";
+import {
+  useCreateInHouseBatchMutation,
+  useCreateLotMutation,
+  useGetInHouseBatchesQuery,
+  useGetLotsQuery,
+} from "@/store/api/lotsEndpoints";
+import {
+  useCreateStaffMemberMutation,
+  useGetSettingsQuery,
+  useGetStaffQuery,
+} from "@/store/api/settingsEndpoints";
+import {
+  useAddViolationMutation,
+  useGetViolationsQuery,
+} from "@/store/api/violationsEndpoints";
 import type { PrintableChartDataPoint } from "@/types/export";
 import type {
   AuditEntry,
@@ -110,7 +125,9 @@ import type {
 } from "@/types/qc.types";
 import {
   calculateStatistics,
+  calculateCUSUM,
   calculateZScore,
+  buildODDistribution,
   evaluateQCRules,
 } from "@/utils/qc-calculations";
 import {
@@ -151,7 +168,21 @@ const DEFAULT_SETTINGS_FALLBACK: QCSettings = {
   chartTheme: "light",
   defaultChartView: "daily",
   lotExpiryWarningDays: 30,
+  cusumLimitMultiplier: 5,
 };
+
+/**
+ * Stable fallbacks for queries that have not resolved yet.
+ *
+ * Defined once at module scope rather than inline: a fresh `[]` on every render is
+ * a new identity, which would defeat the `useMemo` dependencies downstream and
+ * recompute the chart, the statistics, and the rule evaluation on every render.
+ */
+const EMPTY_ENTRIES: QCEntry[] = [];
+const EMPTY_VIOLATIONS: ViolationEntry[] = [];
+const EMPTY_LOTS: LotMetadata[] = [];
+const EMPTY_BATCHES: InHouseBatchMetadata[] = [];
+const EMPTY_STAFF: StaffMember[] = [];
 
 const MONITOR_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
 const ENTRY_FIELD_CLASS_NAME =
@@ -497,21 +528,77 @@ export default function QCDashboard({
     () => getControlParameters(diseaseSlug, controlType),
     [diseaseSlug, controlType],
   );
-  const [entries, setEntries] = useState<QCEntry[]>([]);
-  const [violations, setViolations] = useState<ViolationEntry[]>([]);
-  const [lots, setLots] = useState<LotMetadata[]>([]);
-  const [inHouseBatches, setInHouseBatches] = useState<InHouseBatchMetadata[]>(
-    [],
-  );
+  /**
+   * Seeding has to finish before anything reads the stream, so the queries below
+   * stay skipped until it has. Without the gate they would each race the seed and
+   * cache an empty dataset that nothing later invalidates.
+   */
+  const [isDatasetReady, setIsDatasetReady] = useState(false);
   const [selectedLotNumber, setSelectedLotNumber] = useState("");
   const [selectedInHouseBatchId, setSelectedInHouseBatchId] = useState("");
   const [formValues, setFormValues] = useState<EntryFormValues>(() =>
     createDefaultEntryForm(),
   );
-  const [settings, setSettings] = useState<QCSettings>(
-    DEFAULT_SETTINGS_FALLBACK,
+
+  const { data: settings = DEFAULT_SETTINGS_FALLBACK } = useGetSettingsQuery();
+  const { data: staff = EMPTY_STAFF } = useGetStaffQuery();
+  const { data: lots = EMPTY_LOTS } = useGetLotsQuery(
+    { disease: diseaseSlug, controlType },
+    { skip: isInHouseControl || !isDatasetReady },
   );
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const { data: inHouseBatches = EMPTY_BATCHES } = useGetInHouseBatchesQuery(
+    diseaseSlug,
+    { skip: !isInHouseControl || !isDatasetReady },
+  );
+
+  // Which dataset the chart is showing: the operator's pick when it still exists,
+  // otherwise the active lot or batch, otherwise whatever is most recent.
+  const activeDatasetKey = useMemo(() => {
+    if (isInHouseControl) {
+      return (
+        inHouseBatches.find((batch) => batch.batchId === selectedInHouseBatchId)
+          ?.batchId ??
+        inHouseBatches.find((batch) => batch.status === "active")?.batchId ??
+        inHouseBatches[0]?.batchId ??
+        DEFAULT_IN_HOUSE_LOT_NUMBER
+      );
+    }
+
+    return (
+      lots.find((lot) => lot.lotNumber === selectedLotNumber)?.lotNumber ??
+      lots.find((lot) => lot.status === "active")?.lotNumber ??
+      lots[0]?.lotNumber ??
+      ""
+    );
+  }, [
+    inHouseBatches,
+    isInHouseControl,
+    lots,
+    selectedInHouseBatchId,
+    selectedLotNumber,
+  ]);
+
+  const streamArgs = {
+    disease: diseaseSlug,
+    controlType,
+    lotNumber: activeDatasetKey,
+  };
+  const skipStreamQueries = !isDatasetReady || activeDatasetKey.length === 0;
+
+  const { data: entries = EMPTY_ENTRIES, isFetching: isFetchingEntries } =
+    useGetEntriesQuery(streamArgs, { skip: skipStreamQueries });
+  const { data: violations = EMPTY_VIOLATIONS } = useGetViolationsQuery(
+    streamArgs,
+    { skip: skipStreamQueries },
+  );
+
+  const [addEntryMutation] = useAddEntryMutation();
+  const [updateEntryMutation] = useUpdateEntryMutation();
+  const [addViolationMutation] = useAddViolationMutation();
+  const [createLotMutation] = useCreateLotMutation();
+  const [createInHouseBatchMutation] = useCreateInHouseBatchMutation();
+  const [createStaffMemberMutation] = useCreateStaffMemberMutation();
+
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
   /** Which picker opened the quick-add dialog, so the new person lands there. */
   const [staffDialogTarget, setStaffDialogTarget] = useState<
@@ -526,12 +613,12 @@ export default function QCDashboard({
     useState<ImportProvenance | null>(null);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<QCEntry | null>(null);
   const { success, error } = useToast();
+  const { user: currentUser } = useAuth();
+  const isLoading = !isDatasetReady || isFetchingEntries;
 
   const baseChartData = useMemo(() => entriesToChartData(entries), [entries]);
   const { statistics, qcRules, cvTrend } = useQCLogic(
@@ -555,6 +642,32 @@ export default function QCDashboard({
       })),
     [baseChartData, violationIndices],
   );
+  /**
+   * CUSUM is scoped to the dataset on screen, which is what makes it correct: a
+   * new lot or batch is a different measurement system, so deviations from the
+   * previous one carry no evidence about this one. Because `chartData` is already
+   * per lot/batch, the reset PRD 6.3 asks for happens by construction.
+   */
+  const cusum = useMemo(
+    () =>
+      calculateCUSUM(
+        baseChartData,
+        statistics,
+        parameters,
+        settings.cusumLimitMultiplier,
+      ),
+    [baseChartData, parameters, settings.cusumLimitMultiplier, statistics],
+  );
+
+  /**
+   * Scoped to the same lot/batch as CUSUM, and for the same reason: pooling two
+   * reagent lots into one histogram invents a spread neither lot has.
+   */
+  const distribution = useMemo(
+    () => buildODDistribution(baseChartData, statistics, parameters),
+    [baseChartData, parameters, statistics],
+  );
+
   const runStatistics = useMemo(
     () => buildRunStatisticsSummary(baseChartData, statistics),
     [baseChartData, statistics],
@@ -643,91 +756,25 @@ export default function QCDashboard({
   const exportLotNumber = isInHouseControl ? undefined : selectedLotNumber;
   const exportYear = getReportYear(entries.map((entry) => entry.date));
 
+  /**
+   * Seeds the stream once per disease/control pair.
+   *
+   * All this effect does now is make sure the dataset exists; loading it is the
+   * cache's job. It no longer depends on the selected lot or batch, so choosing a
+   * different lot re-reads one query rather than re-running the whole bootstrap.
+   */
   useEffect(() => {
     let isCancelled = false;
 
-    const initializeMonitor = async () => {
-      setIsLoading(true);
+    setIsDatasetReady(false);
 
-      try {
-        await ensureControlDatasetInitialized(diseaseSlug, controlType);
-        const [authUser, appSettings, staffRoster] = await Promise.all([
-          getUser(),
-          getSettings(),
-          getStaff(),
-        ]);
-
-        if (isCancelled) {
-          return;
-        }
-
-        setCurrentUser(authUser);
-        setSettings(appSettings);
-        setStaff(staffRoster);
-        // Seed "Performed By" from the lab default, but never clobber a
-        // selection the operator has already made.
-        setFormValues((current) =>
-          current.performedById === ""
-            ? createDefaultEntryForm(
-                staffRoster,
-                appSettings.defaultPreparedBy,
-                appSettings.defaultValidatedBy,
-              )
-            : current,
-        );
-
-        if (isInHouseControl) {
-          const storedBatches = await getInHouseBatches(diseaseSlug);
-          const nextSelectedBatchId =
-            storedBatches.find(
-              (batch) => batch.batchId === selectedInHouseBatchId,
-            )?.batchId ??
-            storedBatches.find((batch) => batch.status === "active")?.batchId ??
-            storedBatches[0]?.batchId ??
-            DEFAULT_IN_HOUSE_LOT_NUMBER;
-
-          const [inHouseEntries, inHouseViolations] = await Promise.all([
-            getEntries(diseaseSlug, controlType, nextSelectedBatchId),
-            getViolations(diseaseSlug, controlType, nextSelectedBatchId),
-          ]);
-
-          if (!isCancelled) {
-            setEntries(inHouseEntries);
-            setViolations(inHouseViolations);
-            setInHouseBatches(storedBatches);
-            setSelectedInHouseBatchId(nextSelectedBatchId);
-            setLots([]);
-            setSelectedLotNumber("");
-          }
-
-          return;
-        }
-
-        const storedLots = await getLots(diseaseSlug, controlType);
-        const nextSelectedLotNumber =
-          storedLots.find((lot) => lot.lotNumber === selectedLotNumber)
-            ?.lotNumber ??
-          storedLots.find((lot) => lot.status === "active")?.lotNumber ??
-          storedLots[0]?.lotNumber ??
-          "";
-
-        const [selectedEntries, selectedViolations] =
-          nextSelectedLotNumber.length > 0
-            ? await Promise.all([
-                getEntries(diseaseSlug, controlType, nextSelectedLotNumber),
-                getViolations(diseaseSlug, controlType, nextSelectedLotNumber),
-              ])
-            : [[], []];
-
+    ensureControlDatasetInitialized(diseaseSlug, controlType)
+      .then(() => {
         if (!isCancelled) {
-          setLots(storedLots);
-          setInHouseBatches([]);
-          setSelectedInHouseBatchId("");
-          setSelectedLotNumber(nextSelectedLotNumber);
-          setEntries(selectedEntries);
-          setViolations(selectedViolations);
+          setIsDatasetReady(true);
         }
-      } catch (caughtError) {
+      })
+      .catch((caughtError: unknown) => {
         if (!isCancelled) {
           error(
             caughtError instanceof Error
@@ -735,30 +782,30 @@ export default function QCDashboard({
               : "Unable to load QC monitor data.",
           );
         }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void initializeMonitor();
+      });
 
     return () => {
       isCancelled = true;
     };
-  }, [
-    controlType,
-    diseaseSlug,
-    error,
-    isInHouseControl,
-    selectedInHouseBatchId,
-    selectedLotNumber,
-  ]);
+  }, [controlType, diseaseSlug, error]);
 
-  const refreshViolationsEvent = () => {
-    window.dispatchEvent(new CustomEvent("qc-violations-changed"));
-  };
+  // Seed "Performed By" from the lab default once the roster arrives, but never
+  // clobber a selection the operator has already made.
+  useEffect(() => {
+    if (staff.length === 0) {
+      return;
+    }
+
+    setFormValues((current) =>
+      current.performedById === ""
+        ? createDefaultEntryForm(
+            staff,
+            settings.defaultPreparedBy,
+            settings.defaultValidatedBy,
+          )
+        : current,
+    );
+  }, [settings.defaultPreparedBy, settings.defaultValidatedBy, staff]);
 
   const handleFieldChange = (field: keyof EntryFormValues, value: string) => {
     setFormValues((currentValues) => ({
@@ -791,8 +838,9 @@ export default function QCDashboard({
     };
 
     try {
-      await createStaffMember(newMember);
-      setStaff(await getStaff());
+      // The roster reloads itself from the Staff tag invalidation, so this only
+      // has to select the new person in whichever picker opened the dialog.
+      await createStaffMemberMutation(newMember).unwrap();
       setFormValues((current) =>
         staffDialogTarget === "validator"
           ? {
@@ -1069,8 +1117,18 @@ export default function QCDashboard({
     setIsSubmitting(true);
 
     try {
-      await addEntry(diseaseSlug, controlType, nextEntry, datasetLotNumber);
+      await addEntryMutation({
+        disease: diseaseSlug,
+        controlType,
+        lotNumber: datasetLotNumber,
+        entry: nextEntry,
+      }).unwrap();
 
+      // Re-derive the rules against the dataset as it now stands, then record any
+      // violations that implies. Nothing needs re-reading afterwards: each write
+      // invalidates this stream's entries and violations along with the
+      // all-streams query, so the chart, the inbox, and both badges refresh
+      // themselves.
       const updatedEntries = await getEntries(
         diseaseSlug,
         controlType,
@@ -1090,22 +1148,14 @@ export default function QCDashboard({
       );
 
       for (const violation of potentialViolations) {
-        await addViolation(
-          diseaseSlug,
+        await addViolationMutation({
+          disease: diseaseSlug,
           controlType,
+          lotNumber: datasetLotNumber,
           violation,
-          datasetLotNumber,
-        );
+        }).unwrap();
       }
 
-      const updatedViolations = await getViolations(
-        diseaseSlug,
-        controlType,
-        datasetLotNumber,
-      );
-
-      setEntries(updatedEntries);
-      setViolations(updatedViolations);
       setFormValues(createDefaultEntryForm(
           staff,
           settings.defaultPreparedBy,
@@ -1114,7 +1164,6 @@ export default function QCDashboard({
       setImportProvenance(null);
       setHasSubmitted(true);
       success("Entry recorded successfully");
-      refreshViolationsEvent();
     } catch (caughtError) {
       error(
         caughtError instanceof Error
@@ -1171,13 +1220,13 @@ export default function QCDashboard({
     };
 
     try {
-      await updateEntry(
-        diseaseSlug,
+      await updateEntryMutation({
+        disease: diseaseSlug,
         controlType,
-        updatedEntry,
-        auditEntry,
-        activeDatasetLotNumber,
-      );
+        lotNumber: activeDatasetLotNumber,
+        entry: updatedEntry,
+        audit: auditEntry,
+      }).unwrap();
 
       const updatedEntries = entries.map((currentEntry) =>
         currentEntry.id === entry.id ? updatedEntry : currentEntry,
@@ -1196,25 +1245,17 @@ export default function QCDashboard({
       );
 
       for (const violation of potentialViolations) {
-        await addViolation(
-          diseaseSlug,
+        await addViolationMutation({
+          disease: diseaseSlug,
           controlType,
+          lotNumber: activeDatasetLotNumber,
           violation,
-          activeDatasetLotNumber,
-        );
+        }).unwrap();
       }
 
-      const [refreshedEntries, refreshedViolations] = await Promise.all([
-        getEntries(diseaseSlug, controlType, activeDatasetLotNumber),
-        getViolations(diseaseSlug, controlType, activeDatasetLotNumber),
-      ]);
-
-      setEntries(refreshedEntries);
-      setViolations(refreshedViolations);
       success(
         `Entry ${updatedEntry.protocolNumber} updated and logged in the audit trail.`,
       );
-      refreshViolationsEvent();
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
@@ -1231,55 +1272,43 @@ export default function QCDashboard({
 
     try {
       if (isInHouseControl) {
-        await createInHouseBatch(diseaseSlug, {
-          batchId: trimmedLotNumber,
-          startDate: values.startDate,
-          endDate: null,
-          status: "active",
-          notes: trimmedNotes,
-        });
+        await createInHouseBatchMutation({
+          disease: diseaseSlug,
+          batch: {
+            batchId: trimmedLotNumber,
+            startDate: values.startDate,
+            endDate: null,
+            status: "active",
+            notes: trimmedNotes,
+          },
+        }).unwrap();
 
-        const updatedBatches = await getInHouseBatches(diseaseSlug);
-        const updatedEntries = await getEntries(
-          diseaseSlug,
-          controlType,
-          trimmedLotNumber,
-        );
-
-        setInHouseBatches(updatedBatches);
+        // Point the view at the new batch; its entries and violations load
+        // themselves once the per-control tag invalidation lands.
         setSelectedInHouseBatchId(trimmedLotNumber);
-        setEntries(updatedEntries);
-        setViolations([]);
         setFormValues(createDefaultEntryForm(
           staff,
           settings.defaultPreparedBy,
           settings.defaultValidatedBy,
         ));
         success(`In-house batch ${trimmedLotNumber} is now active.`);
-        refreshViolationsEvent();
         return true;
       }
 
-      await createLot(diseaseSlug, controlType, {
-        lotNumber: trimmedLotNumber,
-        startDate: values.startDate,
-        endDate: null,
-        expiryDate: values.expiryDate,
-        status: "active",
-        notes: trimmedNotes,
-      });
-
-      const updatedLots = await getLots(diseaseSlug, controlType);
-      const updatedEntries = await getEntries(
-        diseaseSlug,
+      await createLotMutation({
+        disease: diseaseSlug,
         controlType,
-        trimmedLotNumber,
-      );
+        lot: {
+          lotNumber: trimmedLotNumber,
+          startDate: values.startDate,
+          endDate: null,
+          expiryDate: values.expiryDate,
+          status: "active",
+          notes: trimmedNotes,
+        },
+      }).unwrap();
 
-      setLots(updatedLots);
       setSelectedLotNumber(trimmedLotNumber);
-      setEntries(updatedEntries);
-      setViolations([]);
       success(`Lot ${trimmedLotNumber} is now active.`);
       return true;
     } catch (caughtError) {
@@ -1425,7 +1454,11 @@ export default function QCDashboard({
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <motion.div
           {...getRevealProps(3)}
-          className="qc-card order-1 flex flex-col lg:order-3 lg:col-span-1"
+          // Sticky so the form stays reachable beside a chart column that is now
+          // four panels tall. `self-start` stops the grid stretching it to that
+          // column's height; the max-height keeps Submit reachable on a short
+          // viewport instead of stranding it below the fold.
+          className="qc-card order-1 flex flex-col lg:order-3 lg:col-span-1 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto"
         >
           <div className="mb-6 flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -1641,13 +1674,13 @@ export default function QCDashboard({
             </div>
 
             {/*
-              Anchored to the bottom of the card, which the chart beside it
-              stretches taller than this form needs.
+              Sits directly under the last field. The card no longer stretches to
+              the chart column beside it, which is three charts tall.
             */}
             <Button
               type="submit"
               disabled={isArchivedDataset || isSubmitting}
-              className="mt-auto h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
+              className="mt-6 h-11 w-full rounded-lg bg-[#1a1aff] text-sm font-semibold text-white hover:bg-[#1515cc]"
             >
               {isSubmitting ? "Submitting..." : "Submit Recording"}
             </Button>
@@ -1804,6 +1837,118 @@ export default function QCDashboard({
             showBadge={false}
             showChartTitle={false}
           />
+
+          {/* PRD 6.3 places CUSUM alongside Levey-Jennings, and it belongs there:
+              the two answer different questions about the same runs. */}
+          <div className="qc-card mt-6">
+            <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold text-[#111827]">
+                  CUSUM drift detection
+                </h3>
+                <p className="mt-1 text-[13px] text-[#6b7280]">
+                  Cumulative deviation from the mean. Catches a sustained shift that
+                  stays inside the Levey-Jennings limits.
+                </p>
+              </div>
+              {cusum.firstBreachIndex !== null && (
+                <Badge className="bg-[#fee2e2] text-[#dc2626]">
+                  {`Shift detected at run ${cusum.points[cusum.firstBreachIndex]?.sample ?? ''}`}
+                </Badge>
+              )}
+            </div>
+            <div className="mt-4">
+              <CUSUMChart result={cusum} />
+            </div>
+          </div>
+
+          <div className="qc-card mt-6">
+            <div className="mb-1">
+              <h3 className="text-[15px] font-semibold text-[#111827]">
+                Rolling precision
+              </h3>
+              <p className="mt-1 text-[13px] text-[#6b7280]">
+                {`Coefficient of variation over a moving ${cvTrend.windowSize}-run window. A rising line means the method is getting noisier.`}
+              </p>
+            </div>
+            <div className="mt-4">
+              <RollingCVChart
+                points={cvTrend.rollingCV}
+                threshold={settings.cvAlertThreshold}
+                windowSize={cvTrend.windowSize}
+              />
+            </div>
+          </div>
+
+          {/* The only panel on this page that reads the runs as a population
+              rather than a sequence. The band percentages beside the chart are
+              also what keeps the amber ±2 SD line from carrying its meaning on
+              colour alone. */}
+          <div className="qc-card mt-6">
+            <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold text-[#111827]">
+                  OD distribution
+                </h3>
+                <p className="mt-1 text-[13px] text-[#6b7280]">
+                  How the runs are spread, not the order they arrived in. Every
+                  Westgard limit above assumes this shape is normal.
+                </p>
+              </div>
+              {Math.abs(distribution.skewness) > 1 && (
+                <Badge className="bg-[#f3f4f6] text-[#6b7280]">
+                  {`Skewed ${distribution.skewness > 0 ? 'high' : 'low'}`}
+                </Badge>
+              )}
+            </div>
+
+            <div className="mt-4">
+              <ODDistributionChart distribution={distribution} />
+            </div>
+
+            {distribution.bins.length > 0 && (
+              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-[#eef2f7] pt-4 sm:grid-cols-4">
+                {[
+                  {
+                    label: "Within ±1 SD",
+                    observed: distribution.observed.oneSD,
+                    expected: distribution.expected.oneSD,
+                  },
+                  {
+                    label: "Within ±2 SD",
+                    observed: distribution.observed.twoSD,
+                    expected: distribution.expected.twoSD,
+                  },
+                  {
+                    label: "Within ±3 SD",
+                    observed: distribution.observed.threeSD,
+                    expected: distribution.expected.threeSD,
+                  },
+                ].map((band) => (
+                  <div key={band.label}>
+                    <dt className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">
+                      {band.label}
+                    </dt>
+                    <dd className="mt-1 text-[15px] font-semibold text-[#111827]">
+                      {`${band.observed.toFixed(1)}%`}
+                    </dd>
+                    <dd className="text-[12px] text-[#6b7280]">
+                      {`normal ${band.expected.toFixed(1)}%`}
+                    </dd>
+                  </div>
+                ))}
+                <div>
+                  <dt className="text-[11px] uppercase tracking-[0.05em] text-[#9ca3af]">
+                    Skewness
+                  </dt>
+                  <dd className="mt-1 text-[15px] font-semibold text-[#111827]">
+                    {distribution.skewness.toFixed(2)}
+                  </dd>
+                  <dd className="text-[12px] text-[#6b7280]">0.00 is symmetric</dd>
+                </div>
+              </dl>
+            )}
+          </div>
         </motion.div>
 
         <motion.div

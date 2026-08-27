@@ -184,6 +184,12 @@ export type QCSettings = {
   defaultChartView: 'daily' | 'weekly' | 'monthly';
   /** Days before a reagent lot's expiry date that it starts appearing on the lot watchlist. */
   lotExpiryWarningDays: number;
+  /**
+   * CUSUM decision interval, in multiples of the stream's SD. A run of cumulative
+   * deviation past this is treated as a systematic shift rather than scatter.
+   * Lower detects drift sooner at the cost of more false alarms.
+   */
+  cusumLimitMultiplier: number;
 };
 
 /**

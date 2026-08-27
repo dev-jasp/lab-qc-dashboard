@@ -1,105 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { Link, useParams } from "react-router-dom";
 
 import LeveyJenningsChart from "@/components/chart/LeveyJenningsChart";
-import {
-  getDiseaseControls,
-  getDiseaseDefinition,
-} from "@/constants/monitor-config";
-import {
-  ensureControlDatasetInitialized,
-  entriesToChartData,
-  getControlParameters,
-} from "@/lib/qcMonitor";
+import { getDiseaseDefinition } from "@/constants/monitor-config";
 import { controlTypeToTabSlug } from "@/constants/monitor-config";
-import { getEntries, getInHouseBatches, getLots } from "@/lib/qcStorage";
-import type {
-  ChartDataPoint,
-  ControlTypeSlug,
-  DiseaseSlug,
-} from "@/types/qc.types";
+import type { OverviewControlSummary } from "@/lib/diseaseOverview";
+import { useGetDiseaseOverviewQuery } from "@/store/api/overviewEndpoints";
+import type { DiseaseSlug } from "@/types/qc.types";
 import { calculateStatistics } from "@/utils/qc-calculations";
 
-type OverviewControlSummary = ReturnType<typeof getDiseaseControls>[number] & {
-  activeLotNumber: string | null;
-  lotStartDate: string | null;
-  activeRuns: number;
-  data: ChartDataPoint[];
-};
-
-async function buildControlSummary(
-  disease: DiseaseSlug,
-  control: ReturnType<typeof getDiseaseControls>[number],
-): Promise<OverviewControlSummary> {
-  await ensureControlDatasetInitialized(disease, control.slug);
-
-  if (control.slug === "in-house-control") {
-    const batches = await getInHouseBatches(disease);
-    const activeBatch =
-      batches.find((batch) => batch.status === "active") ?? batches[0] ?? null;
-    const entries = activeBatch
-      ? await getEntries(disease, control.slug, activeBatch.batchId)
-      : [];
-
-    return {
-      ...control,
-      parameters: getControlParameters(disease, control.slug),
-      data: entriesToChartData(entries),
-      activeLotNumber: activeBatch?.batchId ?? "No active batch",
-      lotStartDate: entries[0]?.date ?? null,
-      activeRuns: entries.length,
-    };
-  }
-
-  const lots = await getLots(disease, control.slug);
-  const activeLot =
-    lots.find((lot) => lot.status === "active") ?? lots[0] ?? null;
-  const entries = activeLot
-    ? await getEntries(disease, control.slug, activeLot.lotNumber)
-    : [];
-
-  return {
-    ...control,
-    parameters: getControlParameters(disease, control.slug as ControlTypeSlug),
-    data: entriesToChartData(entries),
-    activeLotNumber: activeLot?.lotNumber ?? null,
-    lotStartDate: activeLot?.startDate ?? null,
-    activeRuns: entries.length,
-  };
-}
+/** Stable identity so the count memos below are not invalidated every render. */
+const EMPTY_CONTROLS: OverviewControlSummary[] = [];
 
 export function DiseaseOverview() {
   const { disease } = useParams();
   const diseaseConfig = getDiseaseDefinition(disease);
-  const [controls, setControls] = useState<OverviewControlSummary[]>([]);
-
-  useEffect(() => {
-    if (!diseaseConfig) {
-      return;
-    }
-
-    let isCancelled = false;
-
-    const loadOverview = async () => {
-      const seededControls = getDiseaseControls(diseaseConfig.slug);
-      const nextControls = await Promise.all(
-        seededControls.map((control) =>
-          buildControlSummary(diseaseConfig.slug, control),
-        ),
-      );
-
-      if (!isCancelled) {
-        setControls(nextControls);
-      }
-    };
-
-    void loadOverview();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [diseaseConfig]);
+  const { data: controls = EMPTY_CONTROLS } = useGetDiseaseOverviewQuery(
+    diseaseConfig?.slug as DiseaseSlug,
+    { skip: diseaseConfig === undefined },
+  );
 
   const warningCount = useMemo(
     () => controls.filter((control) => control.tone === "warning").length,

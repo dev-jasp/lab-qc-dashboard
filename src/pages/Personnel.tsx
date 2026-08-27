@@ -1,5 +1,5 @@
 import { MagnifyingGlassIcon, UsersIcon, UserPlusIcon } from '@phosphor-icons/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { StaffFormDialog, type StaffFormValues } from '@/components/personnel/StaffFormDialog';
@@ -24,14 +24,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/useToast';
-import { createStaffMember, updateStaffMember } from '@/lib/qcStorage';
+import { useGetStaffDirectoryQuery } from '@/store/api/overviewEndpoints';
 import {
-  buildStaffDirectory,
-  ROLE_LABELS,
-  SHIFT_LABELS,
-  type StaffRecord,
-} from '@/lib/staffDirectory';
+  useCreateStaffMemberMutation,
+  useUpdateStaffMemberMutation,
+} from '@/store/api/settingsEndpoints';
+import { ROLE_LABELS, SHIFT_LABELS, type StaffRecord } from '@/lib/staffDirectory';
 import type { DutyShift, StaffRole } from '@/types/qc.types';
+
+/** Stable identity so the filter memo is not invalidated on every render. */
+const EMPTY_RECORDS: StaffRecord[] = [];
 
 const FILTER_TRIGGER_CLASS_NAME =
   'h-9 w-full rounded-full border-[#dbe3ef] bg-white px-4 text-[13px] font-semibold text-[#374151]';
@@ -40,50 +42,17 @@ const ROLE_FILTERS: (StaffRole | 'all')[] = ['all', 'analyst', 'supervisor', 'ad
 const SHIFT_FILTERS: (DutyShift | 'all')[] = ['all', 'morning', 'mid', 'night', 'rotating'];
 
 export function Personnel() {
-  const [records, setRecords] = useState<StaffRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: records = EMPTY_RECORDS, isLoading } = useGetStaffDirectoryQuery();
+  const [createStaffMemberMutation] = useCreateStaffMemberMutation();
+  const [updateStaffMemberMutation] = useUpdateStaffMemberMutation();
   const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
   const [shiftFilter, setShiftFilter] = useState<DutyShift | 'all'>('all');
   const [search, setSearch] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<StaffRecord | null>(null);
   const [pendingToggle, setPendingToggle] = useState<StaffRecord | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
   const navigate = useNavigate();
   const { success, error } = useToast();
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadDirectory = async () => {
-      setIsLoading(true);
-      try {
-        const directory = await buildStaffDirectory();
-
-        if (!isCancelled) {
-          setRecords(directory);
-        }
-      } catch (caughtError) {
-        if (!isCancelled) {
-          error(
-            caughtError instanceof Error ? caughtError.message : 'Unable to load the roster.',
-          );
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadDirectory();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [error, reloadToken]);
-
-  const refresh = useCallback(() => setReloadToken((token) => token + 1), []);
 
   const visibleRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -122,7 +91,7 @@ export function Personnel() {
 
       try {
         if (editingMember === null) {
-          await createStaffMember({
+          await createStaffMemberMutation({
             id: crypto.randomUUID(),
             staffId: values.staffId,
             displayName: values.displayName,
@@ -137,25 +106,29 @@ export function Personnel() {
             notes,
             createdAt: new Date().toISOString(),
             updatedAt: null,
-          });
+          }).unwrap();
           success(`${values.displayName} added to the roster.`);
         } else {
-          await updateStaffMember(editingMember.id, {
-            staffId: values.staffId,
-            displayName: values.displayName,
-            initials: values.initials,
-            role: values.role,
-            contactNumber,
-            email,
-            photoUrl,
-            shift: values.shift,
-            dutyDays: values.dutyDays,
-            notes,
-          });
+          await updateStaffMemberMutation({
+            memberId: editingMember.id,
+            updates: {
+              staffId: values.staffId,
+              displayName: values.displayName,
+              initials: values.initials,
+              role: values.role,
+              contactNumber,
+              email,
+              photoUrl,
+              shift: values.shift,
+              dutyDays: values.dutyDays,
+              notes,
+            },
+          }).unwrap();
           success(`${values.displayName} updated.`);
         }
 
-        refresh();
+        // No manual reload: both mutations invalidate the Staff tag, which is what
+        // the directory query provides, so it refetches on its own.
         return true;
       } catch (caughtError) {
         error(
@@ -166,7 +139,7 @@ export function Personnel() {
         return false;
       }
     },
-    [editingMember, error, refresh, success],
+    [createStaffMemberMutation, editingMember, error, success, updateStaffMemberMutation],
   );
 
   const handleConfirmToggle = useCallback(async () => {
@@ -178,9 +151,8 @@ export function Personnel() {
     const nextActive = !record.isActive;
 
     try {
-      await updateStaffMember(record.id, { isActive: nextActive });
+      await updateStaffMemberMutation({ memberId: record.id, updates: { isActive: nextActive } }).unwrap();
       success(`${record.displayName} ${nextActive ? 'reactivated' : 'deactivated'}.`);
-      refresh();
     } catch (caughtError) {
       error(
         caughtError instanceof Error ? caughtError.message : 'Unable to update the record.',
@@ -188,7 +160,7 @@ export function Personnel() {
     } finally {
       setPendingToggle(null);
     }
-  }, [error, pendingToggle, refresh, success]);
+  }, [error, pendingToggle, success, updateStaffMemberMutation]);
 
   return (
     <div className="space-y-6">

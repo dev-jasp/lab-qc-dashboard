@@ -1,6 +1,6 @@
 import { ArrowLeftIcon, PencilIcon } from '@phosphor-icons/react';
 import { format, parseISO } from 'date-fns';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { StaffFormDialog, type StaffFormValues } from '@/components/personnel/StaffFormDialog';
@@ -17,14 +17,13 @@ import {
 } from '@/components/ui/table';
 import { controlTypeToTabSlug } from '@/constants/monitor-config';
 import { useToast } from '@/hooks/useToast';
-import { updateStaffMember } from '@/lib/qcStorage';
+import { useGetStaffDirectoryQuery } from '@/store/api/overviewEndpoints';
+import { useUpdateStaffMemberMutation } from '@/store/api/settingsEndpoints';
 import {
-  buildStaffDirectory,
   formatDutyDays,
   ROLE_LABELS,
   SHIFT_HOURS,
   SHIFT_LABELS,
-  type StaffRecord,
 } from '@/lib/staffDirectory';
 
 const HEAD_CLASS_NAME =
@@ -87,38 +86,18 @@ function StatTile({ label, value }: { label: string; value: string }) {
 
 export function StaffProfile() {
   const { staffId } = useParams();
-  const [records, setRecords] = useState<StaffRecord[] | null>(null);
+  const { data: loadedRecords, isLoading } = useGetStaffDirectoryQuery();
+  const [updateStaffMemberMutation] = useUpdateStaffMemberMutation();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [reloadToken, setReloadToken] = useState(0);
   const navigate = useNavigate();
   const { success, error } = useToast();
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadDirectory = async () => {
-      try {
-        const directory = await buildStaffDirectory();
-
-        if (!isCancelled) {
-          setRecords(directory);
-        }
-      } catch (caughtError) {
-        if (!isCancelled) {
-          setRecords([]);
-          error(
-            caughtError instanceof Error ? caughtError.message : 'Unable to load the roster.',
-          );
-        }
-      }
-    };
-
-    void loadDirectory();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [error, reloadToken]);
+  // Still null while loading so the "not found" branch does not flash before the
+  // roster arrives; the page shares one cache entry with the personnel list.
+  const records = useMemo(
+    () => (isLoading ? null : (loadedRecords ?? [])),
+    [isLoading, loadedRecords],
+  );
 
   const record = useMemo(
     () => records?.find((candidate) => candidate.id === staffId) ?? null,
@@ -132,20 +111,22 @@ export function StaffProfile() {
       }
 
       try {
-        await updateStaffMember(record.id, {
-          staffId: values.staffId,
-          displayName: values.displayName,
-          initials: values.initials,
-          role: values.role,
-          contactNumber: values.contactNumber ? values.contactNumber : null,
-          email: values.email ? values.email : null,
-          photoUrl: values.photoUrl ? values.photoUrl : null,
-          shift: values.shift,
-          dutyDays: values.dutyDays,
-          notes: values.notes ? values.notes : null,
-        });
+        await updateStaffMemberMutation({
+          memberId: record.id,
+          updates: {
+            staffId: values.staffId,
+            displayName: values.displayName,
+            initials: values.initials,
+            role: values.role,
+            contactNumber: values.contactNumber ? values.contactNumber : null,
+            email: values.email ? values.email : null,
+            photoUrl: values.photoUrl ? values.photoUrl : null,
+            shift: values.shift,
+            dutyDays: values.dutyDays,
+            notes: values.notes ? values.notes : null,
+          },
+        }).unwrap();
         success(`${values.displayName} updated.`);
-        setReloadToken((token) => token + 1);
         return true;
       } catch (caughtError) {
         error(
@@ -154,7 +135,7 @@ export function StaffProfile() {
         return false;
       }
     },
-    [error, record, success],
+    [error, record, success, updateStaffMemberMutation],
   );
 
   if (records === null) {

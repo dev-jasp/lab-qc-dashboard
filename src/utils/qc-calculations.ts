@@ -376,3 +376,233 @@ export const getPointColor = (zScore: number): string => {
   if (absZScore > 1) return '#A89F91';
   return '#0000FF';
 };
+
+/** Slack in SD units, absorbed before a deviation counts toward the sum. */
+export const DEFAULT_CUSUM_SLACK = 0.5;
+/** Decision interval in SD units. Overridden by QCSettings.cusumLimitMultiplier. */
+export const DEFAULT_CUSUM_LIMIT = 5;
+
+export type CUSUMPoint = {
+  sample: string;
+  timestamp: string;
+  /** Standardised deviation of this run from the dataset mean. */
+  zScore: number;
+  /** Upper cumulative sum. Zero or positive; detects an upward shift. */
+  upper: number;
+  /** Lower cumulative sum. Zero or negative; detects a downward shift. */
+  lower: number;
+  /** True once either sum has run past the decision interval. */
+  breached: boolean;
+};
+
+export type CUSUMResult = {
+  points: CUSUMPoint[];
+  /** Decision interval in SD units, mirrored for the chart's limit lines. */
+  limit: number;
+  slack: number;
+  /** Index of the first run to breach, or null when the stream is in control. */
+  firstBreachIndex: number | null;
+};
+
+/**
+ * Tabular CUSUM over a control stream.
+ *
+ * Two one-sided cumulative sums of standardised deviations, each with a slack of
+ * `k` SD absorbed before a run contributes. The slack is what makes this a drift
+ * detector rather than a running total: ordinary scatter is absorbed, while a
+ * persistent bias of even a fraction of an SD accumulates until it crosses the
+ * decision interval `h`. That is the point of pairing it with Levey-Jennings —
+ * a sustained 1 SD shift trips no Westgard rule for a long time, but CUSUM
+ * catches it within a handful of runs.
+ *
+ * Sums are floored at zero (upper) and capped at zero (lower) so that a return to
+ * target resets the evidence rather than carrying an old excursion forward.
+ *
+ * The caller supplies the dataset boundary: CUSUM is computed per lot for
+ * positive/negative controls and per batch for in-house, because a reagent change
+ * makes earlier deviations irrelevant to the current one.
+ */
+export const calculateCUSUM = (
+  data: ChartDataPoint[],
+  statistics: QCStatistics,
+  parameters: QCParameters,
+  limit: number = DEFAULT_CUSUM_LIMIT,
+  slack: number = DEFAULT_CUSUM_SLACK,
+): CUSUMResult => {
+  const mean = data.length > 0 ? statistics.mean : parameters.targetMean;
+  const sd =
+    data.length > 1 && statistics.sd > 0 ? statistics.sd : parameters.targetSD;
+
+  if (data.length === 0 || sd <= 0) {
+    return { points: [], limit, slack, firstBreachIndex: null };
+  }
+
+  const points: CUSUMPoint[] = [];
+  let upper = 0;
+  let lower = 0;
+  let firstBreachIndex: number | null = null;
+
+  data.forEach((point, index) => {
+    const zScore = (point.value - mean) / sd;
+
+    upper = Math.max(0, upper + zScore - slack);
+    lower = Math.min(0, lower + zScore + slack);
+
+    const breached = upper > limit || lower < -limit;
+
+    if (breached && firstBreachIndex === null) {
+      firstBreachIndex = index;
+    }
+
+    points.push({
+      sample: point.sample,
+      timestamp: point.timestamp,
+      zScore,
+      upper,
+      lower,
+      breached,
+    });
+  });
+
+  return { points, limit, slack, firstBreachIndex };
+};
+
+/**
+ * Histogram bin width in SD units. Half an SD puts the mean and every ±1/2/3 SD
+ * boundary exactly on a bin edge, so the reference lines never bisect a bar.
+ */
+export const OD_HISTOGRAM_BIN_SD = 0.5;
+
+/** Share of a normal distribution inside ±1, ±2 and ±3 SD, as percentages. */
+export const NORMAL_BAND_SHARE = {
+  oneSD: 68.27,
+  twoSD: 95.45,
+  threeSD: 99.73,
+} as const;
+
+export type ODHistogramBin = {
+  /** Bin bounds in OD units. */
+  start: number;
+  end: number;
+  /** The same bounds in SD units from the mean. Integer multiples of the width. */
+  startZ: number;
+  endZ: number;
+  /** Bin centre in SD units, which is where the bar is plotted. */
+  midZ: number;
+  count: number;
+};
+
+export type BandShare = {
+  oneSD: number;
+  twoSD: number;
+  threeSD: number;
+};
+
+export type ODDistribution = {
+  bins: ODHistogramBin[];
+  /** Observed share of runs inside each band, as percentages. */
+  observed: BandShare;
+  /** Normal-theory expectation for the same bands. */
+  expected: BandShare;
+  /**
+   * Sample skewness (bias-corrected Fisher-Pearson). Zero is symmetric; positive
+   * means a tail towards high OD.
+   */
+  skewness: number;
+  /** Tallest bin, so the caller can size the y axis. */
+  peakCount: number;
+  sampleCount: number;
+};
+
+const EMPTY_DISTRIBUTION: ODDistribution = {
+  bins: [],
+  observed: { oneSD: 0, twoSD: 0, threeSD: 0 },
+  expected: NORMAL_BAND_SHARE,
+  skewness: 0,
+  peakCount: 0,
+  sampleCount: 0,
+};
+
+/**
+ * Distribution of OD values across the active dataset.
+ *
+ * Levey-Jennings, CUSUM and rolling CV all read the runs as a sequence. This
+ * reads them as a population, which is the assumption the rest of the QC stack
+ * rests on: ±2 SD is a warning only because ~95% of a normal distribution falls
+ * inside it, and ±3 SD is an action limit only because ~99.7% does. When the
+ * histogram comes back bimodal — two reagent populations, two operators, a
+ * mid-series recalibration — those percentages are wrong and the Westgard limits
+ * are being computed over a distribution that does not exist. No sequence chart
+ * shows that, because both humps can sit comfortably inside the limits.
+ *
+ * Reported alongside the bars: observed versus normal-theory occupancy of each
+ * band, and sample skewness. Those numbers are the point of the panel, and they
+ * also discharge the contrast warning on the amber ±2 SD line — the reader never
+ * has to resolve the band from colour alone.
+ */
+export const buildODDistribution = (
+  data: ChartDataPoint[],
+  statistics: QCStatistics,
+  parameters: QCParameters,
+): ODDistribution => {
+  const mean = data.length > 0 ? statistics.mean : parameters.targetMean;
+  const sd =
+    data.length > 1 && statistics.sd > 0 ? statistics.sd : parameters.targetSD;
+
+  if (data.length < 2 || sd <= 0) {
+    return { ...EMPTY_DISTRIBUTION, sampleCount: data.length };
+  }
+
+  const zScores = data.map((point) => (point.value - mean) / sd);
+  const width = OD_HISTOGRAM_BIN_SD;
+  const firstEdge = Math.floor(Math.min(...zScores) / width) * width;
+  const lastEdge = Math.ceil(Math.max(...zScores) / width) * width;
+  // A dataset with no spread left, or one whose max sits exactly on an edge,
+  // still needs a bin to land in.
+  const binCount = Math.max(1, Math.round((lastEdge - firstEdge) / width));
+
+  const counts = new Array<number>(binCount).fill(0);
+  for (const z of zScores) {
+    const raw = Math.floor((z - firstEdge) / width);
+    counts[Math.min(binCount - 1, Math.max(0, raw))] += 1;
+  }
+
+  const bins: ODHistogramBin[] = counts.map((count, index) => {
+    const startZ = firstEdge + index * width;
+    const endZ = startZ + width;
+
+    return {
+      startZ,
+      endZ,
+      midZ: startZ + width / 2,
+      start: mean + startZ * sd,
+      end: mean + endZ * sd,
+      count,
+    };
+  });
+
+  const shareWithin = (limit: number): number =>
+    (zScores.filter((z) => Math.abs(z) <= limit).length / zScores.length) * 100;
+
+  // Bias-corrected sample skewness. The z-scores are already standardised by the
+  // sample SD, so this reduces to the third-moment sum.
+  const n = zScores.length;
+  const skewness =
+    n < 3
+      ? 0
+      : (n / ((n - 1) * (n - 2))) *
+        zScores.reduce((total, z) => total + z ** 3, 0);
+
+  return {
+    bins,
+    observed: {
+      oneSD: shareWithin(1),
+      twoSD: shareWithin(2),
+      threeSD: shareWithin(3),
+    },
+    expected: NORMAL_BAND_SHARE,
+    skewness,
+    peakCount: Math.max(...counts),
+    sampleCount: n,
+  };
+};

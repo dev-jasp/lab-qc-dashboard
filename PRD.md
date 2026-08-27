@@ -176,16 +176,29 @@ A Cumulative Sum (CUSUM) chart displayed alongside the Levey-Jennings chart. Det
 
 **Requirements:**
 
-- Plots cumulative sum of deviations from the mean over run sequence
-- Upper and lower CUSUM limits configurable in Settings (default: ±5 × SD)
-- Breach of CUSUM limit triggers a warning state
-- Displayed in a panel below or alongside the Levey-Jennings chart on desktop
+- **Tabular (two-sided) CUSUM**, not a plain running total of deviations. Two
+  one-sided sums of standardised deviations:
+  - `SH_i = max(0, SH_i-1 + z_i - k)` — detects an upward shift
+  - `SL_i = min(0, SL_i-1 + z_i + k)` — detects a downward shift
+  - where `z_i = (x_i - mean) / SD`
+- Slack `k = 0.5 SD`. The slack is what makes this a drift detector rather than a
+  random walk: ordinary scatter is absorbed, while a persistent bias accumulates.
+  A plain cumulative sum of deviations drifts without bound and is a poor detector
+  of the thing this feature exists to find.
+- Decision interval `h`, configurable in Settings as `cusumLimitMultiplier`
+  (default 5 × SD). Breach when `SH > h` or `SL < -h`.
+- Sums are floored at zero / capped at zero so a return to target resets the
+  evidence rather than carrying an old excursion forward.
+- Breach of the decision interval triggers a warning state
+- Displayed in a panel below the Levey-Jennings chart on the control monitor
 
 **Acceptance Criteria:**
 
-- [ ] CUSUM values computed correctly from run history
-- [ ] Limit breach is visually indicated on the chart
-- [ ] CUSUM resets correctly when a new lot is started
+- [x] CUSUM values computed correctly from run history
+- [x] Limit breach is visually indicated on the chart
+- [x] CUSUM resets correctly when a new lot is started — the chart is scoped to
+      the active lot (positive/negative) or batch (in-house), so the reset is
+      structural rather than a special case
 
 ---
 
@@ -304,7 +317,8 @@ The following features are explicitly deferred to future versions:
 - **Performance:** Chart must render within 500ms for datasets up to 200 runs
 - **Accessibility:** WCAG 2.1 AA compliance for all interactive elements
 - **No PHI:** This application handles QC control samples only — no patient data is ever entered or stored
-- **Tech stack:** React + TypeScript, Vite, React Router v6, Tailwind CSS, Recharts
+- **Tech stack:** React + TypeScript, Vite, React Router v6, Tailwind CSS, Redux Toolkit + RTK Query, Chart.js
+- **Charting:** Chart.js only. An earlier draft of this document named Recharts; the codebase standardised on Chart.js and two charting libraries in one app is a liability, not a choice.
 
 ---
 
@@ -347,15 +361,57 @@ The backend architecture for V1 is **not yet decided**. The following options ar
 
 ## 12. Milestones
 
+Status verified against the working tree on 2026-08-27.
+
 | Milestone | Deliverable | Status |
 |---|---|---|
-| M0 — Foundation | Project scaffold, routing, mock data layer | 🟡 In Progress |
-| M1 — Core Chart | Levey-Jennings chart with static mock data | ⬜ Pending |
-| M2 — Rules Engine | Westgard engine + violation flagging on chart | ⬜ Pending |
-| M3 — Submission Flow | Record Sample form + toast + violation modal | ⬜ Pending |
-| M4 — CUSUM | CUSUM chart panel wired to live data | ⬜ Pending |
+| M0 — Foundation | Project scaffold, routing, mock data layer | ✅ Done |
+| M1 — Core Chart | Levey-Jennings chart with static mock data | ✅ Done |
+| M2 — Rules Engine | Westgard engine + violation flagging on chart | ✅ Done |
+| M3 — Submission Flow | Record Sample form + toast + violation modal | 🟡 In Progress |
+| M4 — CUSUM | CUSUM chart panel wired to live data | ✅ Done |
 | M5 — History | Audit trail page with filters | ⬜ Pending |
-| M6 — Export | PDF + CSV export | ⬜ Pending |
-| M7 — Settings | Lot management + lab config | ⬜ Pending |
+| M6 — Export | PDF + CSV export | ✅ Done |
+| M7 — Settings | Lot management + lab config | ✅ Done |
 | M8 — Polish & QA | Cross-browser testing, accessibility, performance | ⬜ Pending |
 | **V1 Release** | All M1–M8 complete | ⬜ Pending |
+
+### Why M3 and M5 are not done
+
+- **M3** — the form, validation, toast, and Westgard evaluation on submit all
+  work, and violations are written to storage. What is missing is the
+  post-violation prompt: there is no modal offering Accept-with-comment /
+  Repeat run / Reject batch, and the monitor always stores
+  `correctiveAction: null`. Nothing in the UI calls the acknowledge mutation.
+  Consequence: the root-cause Pareto on `/violations` and `/analytics` reflects
+  **seeded data only**, because live usage cannot yet record a root cause.
+- **M5** — `src/pages/History.tsx` renders placeholder copy. The append-only
+  `qc_audit_*` records that `qcStorage` already writes have no reader anywhere
+  in the UI.
+
+### Delivered outside the original milestone list
+
+| Area | Deliverable |
+|---|---|
+| State layer | Redux Toolkit + RTK Query over `qcStorage`, tag-based invalidation |
+| Auth | Login, SHA-256 PIN hashing, role-gated routes, session slice |
+| Analytics | `/analytics` cross-stream rule activity and root-cause Pareto |
+| Lots | `/lots` lot and in-house batch lifecycle, cross-disease registry |
+| Personnel | `/personnel` roster, staff profiles, performer/validator capture |
+| Help | `/help` QC glossary |
+| Imports | Bench protocol workbook import to pre-fill entries |
+| Tests | Vitest suite — 240 tests across 10 files |
+
+### Where this document has drifted from the build
+
+The acceptance-criteria checkboxes in section 6 have **not** been re-audited
+against the build and should not be read as status. Three requirements are
+also contradicted or unbuilt, and the document, not the code, is the side
+that needs a decision:
+
+- **6.5** asks for "no UI affordance for editing or deleting records". The build
+  grants supervisors edit and delete with a mandatory audit reason, and locks
+  records once signed off. This was a deliberate product change.
+- **6.7** asks for a QC Level 1 / Level 2 toggle. The build scopes data by
+  disease and three control streams (in-house, positive, negative) instead.
+- **6.1** asks for a Daily/Weekly toggle on the Levey-Jennings chart. Not built.

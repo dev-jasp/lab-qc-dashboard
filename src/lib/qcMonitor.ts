@@ -1,15 +1,19 @@
 import { getControlMonitorSeed } from '@/constants/monitor-config';
-import { initializeEntries, initializeLots } from '@/lib/qcStorage';
+import { addViolation, initializeEntries, initializeLots } from '@/lib/qcStorage';
 import { pickSeedPerformer, pickSeedValidator } from '@/lib/staffSeed';
+import { calculateStatistics, evaluateQCRules } from '@/utils/qc-calculations';
 import type {
   ChartDataPoint,
   ControlTypeSlug,
+  CorrectiveAction,
+  CorrectiveRootCause,
   DiseaseSlug,
   LotMetadata,
   QCEntry,
   QCParameters,
   QCStatistics,
   RunStatisticsSummary,
+  ViolationEntry,
 } from '@/types/qc.types';
 
 export const DEFAULT_IN_HOUSE_LOT_NUMBER = 'INHOUSE';
@@ -76,6 +80,135 @@ export function buildSeedEntries(disease: DiseaseSlug, controlType: ControlTypeS
   });
 }
 
+const CORRECTIVE_ROOT_CAUSES: CorrectiveRootCause[] = [
+  'reagent_issue',
+  'instrument_malfunction',
+  'operator_error',
+  'sample_issue',
+  'environmental_factor',
+  'unexplained',
+  'other',
+];
+
+const CORRECTIVE_NARRATIVES: Record<CorrectiveRootCause, { action: string; preventive: string }> = {
+  reagent_issue: {
+    action: 'Reagent lot inspected and conjugate replaced with a freshly reconstituted vial.',
+    preventive: 'Reconstitution dates now recorded on the bench worksheet at first use.',
+  },
+  instrument_malfunction: {
+    action: 'Plate reader lamp output verified and the optical path cleaned before the repeat run.',
+    preventive: 'Reader diagnostics added to the start-of-week maintenance checklist.',
+  },
+  operator_error: {
+    action: 'Pipetting sequence reviewed with the analyst and the affected wells re-run.',
+    preventive: 'Second analyst now witnesses control plating during onboarding.',
+  },
+  sample_issue: {
+    action: 'Control aliquot discarded after evidence of a partial freeze-thaw cycle.',
+    preventive: 'Aliquots split into single-use volumes to avoid repeat thawing.',
+  },
+  environmental_factor: {
+    action: 'Incubator temperature logged out of range and the run repeated once stable.',
+    preventive: 'Continuous temperature logging enabled with an out-of-range alarm.',
+  },
+  unexplained: {
+    action: 'Repeat run fell within limits; no assignable cause identified on review.',
+    preventive: 'Stream flagged for closer supervisor review over the next ten runs.',
+  },
+  other: {
+    action: 'Run reviewed with the supervisor and documented against the QC deviation log.',
+    preventive: 'Deviation log entry scheduled for review at the monthly QC meeting.',
+  },
+};
+
+/** FNV-1a, so seeded acknowledgement and root cause are stable across machines. */
+function hashSeedText(value: string): number {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return hash >>> 0;
+}
+
+/**
+ * Derives the violations the seeded runs genuinely trip.
+ *
+ * These are evaluated with the same engine the app uses at runtime rather than
+ * hand-written, so a seeded violation can never describe something the chart does
+ * not show. Roughly a quarter are left open on purpose: the violation inbox and
+ * its badge are empty otherwise, and an empty inbox reads as a broken page.
+ */
+export function buildSeedViolations(
+  disease: DiseaseSlug,
+  controlType: ControlTypeSlug,
+  entries: QCEntry[],
+): ViolationEntry[] {
+  const monitorSeed = getControlMonitorSeed(disease, controlType);
+  const chartData = entriesToChartData(entries);
+  const statistics = calculateStatistics(chartData);
+  const rules = evaluateQCRules(chartData, statistics, monitorSeed.parameters);
+  const streamKey = `${disease}:${controlType}`;
+
+  return rules.flatMap((rule) => {
+    if (!rule.violated) {
+      return [];
+    }
+
+    const triggeringEntries = (rule.triggeringIndices ?? [])
+      .map((index) => entries[index])
+      .filter((entry): entry is QCEntry => entry !== undefined);
+
+    if (triggeringEntries.length === 0) {
+      return [];
+    }
+
+    const lastEntry = triggeringEntries[triggeringEntries.length - 1];
+    const seed = hashSeedText(`${streamKey}:${rule.name}`);
+    const isOpen = seed % 4 === 0;
+    const rootCause = CORRECTIVE_ROOT_CAUSES[seed % CORRECTIVE_ROOT_CAUSES.length];
+    const narrative = CORRECTIVE_NARRATIVES[rootCause];
+    const reviewer = pickSeedPerformer(streamKey, seed % 7);
+    // Reviewed the morning after the run that tripped the rule.
+    const acknowledgedAt = `${lastEntry.date}T${String(9 + (seed % 6)).padStart(2, '0')}:15:00.000Z`;
+    const repeatTestPerformed = seed % 3 !== 0;
+
+    const correctiveAction: CorrectiveAction = {
+      rootCause,
+      rootCauseDetails: null,
+      actionTaken: narrative.action,
+      preventiveAction: narrative.preventive,
+      repeatTestPerformed,
+      repeatODValue: repeatTestPerformed
+        ? Number((statistics.mean + statistics.sd * 0.35).toFixed(4))
+        : null,
+      repeatProtocolNumber: repeatTestPerformed ? `${lastEntry.protocolNumber}-R` : null,
+      outcome: seed % 9 === 0 ? 'escalated' : 'resolved',
+      acknowledgedBy: reviewer.displayName,
+      acknowledgedAt,
+    };
+
+    const violation: ViolationEntry = {
+      id: crypto.randomUUID(),
+      timestamp: `${lastEntry.date}T${String(7 + (seed % 4)).padStart(2, '0')}:40:00.000Z`,
+      ruleName: rule.name,
+      // Only `1_2s`, `10x`, and `7T` are warnings; anything else halts reporting.
+      severity: rule.severity ?? 'rejection',
+      triggeringProtocols: triggeringEntries.map((entry) => entry.protocolNumber),
+      triggeringODValues: triggeringEntries.map((entry) => entry.odValue),
+      lotNumber: lastEntry.lotNumber,
+      acknowledged: !isOpen,
+      acknowledgedBy: isOpen ? null : reviewer.displayName,
+      acknowledgedAt: isOpen ? null : acknowledgedAt,
+      correctiveAction: isOpen ? null : correctiveAction,
+    };
+
+    return [violation];
+  });
+}
+
 export function buildSeedLots(disease: DiseaseSlug, controlType: ControlTypeSlug): LotMetadata[] {
   if (controlType === 'in-house-control') {
     return [];
@@ -104,6 +237,7 @@ export async function ensureControlDatasetInitialized(
 
   if (controlType === 'in-house-control') {
     await initializeEntries(disease, controlType, seedEntries, DEFAULT_IN_HOUSE_LOT_NUMBER, monitorSeed.seedVersion);
+    await seedViolations(disease, controlType, seedEntries);
     return;
   }
 
@@ -112,6 +246,26 @@ export async function ensureControlDatasetInitialized(
 
   await initializeLots(disease, controlType, seedLots);
   await initializeEntries(disease, controlType, seedEntries, seedLotNumber, monitorSeed.seedVersion);
+  await seedViolations(disease, controlType, seedEntries, seedLotNumber);
+}
+
+/**
+ * Writes the seeded violations for a stream.
+ *
+ * Runs after `initializeEntries` because bumping a seed version clears the stream's
+ * violation log. `addViolation` de-duplicates on rule plus triggering protocols, so
+ * repeated calls are harmless and a violation the user has already acknowledged is
+ * never resurrected in its unacknowledged form.
+ */
+async function seedViolations(
+  disease: DiseaseSlug,
+  controlType: ControlTypeSlug,
+  seedEntries: QCEntry[],
+  lotNumber?: string,
+): Promise<void> {
+  for (const violation of buildSeedViolations(disease, controlType, seedEntries)) {
+    await addViolation(disease, controlType, violation, lotNumber);
+  }
 }
 
 export function entriesToChartData(entries: QCEntry[]): ChartDataPoint[] {

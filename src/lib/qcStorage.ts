@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS: QCSettings = {
   chartTheme: 'light',
   defaultChartView: 'daily',
   lotExpiryWarningDays: 30,
+  cusumLimitMultiplier: 5,
 };
 
 type StoredBackup = Record<string, unknown>;
@@ -252,7 +253,8 @@ function isQCSettings(value: unknown): value is QCSettings {
     CHART_THEMES.has(value.chartTheme) &&
     isString(value.defaultChartView) &&
     CHART_VIEWS.has(value.defaultChartView) &&
-    isNumber(value.lotExpiryWarningDays)
+    isNumber(value.lotExpiryWarningDays) &&
+    isNumber(value.cusumLimitMultiplier)
   );
 }
 
