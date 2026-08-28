@@ -22,7 +22,11 @@ The current product direction is:
 - `/monitor/:disease/:control` is the full control monitor with chart, run
   statistics, record form, and rule/status panels.
 - `/violations` is the global violation inbox across all diseases and controls.
-- `/history` is the historical data browser with filtering by flag, date, and lot.
+- `/analytics` is the cross-stream QC performance overview (root-cause Pareto,
+  rule activity). Per-stream drift and precision charts live on the control
+  monitor, not here.
+- `/history` is intended as the historical data browser, filtering by flag, date,
+  and lot. It is currently a stub — see Current UI State.
 - `/settings` is the tabbed configuration page.
 
 Primary users are laboratory technicians and supervisors at desktop workstations,
@@ -37,13 +41,15 @@ with a secondary mobile view for quick checks.
 | React + TypeScript  | UI framework and type safety                       |
 | Vite                | Dev server and bundler                             |
 | React Router v6     | Client-side routing                                |
+| Redux Toolkit       | Store, slices, and typed thunks                    |
+| RTK Query           | Cache over `qcStorage` with tag-based invalidation |
 | Tailwind CSS        | Utility-first styling                              |
 | shadcn/ui           | Accessible UI primitives (see component map below) |
 | Chart.js            | Levey-Jennings chart, sparklines, bar charts       |
-| Lucide React        | UI icons                                           |
+| Phosphor Icons      | UI icons (`@phosphor-icons/react`) — not Lucide     |
 | SheetJS (xlsx)      | Client-side Excel export                           |
-| jsPDF + html2canvas | PDF report generation                              |
-| Canvas 2D API       | PNG chart export with ZCMC letterhead composite    |
+| jsPDF + html2canvas | PDF report generation, A4 landscape                |
+| Framer Motion       | Panel and page reveal animations                   |
 
 ### shadcn/ui Component Map
 
@@ -75,47 +81,60 @@ lab-qc-dashboard/
 |- public/
 |- src/
 |  |- components/
-|  |  |- chart/
-|  |  |  |- LeveyJenningsChart.tsx
-|  |  |- dashboard/
-|  |  |  |- QCDashboard.tsx
-|  |  |- layout/
-|  |  |  |- DashboardHeader.tsx
-|  |  |  |- Footer.tsx
-|  |  |- panels/
-|  |  |  |- InputPanel.tsx
-|  |  |  |- QCRulesPanel.tsx
-|  |  |  |- StatisticsPanel.tsx
-|  |  |- ui/
-|  |     |- Button.tsx
-|  |     |- Input.tsx
-|  |     |- Toast.tsx
+|  |  |- auth/          <- ProtectedRoute
+|  |  |- chart/         <- LeveyJennings, CUSUM, RollingCV, ViolationPareto
+|  |  |- dashboard/     <- QCDashboard.tsx, the whole control monitor
+|  |  |- export/        <- export modal, report dialog, A4 printable layout
+|  |  |- help/          <- glossary search and term list
+|  |  |- layout/        <- AppShell, AppSidebar, DashboardHeader, Footer
+|  |  |- lots/          <- lot table, lot form dialog, attention panel
+|  |  |- panels/        <- QC rules, statistics, edit sheet, run file dropzone
+|  |  |- personnel/     <- staff table, form dialog, picker, avatar
+|  |  |- ui/            <- shadcn primitives, lowercase filenames
 |  |- constants/
-|  |  |- monitor-config.ts
+|  |  |- monitor-config.ts   <- disease/control metadata and seeded data
 |  |  |- qc-rules.ts
+|  |  |- glossary.ts
+|  |  |- landing-images.ts
 |  |- hooks/
-|  |  |- useQCLogic.ts
-|  |  |- useToast.ts
-|  |- lib/
-|  |  |- qcStorage.ts       ← single module for all localStorage access
-|  |  |- westgard.ts        ← pure Westgard evaluation engine
-|  |  |- statistics.ts      ← mean, SD, CV, rolling CV calculations
-|  |  |- exportPng.ts       ← Canvas 2D PNG composite with ZCMC letterhead
-|  |  |- exportXlsx.ts      ← SheetJS Excel export
-|  |  |- exportPdf.ts       ← jsPDF + html2canvas PDF report
+|  |  |- useAuth.ts, useQCLogic.ts, useToast.ts
+|  |  |- use-mobile.ts, useRouteScrollRestoration.ts
+|  |- lib/                   <- pure logic, no React imports
+|  |  |- qcStorage.ts        <- single module for all localStorage access
+|  |  |- qcMonitor.ts        <- seeding, control params, chart adapters
+|  |  |- auth.ts             <- PIN hashing and session
+|  |  |- diseaseOverview.ts  <- all-controls summary derivation
+|  |  |- lotRegistry.ts, lotValidation.ts
+|  |  |- staffDirectory.ts, staffSeed.ts
+|  |  |- protocolWorkbook.ts <- bench protocol workbook import
+|  |  |- reportPeriod.ts
+|  |  |- exportQCChart.ts    <- html2canvas capture + jsPDF A4
+|  |  |- exportXlsx.ts, exportCsv.ts
+|  |  |- exportCatalog.ts, exportRows.ts, exportSections.ts, exportFilenames.ts
+|  |  |- downloadFile.ts
+|  |- store/
+|  |  |- index.ts            <- configureStore, RootState, AppDispatch
+|  |  |- hooks.ts            <- typed useAppDispatch / useAppSelector
+|  |  |- api/
+|  |  |  |- qcApi.ts         <- createApi, tag ids, queryFn adapters
+|  |  |  |- entriesEndpoints.ts, lotsEndpoints.ts, violationsEndpoints.ts
+|  |  |  |- overviewEndpoints.ts, settingsEndpoints.ts
+|  |  |- slices/             <- auth session, violation and report filters
+|  |  |- selectors/          <- memoized derivations shared across components
 |  |- pages/
-|  |  |- ControlMonitor.tsx
-|  |  |- DiseaseOverview.tsx
-|  |  |- DiseaseSelector.tsx
-|  |  |- History.tsx
-|  |  |- Settings.tsx
-|  |  |- Violations.tsx
+|  |  |- LoginPage.tsx
+|  |  |- DiseaseSelector.tsx, DiseaseOverview.tsx, ControlMonitor.tsx
+|  |  |- Violations.tsx, Analytics.tsx, History.tsx
+|  |  |- Lots.tsx, Personnel.tsx, StaffProfile.tsx
+|  |  |- Reports.tsx, Settings.tsx, Help.tsx
 |  |- types/
-|  |  |- qc.types.ts
+|  |  |- qc.types.ts, export.ts
 |  |- utils/
-|  |  |- chart-config.ts
-|  |  |- export.ts
-|  |  |- qc-calculations.ts
+|  |  |- qc-calculations.ts  <- Westgard, statistics, rolling CV, CUSUM
+|  |  |- chart-theme.ts      <- shared chart tokens
+|  |  |- chart-config.ts, export.ts, cn.ts
+|  |- styles/
+|  |  |- print.css
 |  |- App.tsx
 |  |- main.tsx
 |  |- router.tsx
@@ -135,8 +154,9 @@ Notes:
 - The full monitor experience is powered by `QCDashboard.tsx`, reused by route-level pages.
 - **Never access localStorage directly in components.** All reads and writes must
   go through `src/lib/qcStorage.ts`.
-- The `lib/` folder contains pure, framework-agnostic business logic modules.
-  Keep them free of React imports.
+- `src/lib/` and `src/utils/qc-calculations.ts` are pure, framework-agnostic
+  modules. Keep them free of React imports.
+- Tests live beside the module they cover as `*.test.ts`. Run them with `npm test`.
 
 ---
 
@@ -144,19 +164,34 @@ Notes:
 
 ```text
 /                                -> redirect to /monitor
+/login                           -> LoginPage.tsx        (public)
+/dashboard                       -> redirect to /monitor (guarded)
+
+Everything below is wrapped in <ProtectedRoute> and rendered inside <AppShell>:
+
 /monitor                         -> DiseaseSelector.tsx
 /monitor/:disease                -> DiseaseOverview.tsx
 /monitor/:disease/:control       -> ControlMonitor.tsx
 /violations                      -> Violations.tsx
-/history                         -> History.tsx
+/analytics                       -> Analytics.tsx
+/history                         -> History.tsx          (stub — see Current UI State)
+/lots                            -> Lots.tsx
+/personnel                       -> Personnel.tsx
+/personnel/:staffId              -> StaffProfile.tsx
+/reports                         -> Reports.tsx
+/exports                         -> redirect to /reports (legacy path)
+/help                            -> Help.tsx
 /settings                        -> Settings.tsx
+*                                -> redirect to /monitor
 ```
 
 Router implementation details:
 
 - Uses React Router v6 with `createBrowserRouter` and `<RouterProvider>`.
 - Route definitions live in `src/router.tsx`.
-- App entry wires the router in `src/App.tsx`.
+- `src/main.tsx` wraps the app in the Redux `<Provider>`; `src/App.tsx` renders
+  `<RouterProvider>` alongside the toaster and image preloader.
+- `/exports` is kept as a redirect so older links still resolve. Do not remove it.
 
 Allowed `:disease` params:
 
@@ -166,11 +201,18 @@ Allowed `:disease` params:
 - `japanese-encephalitis`
 - `dengue`
 
-Allowed `:control` params:
+Allowed `:control` params. These are **URL** slugs (`ControlTabSlug`) and are not
+the storage slugs:
 
-- `in-house-control`
-- `positive-control`
-- `negative-control`
+- `in-house`
+- `positive`
+- `negative`
+
+The domain and storage vocabulary (`ControlTypeSlug`) is `in-house-control`,
+`positive-control`, `negative-control` — that is what the `qc_*` localStorage
+keys use. `src/constants/monitor-config.ts` maps between the two. Navigating to
+`/monitor/measles/in-house-control` does **not** resolve; it falls through the
+catch-all and redirects to `/monitor`.
 
 ---
 
@@ -443,9 +485,11 @@ PDF:   {Disease}-QC-Report-{Period}-{YYYY}.pdf
 
 Export implementations live in:
 
-- `src/lib/exportPng.ts` — Canvas 2D composite (1400×900px)
+- `src/lib/exportQCChart.ts` — html2canvas capture + jsPDF, A4 single and multi-page
 - `src/lib/exportXlsx.ts` — SheetJS `XLSX.utils.aoa_to_sheet()`
-- `src/lib/exportPdf.ts` — jsPDF + html2canvas, A4 portrait
+- `src/lib/exportCsv.ts` — raw run data, per stream and per disease
+- `src/lib/exportCatalog.ts`, `exportRows.ts`, `exportSections.ts`,
+  `exportFilenames.ts` — shared shaping, the ZCMC header rows, and file naming
 
 ---
 
@@ -500,47 +544,133 @@ Point — edited:        filled coral circle,  radius 4
 Point — violation:     filled red circle,    radius 6
 ```
 
+### Charts beyond Levey-Jennings
+
+Shared tokens live in `src/utils/chart-theme.ts`. Import from there rather than
+hard-coding hexes, so every panel reads as one system.
+
+```
+Series — primary:      #1a1aff  (brand blue, the measure being plotted)
+Series — secondary:    #0d9488  (teal, the second categorical hue)
+```
+
+Rules that hold for every chart in this app:
+
+1. **Never a dual-axis chart.** Two y-scales let either series be rescaled
+   independently, so where the marks cross means nothing. The root-cause Pareto
+   would traditionally use one; it expresses both bars and cumulative line as
+   percentages of the same total instead, sharing one axis. Raw counts go in the
+   tooltip and the table, where they cannot distort the geometry.
+2. **The blue/teal pair is validated, not chosen by eye.** They separate at
+   ΔE 27.2 under protanopia and 13.1 under tritanopia, well clear of the 8-point
+   floor. The obvious alternative, blue against violet, fails at 3.3. If you add a
+   third series, run it through a CVD validator before shipping it.
+3. **Status colours are reserved.** Amber is watchlist (and ±2 SD), red is out of
+   control (and the ±3 SD action limit). Never reuse either as a series hue — a
+   supervisor should read red as "action limit" in every panel.
+4. **Colour is never the only encoding.** Two or more series get a legend; severity
+   gets a text badge as well as a colour; the Pareto ships a data table.
+5. **One hue per measure.** Pareto bars are all one colour because they are one
+   measure across categories. Colouring bars by rank implies they are different
+   series and is wrong. The OD histogram follows the same rule — one hue across
+   bins, because a bin is not a series.
+6. **SD reference lines come from `SD_BAND` in `chart-theme.ts`.** Do not
+   re-type the hexes. The validator scores the amber ±2 SD line at 2.09:1
+   against white, which is a contrast warning that cannot be waved away: any
+   chart drawing these bands must label the lines directly or print the band
+   numbers beside the chart, so the colour is never the only cue. Both the
+   Levey-Jennings chart and the OD histogram do this.
+
 ---
 
 ## Custom Hooks
 
-| Hook                                          | Purpose                                               |
-| --------------------------------------------- | ----------------------------------------------------- |
-| `useQCData(disease, controlType, lotNumber?)` | Load, add, edit, delete entries for a control stream  |
-| `useWestgard(odValues, mean, sd)`             | Evaluate all 7 rules, return results array            |
-| `useLots(disease, controlType)`               | Manage lot metadata (list, create, archive)           |
-| `useRollingCV(odValues)`                      | Calculate rolling 10-run CV array for trend detection |
-| `useQCLogic`                                  | Existing composite hook — retain, extend as needed    |
-| `useToast`                                    | Existing toast hook — retain                          |
+Data access is generated by RTK Query, not hand-written. Import the generated
+hooks from `src/store/api/*Endpoints.ts`:
+
+| Hook | Purpose |
+| --- | --- |
+| `useGetEntriesQuery`, `useAddEntryMutation`, `useUpdateEntryMutation`, `useDeleteEntryMutation` | Entries for one disease/control/lot stream |
+| `useGetLotsQuery`, `useGetActiveLotQuery`, `useCreateLotMutation`, `useArchiveLotMutation` | Reagent lot metadata for positive/negative controls |
+| `useGetInHouseBatchesQuery`, `useGetActiveInHouseBatchQuery`, `useCreateInHouseBatchMutation`, `useArchiveInHouseBatchMutation` | In-house control batches |
+| `useGetViolationsQuery`, `useGetAllViolationsQuery`, `useAddViolationMutation`, `useAcknowledgeViolationMutation` | Violation log, per stream and across all streams |
+| `useGetStaffQuery`, `useGetStaffDirectoryQuery`, `useCreateStaffMemberMutation`, `useUpdateStaffMemberMutation` | Personnel roster |
+| `useGetSettingsQuery`, `useUpdateSettingsMutation` | App-wide settings |
+| `useGetDiseaseOverviewQuery` | Pre-derived all-controls summary for the disease overview |
+| `useGetLotRegistryQuery` | Cross-disease lot registry for the Lots page |
+
+Hand-written hooks in `src/hooks/`:
+
+| Hook | Purpose |
+| --- | --- |
+| `useAuth` | Facade over the auth slice — retain its return shape |
+| `useQCLogic` | Composite chart/statistics hook used by the monitor |
+| `useToast` | Toast facade over Sonner |
+| `useIsMobile` | Breakpoint check for the mobile layout |
+| `useRouteScrollRestoration` | Restores scroll position per route |
+
+There is no `useWestgard` and no `useRollingCV`. Rule evaluation, statistics,
+rolling CV, and CUSUM are pure functions in `src/utils/qc-calculations.ts` —
+call them directly and memoize at the call site.
 
 ---
 
 ## Current UI State
 
-What exists today:
+Verified against the working tree on 2026-08-27. When a change makes a line here
+wrong, fix it in the same change.
 
-- Landing page at `/monitor` with disease cards.
-- Disease overview page showing all 3 controls side by side.
-- Control monitor page reusing `QCDashboard.tsx` for a specific disease/control pair.
-- Seeded mock chart data per disease and control in `src/constants/monitor-config.ts`.
-- Run statistics grouped above the graph.
-- Input form above the chart, with current status beside it at the `lg` breakpoint.
-- `Protocol No.` input in the chart flow.
-- Manrope as the primary UI and chart font.
+### Built and wired
 
-What is still incomplete or transitional:
+- Login, PIN-based auth, role-gated routes via `ProtectedRoute`, session in an
+  auth slice.
+- Disease selector, disease overview, and the full control monitor.
+- Levey-Jennings, CUSUM, rolling-CV, and OD-distribution charts on the control
+  monitor; shared tokens in `src/utils/chart-theme.ts`.
+- The OD distribution panel is the only one that reads the runs as a population
+  rather than a sequence. It reports observed versus normal-theory occupancy of
+  each SD band plus sample skewness, which is how a bimodal or skewed stream — the
+  case where the SD-based Westgard limits describe a distribution the data does
+  not have — becomes visible at all.
+- Westgard evaluation on every submission, writing violations through the cache.
+- Submission form capturing OD, protocol number, lot/batch, performer and
+  validator. Performer is required, and the validator must be a different person.
+- Supervisor entry edit and delete with an audit reason, via `EditEntriesSheet`
+  on the control monitor.
+- Bench protocol workbook import to pre-fill entries.
+- Violation inbox at `/violations` — Open/All tabs plus a root-cause Pareto.
+- Cross-stream analytics at `/analytics`.
+- Lots page: lot and in-house batch creation, archival, cross-disease registry.
+- Personnel roster and staff profiles.
+- Reports page: CSV, Excel, and PDF export with the ZCMC letterhead and an A4
+  print preview.
+- Settings, tabbed, persisted to `qc_settings`.
+- Help page with a QC glossary.
+- shadcn/ui **is** installed — 25 primitives in `src/components/ui/`.
+- Redux Toolkit + RTK Query is the state layer. Every dataset `qcStorage` owns
+  sits behind an endpoint.
 
-- Chart data is still mock/seeded — not yet persisted per disease/control.
-- `History` and `Settings` are scaffolded route pages, not yet feature-complete.
-- `Violations` page does not yet exist — needs to be created.
-- Technician ID capture is a domain requirement not yet wired into submission UI.
-- Lot-based data isolation for Positive/Negative controls is designed but not yet
-  implemented in the UI.
-- Multi-user auth and role-based access are designed but not yet implemented.
-- Batch data entry is designed but not yet implemented.
-- Export modules (PNG, Excel, PDF) are designed but not yet implemented.
-- shadcn/ui is listed in the stack but not yet installed — install before using
-  any shadcn components.
+### Known gaps
+
+These are the real holes. Do not assume a feature works because a page exists.
+
+- **`/history` is a stub.** It renders placeholder copy only. The audit trail,
+  its filters, and expandable detail rows are unbuilt, and the `qc_audit_*`
+  records `qcStorage` writes have no reader anywhere in the UI. Several "Review
+  history" buttons link here and currently lead to a dead end.
+- **The violation loop does not close.** Violations are written and listed, but
+  nothing calls `useAcknowledgeViolationMutation`, and the monitor always writes
+  `correctiveAction: null`. There is no acknowledge form and no corrective-action
+  form. Consequence: the root-cause Pareto on `/violations` and `/analytics` is
+  charting **seeded history only** — `buildSeedViolations` synthesizes corrective
+  actions that live usage cannot yet produce.
+- **Sign-off can never be set.** `qcStorage` and the monitor both enforce the
+  lock (a signed entry refuses edit and delete), but no UI writes `signedBy`, so
+  every entry stays unsigned forever.
+- Entry data is still **seeded** from `src/constants/monitor-config.ts` on first
+  load rather than starting empty.
+- No Daily/Weekly toggle on the Levey-Jennings chart, which PRD 6.1 asks for.
+- Batch data entry is designed but not implemented.
 
 ---
 
@@ -570,8 +700,43 @@ What is still incomplete or transitional:
 
 - **Never access `localStorage` directly in components or hooks.**
   All reads and writes go through `src/lib/qcStorage.ts`.
-- `src/lib/westgard.ts`, `src/lib/statistics.ts` are pure functions — no React
-  imports, no side effects, fully unit-testable.
+- **Components read `qcStorage` through the store, not by importing it.**
+  Every dataset it owns — entries, lots, batches, violations, settings, staff —
+  is cached by `qcApi`. Add an endpoint in `src/store/api/` rather than calling
+  `qcStorage` from a component; a direct call is invisible to the cache and will
+  go stale the moment anything writes.
+  The one sanctioned exception is a point-in-time read needed to re-derive
+  Westgard rules before writing the violations they imply. It is commented where
+  it appears.
+- **Cache tags mirror storage keys.** `streamId` is the disease/control/lot
+  triple that keys the dataset; `controlId` covers every lot of one control, for
+  writes that change which lot is active. Never widen a tag to make an
+  invalidation work — that reintroduces the cross-disease refetching the tags
+  exist to prevent.
+- `src/utils/qc-calculations.ts` is the pure QC engine — Westgard evaluation,
+  statistics, rolling CV, and CUSUM. No React imports, no side effects, fully
+  unit-testable. There is no `westgard.ts` and no `statistics.ts`.
+
+### State Management
+
+Two kinds of state, kept apart on purpose:
+
+| State | Home | Examples |
+| --- | --- | --- |
+| Server state (owned by `qcStorage`) | `qcApi` cache | entries, violations, lots, batches, settings, staff |
+| Cross-cutting client state | Slices in `src/store/slices/` | auth session, violation inbox filters, report filters |
+| Local UI state | `useState` in the owning component | dialog open/closed, form drafts, upload progress |
+
+Do not move dialog or form state into the store. State that only one component
+reads gains nothing from being global and loses locality by moving.
+
+Read state with `useAppSelector` and `useAppDispatch` from `src/store/hooks.ts`,
+never the untyped `useSelector` / `useDispatch`.
+
+Cross-component refreshes are the cache's job. There is no event bus, and
+components must not add one — a write invalidates a tag and every subscriber
+refetches. Do not add manual reload counters or `window` events to force a
+refresh; if something is not refreshing, the tag map is wrong.
 
 ### Imports
 
@@ -604,6 +769,8 @@ These must not be violated without explicit discussion first.
 8. Do not access `localStorage` directly outside of `src/lib/qcStorage.ts`.
 9. Do not install additional UI component libraries beyond shadcn/ui without
    confirming with the user first.
+9b. Do not call `qcStorage` from a component. Go through an `qcApi` endpoint, and
+   do not reintroduce window events or reload counters to sync components.
 10. Do not use population SD (`/ n`). Always use sample SD (`/ (n - 1)`).
 11. Supervisor sign-off locks entries permanently until explicitly reversed.
     Never allow silent edits to signed records.
@@ -615,14 +782,18 @@ These must not be violated without explicit discussion first.
 ## Commands
 
 ```bash
+
 # Install dependencies
 npm install
 
 # Start dev server
 npm run dev
 
-# Type check
-npx tsc --noEmit
+# Type check — MUST be `tsc -b`.
+# tsconfig.json is a solution file: `"files": []` plus project references. Plain
+# `npx tsc --noEmit` therefore checks nothing at all and exits 0 on code that does
+# not compile. `tsc -b` is what `npm run build` runs, and the only honest check.
+npx tsc -b
 
 # Build for production
 npm run build

@@ -1,8 +1,16 @@
 import { WarningIcon } from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { getAllViolations } from '@/lib/qcStorage';
+import { useGetAllViolationsQuery } from '@/store/api/violationsEndpoints';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { ViolationParetoChart } from '@/components/chart/ViolationParetoChart';
+import {
+  selectFilteredViolations,
+  selectOpenViolations,
+  selectRootCauseTally,
+} from '@/store/selectors/violationSelectors';
+import { setViolationView } from '@/store/slices/violationFiltersSlice';
+import type { ViolationView } from '@/store/slices/violationFiltersSlice';
 import type { ViolationEntry } from '@/types/qc.types';
 
 import { Button } from '@/components/ui/button';
@@ -73,34 +81,13 @@ function ViolationTable({ violations }: { violations: ViolationEntry[] }) {
 }
 
 export function Violations() {
-  const [violations, setViolations] = useState<ViolationEntry[]>([]);
+  const dispatch = useAppDispatch();
+  const filters = useAppSelector((state) => state.violationFilters);
+  const { data: violations = [] } = useGetAllViolationsQuery();
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadViolations = async () => {
-      const allViolations = await getAllViolations();
-
-      if (!isCancelled) {
-        setViolations(allViolations);
-      }
-    };
-
-    void loadViolations();
-
-    const handleViolationRefresh = () => {
-      void loadViolations();
-    };
-
-    window.addEventListener('qc-violations-changed', handleViolationRefresh);
-
-    return () => {
-      isCancelled = true;
-      window.removeEventListener('qc-violations-changed', handleViolationRefresh);
-    };
-  }, []);
-
-  const openViolations = useMemo(() => violations.filter((violation) => !violation.acknowledged), [violations]);
+  const openViolations = selectOpenViolations(violations);
+  const filteredViolations = selectFilteredViolations(violations, filters);
+  const rootCauseTally = selectRootCauseTally(violations);
 
   return (
     <div className="space-y-6">
@@ -121,16 +108,31 @@ export function Violations() {
       </div>
 
       <div className="rounded-2xl border border-[#f0f0f0] bg-white p-6 shadow-[0_6px_18px_rgba(15,23,42,0.06)]">
-        <Tabs defaultValue="open" className="space-y-5">
+        <h2 className="text-[16px] font-semibold text-[#111827]">
+          What is actually causing rejections
+        </h2>
+        <p className="mt-1 max-w-3xl text-[13px] text-[#6b7280]">
+          Root causes recorded on acknowledged violations, ordered by how much of the
+          total each accounts for. The cumulative line shows how few causes explain
+          most of the failures.
+        </p>
+        <div className="mt-5">
+          <ViolationParetoChart tally={rootCauseTally} />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[#f0f0f0] bg-white p-6 shadow-[0_6px_18px_rgba(15,23,42,0.06)]">
+        <Tabs
+          value={filters.view}
+          onValueChange={(value) => dispatch(setViolationView(value as ViolationView))}
+          className="space-y-5"
+        >
           <TabsList className="bg-[#f3f4f6]">
             <TabsTrigger value="open">Open</TabsTrigger>
             <TabsTrigger value="all">All</TabsTrigger>
           </TabsList>
-          <TabsContent value="open">
-            <ViolationTable violations={openViolations} />
-          </TabsContent>
-          <TabsContent value="all">
-            <ViolationTable violations={violations} />
+          <TabsContent value={filters.view}>
+            <ViolationTable violations={filteredViolations} />
           </TabsContent>
         </Tabs>
       </div>

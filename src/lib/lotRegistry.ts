@@ -13,6 +13,15 @@ export type ExpiryState =
 export type LotShift = {
   previousId: string;
   meanDeltaPercent: number;
+  /**
+   * The mean shift measured in the previous lot's own SDs, signed.
+   *
+   * This is the number a supervisor actually signs a changeover against — a
+   * percentage means nothing without knowing how tightly that lot ran. It is
+   * also what `tone` is derived from, so exposing it lets the UI show the
+   * evidence rather than just the verdict.
+   */
+  meanDeltaSD: number;
   cvDelta: number;
   tone: 'neutral' | 'warning' | 'critical';
 };
@@ -78,6 +87,55 @@ function computeExpiry(
  * more than 2 SD of the old lot's own spread is worth a supervisor's attention.
  * Returns null when either side is too small to have a meaningful SD.
  */
+/** One side of a changeover, reduced to the numbers the grade depends on. */
+export type ShiftSide = {
+  id: string;
+  mean: number;
+  sd: number;
+  cv: number;
+  runCount: number;
+};
+
+/**
+ * Grades one changeover against the lot it replaced.
+ *
+ * This is the clinical rule, and it lives in exactly one place on purpose. The
+ * lot console and the control monitor both present it, and two copies of a
+ * threshold is how a QC app ends up telling a supervisor two different things
+ * about the same pair of lots.
+ *
+ * Returns null when either side is too small to have a meaningful SD.
+ */
+export function gradeShift(current: ShiftSide, previous: ShiftSide): LotShift | null {
+  if (current.runCount < 2 || previous.runCount < 2) {
+    return null;
+  }
+
+  if (previous.mean === 0 || previous.sd === 0) {
+    return null;
+  }
+
+  const meanDelta = current.mean - previous.mean;
+  const meanDeltaSD = meanDelta / previous.sd;
+  const shiftInSDs = Math.abs(meanDeltaSD);
+
+  return {
+    previousId: previous.id,
+    meanDeltaPercent: (meanDelta / previous.mean) * 100,
+    meanDeltaSD,
+    cvDelta: current.cv - previous.cv,
+    tone: shiftInSDs > 2 ? 'critical' : shiftInSDs > 1 ? 'warning' : 'neutral',
+  };
+}
+
+const toShiftSide = (stream: ExportStream): ShiftSide => ({
+  id: stream.partitionId,
+  mean: stream.statistics.mean,
+  sd: stream.statistics.sd,
+  cv: stream.cv,
+  runCount: stream.runCount,
+});
+
 function computeShift(record: ExportStream, streamsForControl: ExportStream[]): LotShift | null {
   const previous = streamsForControl
     .filter(
@@ -91,26 +149,7 @@ function computeShift(record: ExportStream, streamsForControl: ExportStream[]): 
     return null;
   }
 
-  if (record.runCount < 2 || previous.runCount < 2) {
-    return null;
-  }
-
-  const previousMean = previous.statistics.mean;
-  const previousSD = previous.statistics.sd;
-
-  if (previousMean === 0 || previousSD === 0) {
-    return null;
-  }
-
-  const meanDelta = record.statistics.mean - previousMean;
-  const shiftInSDs = Math.abs(meanDelta) / previousSD;
-
-  return {
-    previousId: previous.partitionId,
-    meanDeltaPercent: (meanDelta / previousMean) * 100,
-    cvDelta: record.cv - previous.cv,
-    tone: shiftInSDs > 2 ? 'critical' : shiftInSDs > 1 ? 'warning' : 'neutral',
-  };
+  return gradeShift(toShiftSide(record), toShiftSide(previous));
 }
 
 function buildControlKey(disease: string, controlType: string): string {

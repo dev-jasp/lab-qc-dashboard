@@ -2,6 +2,7 @@ import { Navigate, createBrowserRouter } from 'react-router-dom';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
+import { Analytics } from '@/pages/Analytics';
 import { ControlMonitor } from '@/pages/ControlMonitor';
 import { DiseaseOverview } from '@/pages/DiseaseOverview';
 import { DiseaseSelector } from '@/pages/DiseaseSelector';
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
       { path: '/help', element: <Help /> },
       { path: '/history', element: <History /> },
       { path: '/violations', element: <Violations /> },
+      { path: '/analytics', element: <Analytics /> },
       { path: '/settings', element: <Settings /> },
     ],
   },

@@ -1,4 +1,10 @@
-import { ArrowRightIcon, SlidersHorizontalIcon, StackIcon, UsersIcon } from "@phosphor-icons/react";
+import {
+  ArrowRightIcon,
+  ChartLineUpIcon,
+  SlidersHorizontalIcon,
+  StackIcon,
+  UsersIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -12,71 +18,75 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
-import { getSettings, getStaff, updateSettings } from "@/lib/qcStorage";
+import {
+  useGetSettingsQuery,
+  useGetStaffQuery,
+  useUpdateSettingsMutation,
+} from "@/store/api/settingsEndpoints";
 import type { StaffMember } from "@/types/qc.types";
 
+const EMPTY_STAFF: StaffMember[] = [];
+
 const MIN_WARNING_DAYS = 1;
+const MIN_CUSUM_LIMIT = 2;
+const MAX_CUSUM_LIMIT = 10;
 const MAX_WARNING_DAYS = 365;
 /** Select cannot hold an empty string value, so "nobody" needs a sentinel. */
 const NO_DEFAULT_STAFF = "__none__";
 
 export function Settings() {
+  const { data: settings, isLoading: isLoadingSettings } = useGetSettingsQuery();
+  const { data: staff = EMPTY_STAFF, isLoading: isLoadingStaff } = useGetStaffQuery();
+  const [updateSettingsMutation] = useUpdateSettingsMutation();
+
+  // The form is a draft of the stored settings, so it stays local state. It is
+  // seeded once the query resolves rather than on every render, otherwise typing
+  // would be overwritten by the value already in the cache.
   const [warningDays, setWarningDays] = useState("30");
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [cusumLimit, setCusumLimit] = useState("5");
   const [defaultStaffId, setDefaultStaffId] = useState(NO_DEFAULT_STAFF);
   const [defaultValidatorId, setDefaultValidatorId] = useState(NO_DEFAULT_STAFF);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { success, error } = useToast();
+  const isLoading = isLoadingSettings || isLoadingStaff;
 
   useEffect(() => {
-    let isCancelled = false;
+    if (settings === undefined) {
+      return;
+    }
 
-    const loadSettings = async () => {
-      try {
-        const [settings, roster] = await Promise.all([getSettings(), getStaff()]);
-
-        if (!isCancelled) {
-          setWarningDays(String(settings.lotExpiryWarningDays));
-          setStaff(roster);
-          setDefaultStaffId(
-            roster.some((member) => member.id === settings.defaultPreparedBy)
-              ? settings.defaultPreparedBy
-              : NO_DEFAULT_STAFF,
-          );
-          setDefaultValidatorId(
-            roster.some((member) => member.id === settings.defaultValidatedBy)
-              ? settings.defaultValidatedBy
-              : NO_DEFAULT_STAFF,
-          );
-        }
-      } catch (caughtError) {
-        if (!isCancelled) {
-          error(
-            caughtError instanceof Error
-              ? caughtError.message
-              : "Unable to load QC settings.",
-          );
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadSettings();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [error]);
+    setWarningDays(String(settings.lotExpiryWarningDays));
+    setCusumLimit(String(settings.cusumLimitMultiplier));
+    setDefaultStaffId(
+      staff.some((member) => member.id === settings.defaultPreparedBy)
+        ? settings.defaultPreparedBy
+        : NO_DEFAULT_STAFF,
+    );
+    setDefaultValidatorId(
+      staff.some((member) => member.id === settings.defaultValidatedBy)
+        ? settings.defaultValidatedBy
+        : NO_DEFAULT_STAFF,
+    );
+  }, [settings, staff]);
 
   const handleSave = async () => {
     const parsedDays = Number(warningDays);
 
     if (!Number.isInteger(parsedDays) || parsedDays < MIN_WARNING_DAYS || parsedDays > MAX_WARNING_DAYS) {
       error(`Expiry warning must be a whole number between ${MIN_WARNING_DAYS} and ${MAX_WARNING_DAYS} days.`);
+      return;
+    }
+
+    const parsedCusumLimit = Number(cusumLimit);
+
+    if (
+      !Number.isFinite(parsedCusumLimit) ||
+      parsedCusumLimit < MIN_CUSUM_LIMIT ||
+      parsedCusumLimit > MAX_CUSUM_LIMIT
+    ) {
+      error(
+        `CUSUM limit must be between ${MIN_CUSUM_LIMIT} and ${MAX_CUSUM_LIMIT} standard deviations.`,
+      );
       return;
     }
 
@@ -90,12 +100,13 @@ export function Settings() {
 
     setIsSaving(true);
     try {
-      await updateSettings({
+      await updateSettingsMutation({
         lotExpiryWarningDays: parsedDays,
+        cusumLimitMultiplier: parsedCusumLimit,
         defaultPreparedBy: defaultStaffId === NO_DEFAULT_STAFF ? "" : defaultStaffId,
         defaultValidatedBy:
           defaultValidatorId === NO_DEFAULT_STAFF ? "" : defaultValidatorId,
-      });
+      }).unwrap();
       success("Lab configuration saved.");
     } catch (caughtError) {
       error(
@@ -143,6 +154,36 @@ export function Settings() {
                 onChange={(event) => setWarningDays(event.target.value)}
                 className="h-11 w-32 border-[#e5e7eb] bg-white px-3 text-[#111827]"
               />
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-[#f0f0f0] pt-6">
+            <div className="mb-3 flex items-center gap-2 text-[#1a1aff]">
+              <ChartLineUpIcon size={18} />
+              <span className="text-[16px] font-semibold">CUSUM decision interval</span>
+            </div>
+            <p className="text-sm leading-7 text-[#6b7280]">
+              How far the cumulative deviation may run, in multiples of the stream&apos;s
+              SD, before a drift is called a systematic shift. Lower detects drift
+              sooner and raises more false alarms. The clinical default is 5.
+            </p>
+
+            <div className="mt-5 flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.05em] text-[#6b7280]">
+                  Limit (× SD)
+                </label>
+                <Input
+                  type="number"
+                  min={MIN_CUSUM_LIMIT}
+                  max={MAX_CUSUM_LIMIT}
+                  step={0.5}
+                  value={cusumLimit}
+                  disabled={isLoading}
+                  onChange={(event) => setCusumLimit(event.target.value)}
+                  className="h-11 w-32 border-[#e5e7eb] bg-white px-3 text-[#111827]"
+                />
+              </div>
             </div>
           </div>
 

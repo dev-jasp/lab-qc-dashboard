@@ -7,7 +7,8 @@ import {
   getControlDefinition,
   getDiseaseDefinition,
 } from '@/constants/monitor-config';
-import { getAllViolations } from '@/lib/qcStorage';
+import { useGetAllViolationsQuery } from '@/store/api/violationsEndpoints';
+import { selectOpenRejectionCount } from '@/store/selectors/violationSelectors';
 
 import {
   Breadcrumb,
@@ -104,39 +105,11 @@ function buildSegments(pathname: string): BreadcrumbSegment[] {
 export function DashboardHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [openViolationCount, setOpenViolationCount] = React.useState(0);
+  const { data: allViolations } = useGetAllViolationsQuery();
+  const openViolationCount = selectOpenRejectionCount(allViolations);
   const segments = React.useMemo(() => buildSegments(location.pathname), [location.pathname]);
   const currentSegment = segments[segments.length - 1];
   const mobileParentSegment = segments.length > 2 ? segments[segments.length - 2] : null;
-
-  React.useEffect(() => {
-    let isCancelled = false;
-
-    const loadOpenViolationCount = async () => {
-      const allViolations = await getAllViolations();
-
-      if (isCancelled) {
-        return;
-      }
-
-      setOpenViolationCount(
-        allViolations.filter((violation) => !violation.acknowledged && violation.severity === 'rejection').length,
-      );
-    };
-
-    void loadOpenViolationCount();
-
-    const handleViolationRefresh = () => {
-      void loadOpenViolationCount();
-    };
-
-    window.addEventListener('qc-violations-changed', handleViolationRefresh);
-
-    return () => {
-      isCancelled = true;
-      window.removeEventListener('qc-violations-changed', handleViolationRefresh);
-    };
-  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-[#f0f0f0] bg-white px-4 sm:px-6">

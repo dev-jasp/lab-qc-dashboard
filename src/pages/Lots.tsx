@@ -1,9 +1,10 @@
 import { ArchiveIcon, PlusCircleIcon, StackIcon } from '@phosphor-icons/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { LotAttentionPanel } from '@/components/lots/LotAttentionPanel';
 import { LotFormDialog, type LotTarget } from '@/components/lots/LotFormDialog';
+import { LotComparisonSheet } from '@/components/lots/LotComparisonSheet';
 import { LotTable } from '@/components/lots/LotTable';
 import {
   AlertDialog,
@@ -18,15 +19,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { controlTypeToTabSlug, DISEASE_DEFINITIONS } from '@/constants/monitor-config';
 import { useToast } from '@/hooks/useToast';
-import { buildLotRegistry, type LotRecord, type LotRegistry } from '@/lib/lotRegistry';
+import { type LotRecord, type LotRegistry } from '@/lib/lotRegistry';
 import type { LotFormValues } from '@/lib/lotValidation';
 import {
-  archiveInHouseBatch,
-  archiveLot,
-  createInHouseBatch,
-  createLot,
-  getSettings,
-} from '@/lib/qcStorage';
+  useArchiveInHouseBatchMutation,
+  useArchiveLotMutation,
+  useCreateInHouseBatchMutation,
+  useCreateLotMutation,
+} from '@/store/api/lotsEndpoints';
+import { useGetLotRegistryQuery } from '@/store/api/overviewEndpoints';
+import { useGetSettingsQuery } from '@/store/api/settingsEndpoints';
 import type { DiseaseSlug } from '@/types/qc.types';
 import { cn } from '@/utils/cn';
 
@@ -46,54 +48,27 @@ function getTodayIsoDate(): string {
 }
 
 export function Lots() {
-  const [registry, setRegistry] = useState<LotRegistry>(EMPTY_REGISTRY);
-  const [warningDays, setWarningDays] = useState(30);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: settings } = useGetSettingsQuery();
+  const warningDays = settings?.lotExpiryWarningDays ?? 30;
+  // The registry is derived from the expiry window, so it is keyed by it: changing
+  // the setting produces a different cache entry rather than a stale one.
+  const { data: registry = EMPTY_REGISTRY, isLoading } = useGetLotRegistryQuery(warningDays, {
+    skip: settings === undefined,
+  });
+
+  const [createLotMutation] = useCreateLotMutation();
+  const [archiveLotMutation] = useArchiveLotMutation();
+  const [createInHouseBatchMutation] = useCreateInHouseBatchMutation();
+  const [archiveInHouseBatchMutation] = useArchiveInHouseBatchMutation();
+
   const [selectedDisease, setSelectedDisease] = useState<DiseaseSlug | 'all'>('all');
   const [showArchived, setShowArchived] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formTarget, setFormTarget] = useState<LotTarget | null>(null);
   const [pendingArchive, setPendingArchive] = useState<LotRecord | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
+  const [comparisonRecord, setComparisonRecord] = useState<LotRecord | null>(null);
   const navigate = useNavigate();
   const { success, error } = useToast();
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadRegistry = async () => {
-      setIsLoading(true);
-      try {
-        const settings = await getSettings();
-        const nextRegistry = await buildLotRegistry(settings.lotExpiryWarningDays);
-
-        if (!isCancelled) {
-          setWarningDays(settings.lotExpiryWarningDays);
-          setRegistry(nextRegistry);
-        }
-      } catch (caughtError) {
-        if (!isCancelled) {
-          error(
-            caughtError instanceof Error
-              ? caughtError.message
-              : 'Unable to load the lot registry.',
-          );
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadRegistry();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [error, reloadToken]);
-
-  const refresh = useCallback(() => setReloadToken((token) => token + 1), []);
 
   const visibleActive = useMemo(
     () =>
@@ -141,27 +116,33 @@ export function Lots() {
 
       try {
         if (target.controlType === 'in-house-control') {
-          await createInHouseBatch(target.disease, {
-            batchId: values.lotNumber,
-            startDate: values.startDate,
-            endDate: null,
-            status: 'active',
-            notes,
-          });
+          await createInHouseBatchMutation({
+            disease: target.disease,
+            batch: {
+              batchId: values.lotNumber,
+              startDate: values.startDate,
+              endDate: null,
+              status: 'active',
+              notes,
+            },
+          }).unwrap();
           success(`In-house batch ${values.lotNumber} is now active.`);
         } else {
-          await createLot(target.disease, target.controlType, {
-            lotNumber: values.lotNumber,
-            startDate: values.startDate,
-            endDate: null,
-            expiryDate: values.expiryDate,
-            status: 'active',
-            notes,
-          });
+          await createLotMutation({
+            disease: target.disease,
+            controlType: target.controlType,
+            lot: {
+              lotNumber: values.lotNumber,
+              startDate: values.startDate,
+              endDate: null,
+              expiryDate: values.expiryDate,
+              status: 'active',
+              notes,
+            },
+          }).unwrap();
           success(`Lot ${values.lotNumber} is now active.`);
         }
 
-        refresh();
         return true;
       } catch (caughtError) {
         error(
@@ -170,7 +151,7 @@ export function Lots() {
         return false;
       }
     },
-    [error, refresh, success],
+    [createInHouseBatchMutation, createLotMutation, error, success],
   );
 
   const handleConfirmArchive = useCallback(async () => {
@@ -182,19 +163,25 @@ export function Lots() {
 
     try {
       if (record.partitionKind === 'batch') {
-        await archiveInHouseBatch(record.disease, record.partitionId);
+        await archiveInHouseBatchMutation({
+          disease: record.disease,
+          batchId: record.partitionId,
+        }).unwrap();
       } else {
-        await archiveLot(record.disease, record.controlType, record.partitionId);
+        await archiveLotMutation({
+          disease: record.disease,
+          controlType: record.controlType,
+          lotNumber: record.partitionId,
+        }).unwrap();
       }
 
       success(`${record.partitionId} archived.`);
-      refresh();
     } catch (caughtError) {
       error(caughtError instanceof Error ? caughtError.message : 'Unable to archive.');
     } finally {
       setPendingArchive(null);
     }
-  }, [error, pendingArchive, refresh, success]);
+  }, [archiveInHouseBatchMutation, archiveLotMutation, error, pendingArchive, success]);
 
   const attentionCount = registry.attention.length;
 
@@ -299,6 +286,7 @@ export function Lots() {
               onStartReplacement={(record) =>
                 openForm({ disease: record.disease, controlType: record.controlType })
               }
+              onCompare={setComparisonRecord}
               onArchive={setPendingArchive}
               emptyMessage="No active lots for this filter."
             />
@@ -329,6 +317,7 @@ export function Lots() {
                     onStartReplacement={(record) =>
                       openForm({ disease: record.disease, controlType: record.controlType })
                     }
+                    onCompare={setComparisonRecord}
                     onArchive={setPendingArchive}
                     emptyMessage="No archived lots for this filter."
                   />
@@ -346,6 +335,18 @@ export function Lots() {
         defaultStartDate={getTodayIsoDate()}
         onInvalid={error}
         onSubmit={handleCreate}
+      />
+
+      {/* Fed from the full registry rather than the filtered view: comparing a
+          lot against the one it replaced must work even when a filter hides it. */}
+      <LotComparisonSheet
+        record={comparisonRecord}
+        records={registry.records}
+        onOpenChange={(open) => {
+          if (!open) {
+            setComparisonRecord(null);
+          }
+        }}
       />
 
       <AlertDialog

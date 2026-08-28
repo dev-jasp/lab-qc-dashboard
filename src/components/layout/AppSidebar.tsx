@@ -2,6 +2,7 @@ import {
   ArrowRightIcon,
   BellIcon,
   CaretDownIcon,
+  ChartLineUpIcon,
   ClockIcon,
   FileTextIcon,
   GearIcon,
@@ -19,7 +20,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { DISEASE_DEFINITIONS } from "@/constants/monitor-config";
 import { useAuth } from "@/hooks/useAuth";
-import { getAllViolations } from "@/lib/qcStorage";
+import { useGetAllViolationsQuery } from "@/store/api/violationsEndpoints";
+import { selectOpenRejectionCount } from "@/store/selectors/violationSelectors";
 import type { DiseaseSlug } from "@/types/qc.types";
 import { cn } from "@/utils/cn";
 
@@ -83,6 +85,7 @@ const SYSTEM_ROUTES: SystemRoute[] = [
   { href: "/personnel", icon: UsersIcon, label: "Personnel" },
   { href: "/history", icon: ClockIcon, label: "History" },
   { href: "/violations", icon: WarningIcon, label: "Violations" },
+  { href: "/analytics", icon: ChartLineUpIcon, label: "Analytics" },
   { href: "/settings", icon: GearIcon, label: "Settings" },
 ];
 
@@ -227,7 +230,8 @@ export function AppSidebar() {
   const { open, isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const { user, signOut } = useAuth();
   const [mounted, setMounted] = React.useState(false);
-  const [openViolationCount, setOpenViolationCount] = React.useState(0);
+  const { data: allViolations } = useGetAllViolationsQuery();
+  const openViolationCount = selectOpenRejectionCount(allViolations);
   const activeDisease = getActiveDisease(location.pathname);
   const [diseasesFlyoutTop, setDiseasesFlyoutTop] = React.useState<number | null>(null);
   const showFlyoutTimer = React.useRef<number | null>(null);
@@ -240,41 +244,6 @@ export function AppSidebar() {
       window.clearTimeout(timer);
     };
   }, []);
-
-  React.useEffect(() => {
-    let isCancelled = false;
-
-    const loadSidebarMeta = async () => {
-      const allViolations = await getAllViolations();
-
-      if (isCancelled) {
-        return;
-      }
-
-      setOpenViolationCount(
-        allViolations.filter(
-          (violation) =>
-            !violation.acknowledged && violation.severity === "rejection",
-        ).length,
-      );
-    };
-
-    void loadSidebarMeta();
-
-    const handleViolationRefresh = () => {
-      void loadSidebarMeta();
-    };
-
-    window.addEventListener("qc-violations-changed", handleViolationRefresh);
-
-    return () => {
-      isCancelled = true;
-      window.removeEventListener(
-        "qc-violations-changed",
-        handleViolationRefresh,
-      );
-    };
-  }, [location.pathname]);
 
   React.useEffect(() => {
     if (open || isMobile) {

@@ -1,6 +1,7 @@
 import {
   ArchiveIcon,
   ArrowRightIcon,
+  ChartBarIcon,
   DotsThreeIcon,
   PlusCircleIcon,
   TrendDownIcon,
@@ -38,6 +39,7 @@ interface LotTableProps {
   variant: LotTableVariant;
   onOpenMonitor: (record: LotRecord) => void;
   onStartReplacement: (record: LotRecord) => void;
+  onCompare: (record: LotRecord) => void;
   onArchive: (record: LotRecord) => void;
   emptyMessage: string;
 }
@@ -112,6 +114,7 @@ export function LotTable({
   variant,
   onOpenMonitor,
   onStartReplacement,
+  onCompare,
   onArchive,
   emptyMessage,
 }: LotTableProps) {
@@ -186,6 +189,12 @@ export function LotTable({
                   <DropdownMenuItem onSelect={() => onOpenMonitor(record)}>
                     <ArrowRightIcon size={15} />
                     Open monitor
+                  </DropdownMenuItem>
+                  {/* Offered on retired lots too: verifying a changeover is just
+                      as often done looking back from the lot that replaced it. */}
+                  <DropdownMenuItem onSelect={() => onCompare(record)}>
+                    <ChartBarIcon size={15} />
+                    Compare lots
                   </DropdownMenuItem>
                   {isActive && (
                     <>
